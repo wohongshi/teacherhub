@@ -371,7 +371,7 @@ document.getElementById('themebtn').addEventListener('click',function(){var t=do
   async function loadBoard(){
     try{
       var r=await fetch('/api/board');var j=await r.json();var list=j.board||[];
-      bl.innerHTML=list.length?list.map(function(m){return '<div class="bmsg"><span class="bn">'+esc(m.name)+'</span>'+esc(m.text)+'<span class="bt">'+timeAgo(m.at)+' <a class="like" data-id="'+esc(m.id)+'" href="javascript:void(0)">👍 '+(m.likes||0)+'</a></span></div>'}).join(''):'<div class="empty">还没有留言，来说两句</div>';
+      bl.innerHTML=list.length?list.map(function(m){return '<div class="bmsg"><span class="bn">'+esc(m.name)+'</span>'+esc(m.text)+'<span class="bt">'+timeAgo(m.at)+(m.id?' <a class="like" data-id="'+esc(m.id)+'" href="javascript:void(0)">👍 '+(m.likes||0)+'</a>':'')+'</span></div>'}).join(''):'<div class="empty">还没有留言，来说两句</div>';
     }catch(e){}
   }
   document.getElementById('bsend').addEventListener('click',async function(){

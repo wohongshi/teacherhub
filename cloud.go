@@ -88,6 +88,11 @@ func openStore(dir, key string) (*cloudStore, error) {
 	if s.data.Workbenches == nil {
 		s.data.Workbenches = []Workbench{}
 	}
+	for i := range s.data.Board { // 迁移：ID 字段加入前的旧留言补 ID
+		if s.data.Board[i].ID == "" {
+			s.data.Board[i].ID = randToken()[:8]
+		}
+	}
 	return s, s.save()
 }
 
