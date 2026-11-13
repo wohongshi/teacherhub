@@ -46,8 +46,10 @@ type Workbench struct {
 
 // BoardMsg 留言墙条目（开放留言，限速防刷）。
 type BoardMsg struct {
+	ID   string `json:"id"`
 	Name string `json:"name"`
 	Text string `json:"text"`
+	Likes int   `json:"likes"`
 	At   int64  `json:"at"`
 }
 
@@ -59,15 +61,17 @@ type cloudStore struct {
 		Contribs    []Contrib   `json:"contribs"`
 		Workbenches []Workbench `json:"workbenches"`
 		Board       []BoardMsg  `json:"board,omitempty"`
+		Notice      string      `json:"notice,omitempty"`
 	}
 	boardLast map[string]int64 // IP → 上次留言时间（内存限速）
+	boardLikes map[string]bool  // ip|msgID → 已赞
 }
 
 func openStore(dir, key string) (*cloudStore, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "artifacts"), 0o755); err != nil {
 		return nil, err
 	}
-	s := &cloudStore{dir: dir, boardLast: map[string]int64{}}
+	s := &cloudStore{dir: dir, boardLast: map[string]int64{}, boardLikes: map[string]bool{}}
 	b, err := os.ReadFile(filepath.Join(dir, "store.json"))
 	if err == nil {
 		_ = json.Unmarshal(b, &s.data)
@@ -514,7 +518,7 @@ func cmdServe(args []string) {
 			if nr := []rune(in.Name); len(nr) > 16 {
 				in.Name = string(nr[:16])
 			}
-			st.data.Board = append(st.data.Board, BoardMsg{Name: in.Name, Text: in.Text, At: now})
+			st.data.Board = append(st.data.Board, BoardMsg{ID: randToken()[:8], Name: in.Name, Text: in.Text, At: now})
 			if len(st.data.Board) > 200 {
 				st.data.Board = st.data.Board[len(st.data.Board)-200:]
 			}
@@ -536,6 +540,79 @@ func cmdServe(args []string) {
 			list = list[:30]
 		}
 		writeJSON(w, 200, map[string]any{"ok": true, "board": list})
+	})
+
+	// 公告：GET 免 key；POST/DELETE 须统一 key（text 空 = 撤下）
+	mux.HandleFunc("/api/notice", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			got := r.Header.Get("X-Access-Key")
+			if got == "" {
+				got = r.URL.Query().Get("key")
+			}
+			if got != st.data.Key {
+				writeJSON(w, 401, map[string]any{"ok": false, "error": "写操作需要统一访问 key"})
+				return
+			}
+			var in struct {
+				Text string `json:"text"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "请求体解析失败"})
+				return
+			}
+			st.mu.Lock()
+			st.data.Notice = strings.TrimSpace(in.Text)
+			_ = st.save()
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true})
+			return
+		}
+		st.mu.Lock()
+		text := st.data.Notice
+		st.mu.Unlock()
+		writeJSON(w, 200, map[string]any{"ok": true, "notice": text})
+	})
+
+	// 留言点赞：免 key，每 IP 每条限一赞
+	mux.HandleFunc("/api/board/like", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			ID string `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == "" {
+			writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 id"})
+			return
+		}
+		ip := r.Header.Get("CF-Connecting-IP")
+		if ip == "" {
+			ip = r.RemoteAddr
+			if i := strings.LastIndex(ip, ":"); i > 0 {
+				ip = ip[:i]
+			}
+		}
+		key := ip + "|" + in.ID
+		st.mu.Lock()
+		if st.boardLikes == nil {
+			st.boardLikes = map[string]bool{}
+		}
+		if st.boardLikes[key] {
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true, "already": true})
+			return
+		}
+		st.boardLikes[key] = true
+		liked := false
+		for i := range st.data.Board {
+			if st.data.Board[i].ID == in.ID {
+				st.data.Board[i].Likes++
+				liked = true
+				break
+			}
+		}
+		if liked {
+			_ = st.save()
+		}
+		st.mu.Unlock()
+		writeJSON(w, 200, map[string]any{"ok": true})
 	})
 
 	// RSS 订阅：新产物 feed（免 key）

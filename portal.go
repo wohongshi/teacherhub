@@ -154,7 +154,31 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   .wb .meta{font-size:12px}
   .cols>aside{margin-top:0}
 }
+html[data-theme=dark]{--paper:#12161a;--panel:#1c2229;--ink:#e7ecef;--muted:#95a1a8;--line:#2b333b;--accent:#5db4c2;--accent-soft:#22343c;--amber:#e0954f}
+html[data-theme=dark] body{background:var(--paper);color:var(--ink)}
+html[data-theme=dark] .hero{background:linear-gradient(135deg,#0c272d,#16454e)}
+html[data-theme=dark] .card,html[data-theme=dark] .wb{background:var(--panel);border-color:var(--line)}
+html[data-theme=dark] .wb:hover{border-color:#3d4b54;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+html[data-theme=dark] .fav{filter:grayscale(1) brightness(2.2);opacity:.5}
+html[data-theme=dark] .fav.on{filter:none;opacity:1}
+html[data-theme=dark] #qdrop{background:var(--panel);border-color:var(--line)}
+html[data-theme=dark] .fchip,html[data-theme=dark] .sbtn,html[data-theme=dark] .boardform input,html[data-theme=dark] .boardform button,html[data-theme=dark] .qitem{background:#222a32;border-color:#2e3740;color:#c4ced4}
+html[data-theme=dark] .fchip.on,html[data-theme=dark] .sbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+html[data-theme=dark] .search input{background:#222a32;color:var(--ink)}
+html[data-theme=dark] .search button{background:#2e3740;color:#d7e2e6}
+html[data-theme=dark] .tag,html[data-theme=dark] .trow .cnt{background:var(--accent-soft);color:#8fc7d1}
+html[data-theme=dark] .bmsg{border-color:#2b333b}
+html[data-theme=dark] .pv{background:#222a32}
+html[data-theme=dark] .stat b{color:#fff}
+#lightbox{position:fixed;inset:0;background:rgba(10,14,18,.82);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}
+#lightbox img{max-width:88%;max-height:84%;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+.noticebar{background:var(--amber);color:#fff;text-align:center;padding:9px 16px;font-size:13px;font-weight:600}
+html[data-theme=dark] .noticebar{background:#8a5a22}
+.like{text-decoration:none;color:var(--accent);margin-left:8px;font-size:11px;cursor:pointer}
+.like:hover{text-decoration:underline}
+.themebtn{position:fixed;right:16px;bottom:16px;z-index:60;width:46px;height:46px;border-radius:50%;font-size:20px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer}
 </style></head><body>
+<button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
 <header class="hero"><div class="wrap">
   <div class="brand"><span class="logo">📚</span><span>教研工作台 · 教研组共享</span></div>
   <h1>教研成果，一处共享</h1>
@@ -166,6 +190,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     <div class="stat"><b>` + fmt.Sprint(len(wbs)) + `</b><span>工作台产物</span></div>
   </div>
 </div></header>
+<div class="noticebar" id="noticebar" style="display:none">📢 <span id="noticetext"></span></div>
 <main><div class="wrap"><div class="cols">
   <section>
     <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span><div class="sbtns" id="sortbtns"><button class="sbtn on" data-sort="new">最新</button><button class="sbtn" data-sort="hot">最热</button></div></h2>`)
@@ -229,6 +254,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     </div>
   </aside>
 </div></div></main>
+<div id="lightbox"><img alt=""></div>
 <footer>教研工作台 · 零账号 · 浏览免 key · 写入走统一 key · <a href="/feed.xml" style="color:inherit">RSS 订阅</a></footer>
 <script>
 (function(){
@@ -319,7 +345,21 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     e.preventDefault();q.value=it.textContent;drop.style.display='none';search();
   });
   document.addEventListener('click',function(e){if(!e.target.closest('.search'))drop.style.display='none'});
-  /* 数字滚动 */
+  /* 预览图大图 */
+grid.addEventListener('click',function(e){
+  var img=e.target.closest('img.pv');if(!img)return;
+  e.preventDefault();e.stopPropagation();
+  var lb=document.getElementById('lightbox');lb.querySelector('img').src=img.src;lb.style.display='flex';
+});
+document.getElementById('lightbox').addEventListener('click',function(){this.style.display='none'});
+/* 深色模式 */
+(function(){var K='th_theme';
+function ap(t){document.documentElement.setAttribute('data-theme',t);var b=document.getElementById('themebtn');if(b)b.textContent=t==='dark'?'\u2600\uFE0F':'\uD83C\uDF19'}
+var s=null;try{s=localStorage.getItem(K)}catch(e){}
+ap(s||(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+document.getElementById('themebtn').addEventListener('click',function(){var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';try{localStorage.setItem(K,t)}catch(e){}ap(t)});
+})();
+/* 数字滚动 */
   document.querySelectorAll('.stat b').forEach(function(b){
     var target=parseInt(b.textContent,10)||0,t0=null;
     function step(ts){if(!t0)t0=ts;var p=Math.min((ts-t0)/700,1);b.textContent=Math.round(target*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(step)}
@@ -331,7 +371,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   async function loadBoard(){
     try{
       var r=await fetch('/api/board');var j=await r.json();var list=j.board||[];
-      bl.innerHTML=list.length?list.map(function(m){return '<div class="bmsg"><span class="bn">'+esc(m.name)+'</span>'+esc(m.text)+'<span class="bt">'+timeAgo(m.at)+'</span></div>'}).join(''):'<div class="empty">还没有留言，来说两句</div>';
+      bl.innerHTML=list.length?list.map(function(m){return '<div class="bmsg"><span class="bn">'+esc(m.name)+'</span>'+esc(m.text)+'<span class="bt">'+timeAgo(m.at)+' <a class="like" data-id="'+esc(m.id)+'" href="javascript:void(0)">👍 '+(m.likes||0)+'</a></span></div>'}).join(''):'<div class="empty">还没有留言，来说两句</div>';
     }catch(e){}
   }
   document.getElementById('bsend').addEventListener('click',async function(){
@@ -345,6 +385,12 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     }catch(e){alert('网络异常，稍后再试')}
   });
   loadBoard();
+  bl.addEventListener('click',async function(e){
+    var a=e.target.closest('.like');if(!a)return;
+    e.preventDefault();
+    try{var r=await fetch('/api/board/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:a.getAttribute('data-id')})});var j=await r.json();if(j.ok)loadBoard()}catch(err){}
+  });
+  (async function(){try{var r=await fetch('/api/notice');var j=await r.json();if(j.notice){document.getElementById('noticetext').textContent=j.notice;document.getElementById('noticebar').style.display='block'}}catch(e){}})();
   btn.addEventListener('click',search);
   q.addEventListener('keydown',function(e){if(e.key==='Enter')search()});
   syncFavs();

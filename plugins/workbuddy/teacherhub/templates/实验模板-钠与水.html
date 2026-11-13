@@ -72,6 +72,21 @@ body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
 body.focus .top .sub,body.focus .foot{display:none}
 @media(max-width:920px){.wrap{grid-template-columns:1fr}button{min-height:46px}.kbd-hint{display:none}.ctrl{gap:10px}}
 @media print{.top .sub,.ctrl,.scrub-row,.kbd-hint,.foot,.presets{display:none!important}.wrap{grid-template-columns:1fr;max-width:none}canvas#stage{width:100%}}
+
+html[data-theme=dark]{--bg:#151a1f;--panel:#1d232a;--ink:#e6ebee;--muted:#96a2aa;--theme:#4d9db3;--theme2:#6cb6c9;--accent-soft:#223038;--warn:#e07b52;--warn-soft:#38221c}
+html[data-theme=dark] body{background:var(--bg);color:var(--ink)}
+html[data-theme=dark] button{background:#232b33;border-color:#303a43;color:#ccd4da}
+html[data-theme=dark] button.primary{background:var(--theme);border-color:var(--theme);color:#fff}
+html[data-theme=dark] .chip{background:#232b33;border-color:#303a43;color:#aab4bb}
+html[data-theme=dark] .chip.on{background:var(--theme);border-color:var(--theme);color:#fff}
+html[data-theme=dark] .ro{background:#232b33}
+html[data-theme=dark] .card,html[data-theme=dark] .danger{background:#1d232a;border-color:#2c343c}
+html[data-theme=dark] .theory{color:#c3ccd2}
+html[data-theme=dark] .theory .eq,html[data-theme=dark] .tips{background:#223038;border-color:#30424c;color:#cfe3e8}
+html[data-theme=dark] .danger p{color:#e8b39a}
+html[data-theme=dark] .kbd-hint,html[data-theme=dark] .foot{color:#77828a}
+html[data-theme=dark] input[type=range]{filter:brightness(.92)}
+.themebtn{position:fixed;right:14px;bottom:14px;z-index:60;width:44px;height:44px;border-radius:50%;font-size:19px;box-shadow:0 6px 18px rgba(0,0,0,.22);padding:0}
 </style>
 </head>
 <body>
@@ -90,7 +105,7 @@ body.focus .top .sub,body.focus .foot{display:none}
         <button id="prev" class="ghost" title="上一帧">◀ 上帧</button>
         <button id="next" class="ghost" title="下一帧">下帧 ▶</button>
         <button id="spd" class="ghost">速度 ×1</button>
-        <span class="vsep"></span><button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
+        <span class="vsep"></span><button id="csv" class="ghost" title="导出数据 CSV">📊 数据</button><button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
         <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
         <div class="clock"><span id="clock">0.0 s</span></div>
       </div>
@@ -123,6 +138,7 @@ body.focus .top .sub,body.focus .foot{display:none}
     </div>
   </aside>
 </main>
+<button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
 <footer class="foot">虚拟实验仅供教学演示，模拟数值为教学化简化，非真实测量数据。<br>确定性模拟 · 单文件 · 离线可用</footer>
 <script>
 "use strict";
@@ -524,6 +540,21 @@ function focusMode(){
     document.exitFullscreen().catch(function(){});
   }
 }
+function exportCSV(){
+  var head=["时刻(s)"],sample=MODULE.readouts(MODULE.params,0);
+  for(var i=0;i<sample.length;i++)head.push(sample[i].l);
+  var lines=[head.join(",")];
+  for(var t=0;t<=MODULE.duration+0.001;t+=0.5){
+    var vals=MODULE.readouts(MODULE.params,t),row=[t.toFixed(1)];
+    for(var j=0;j<vals.length;j++)row.push('"'+String(vals[j].v).replace(/"/g,'""')+'"');
+    lines.push(row.join(","));
+  }
+  var a=document.createElement('a');
+  a.download=MODULE.title+'-数据.csv';
+  a.href=URL.createObjectURL(new Blob(["\ufeff"+lines.join("\n")],{type:'text/csv'}));
+  a.click();
+}
+$("csv").onclick=exportCSV;
 $("shot").onclick = shot;
 $("focus").onclick = focusMode;
 document.addEventListener('keydown', e => {
@@ -535,6 +566,14 @@ document.addEventListener('keydown', e => {
   else if (e.key === 's' || e.key === 'S'){ shot(); }
   else if (e.key === 'f' || e.key === 'F'){ focusMode(); }
 });
+
+/* ---- 深色模式 ---- */
+(function(){var K='th_theme';
+function ap(t){document.documentElement.setAttribute('data-theme',t);var b=document.getElementById('themebtn');if(b)b.textContent=t==='dark'?'\u2600\uFE0F':'\uD83C\uDF19'}
+var s=null;try{s=localStorage.getItem(K)}catch(e){}
+ap(s||(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+document.getElementById('themebtn').addEventListener('click',function(){var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';try{localStorage.setItem(K,t)}catch(e){}ap(t)});
+})();
 
 /* ---- 启动 ---- */
 buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();

@@ -122,6 +122,14 @@ curl -s -X POST "$BASE/api/board" -H 'Content-Type: application/json' --data-raw
 curl -s -X POST "$BASE/api/board" -H 'Content-Type: application/json' --data-raw '{"name":"探针","text":"连发"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "留言限速生效（60s/条）" || bad "留言限速"
 curl -s "$BASE/feed.xml" | grep -q '<rss' && ok "RSS feed 输出" || bad "RSS feed"
 
+# ---- 公告 / 点赞断言 ----
+curl -s -X POST "$BASE/api/notice" -H 'Content-Type: application/json' --data-raw '{"text":"公告测试"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "公告无 key 拒" || bad "公告鉴权"
+curl -s -X POST "$BASE/api/notice?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"text":"公告测试"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "公告发布（管理 key）" || bad "公告发布"
+curl -s "$BASE/api/notice" | python3 -c "import json,sys;assert json.load(sys.stdin).get('notice')=='公告测试'" 2>/dev/null && ok "公告读取（免 key）" || bad "公告读取"
+BID=$(curl -s "$BASE/api/board" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['board'][0]['id'] if d['board'] else '')" 2>/dev/null)
+curl -s -X POST "$BASE/api/board/like" -H 'Content-Type: application/json' --data-raw "{\"id\":\"$BID\"}" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "留言点赞成功" || bad "留言点赞"
+curl -s "$BASE/api/board" | python3 -c "import json,sys;d=json.load(sys.stdin);m=[x for x in d['board'] if x['id']=='$BID'];assert m and m[0]['likes']>=1,m" 2>/dev/null && ok "点赞计数累加" || bad "点赞计数"
+
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"
