@@ -149,6 +149,12 @@ curl -s -X DELETE "$BASE/api/workbenches/$WPID" -H 'Content-Type: application/js
 curl -s -o /dev/null -w '%{http_code}' "$BASE/api/workbenches/$WPID/file" | grep -q 404 && ok "删除后产物文件已下线" || bad "删除核验"
 curl -s -H "X-Access-Key: $KEY" -o /tmp/th-export.zip -w '%{http_code}' "$BASE/api/admin/export" | grep -q 200 && ok "备份导出 zip（200）" || bad "备份导出"
 python3 -c "import zipfile;z=zipfile.ZipFile('/tmp/th-export.zip');assert 'store.json' in z.namelist(),z.namelist()" 2>/dev/null && ok "备份 zip 含 store.json" || bad "备份内容"
+# ---- 公开统计 / PWA / QR 断言 ----
+curl -s "$BASE/api/stats" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and 'workbenches' in d and 'daily' in d,d" 2>/dev/null && ok "公开统计 API（免 key）" || bad "公开统计"
+curl -s -o /dev/null -w '%{http_code}' "$BASE/manifest.webmanifest" | grep -q 200 && ok "PWA manifest" || bad "PWA manifest"
+curl -s -o /dev/null -w '%{http_code}' "$BASE/sw.js" | grep -q 200 && ok "PWA service worker" || bad "PWA sw"
+curl -s -o /dev/null -w '%{http_code}' "$BASE/qr.js" | grep -q 200 && ok "QR 编码器脚本" || bad "qr.js"
+
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

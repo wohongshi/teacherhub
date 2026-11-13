@@ -42,7 +42,7 @@ var mcpTools = []mcpTool{
 	{Name: "add_contrib", Description: "记录一条教师贡献（写操作，需要统一访问 key）。用于把「某老师贡献了什么资料/实验」记入云端统计。",
 		InputSchema: json.RawMessage(`{"type":"object","properties":{"teacher":{"type":"string","description":"教师姓名"},"text":{"type":"string","description":"贡献内容描述"},"kb":{"type":"string","description":"所属知识库（可选）"},"item":{"type":"string","description":"相关条目（可选）"}},"required":["teacher","text"]}`)},
 	{Name: "push_workbench", Description: "推送一个工作台产物到云端产物库（写操作，需要统一访问 key）。content 为完整单文件 HTML。推送成功返回可下发的免 key 链接。",
-		InputSchema: json.RawMessage(`{"type":"object","properties":{"title":{"type":"string","description":"产物标题"},"desc":{"type":"string","description":"一句话简介"},"tags":{"type":"array","items":{"type":"string"},"description":"标签，如 [\"化学\",\"实验\"]"},"keywords":{"type":"array","items":{"type":"string"},"description":"检索关键词"},"teacher":{"type":"string","description":"作者姓名"},"content":{"type":"string","description":"完整单文件 HTML 内容"}},"required":["title","content"]}`)},
+		InputSchema: json.RawMessage(`{"type":"object","properties":{"title":{"type":"string","description":"产物标题"},"desc":{"type":"string","description":"一句话简介"},"tags":{"type":"array","items":{"type":"string"},"description":"标签，如 [\"化学\",\"实验\"]"},"keywords":{"type":"array","items":{"type":"string"},"description":"检索关键词"},"teacher":{"type":"string","description":"作者姓名"},"content":{"type":"string","description":"完整单文件 HTML 内容"},"preview":{"type":"string","description":"预览图 dataURL（data:image/png;base64,...，可选）"}},"required":["title","content"]}`)},
 	{Name: "get_board", Description: "读取留言墙最近留言（免 key）。返回昵称/内容/点赞数/时间。", InputSchema: json.RawMessage(`{"type":"object","properties":{"limit":{"type":"integer","description":"返回条数，默认 10，最多 30"}}}`)},
 	{Name: "get_stats", Description: "获取云端统计（免 key）：参与教师/贡献/产物/浏览热度/今日浏览/留言数。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
 	{Name: "get_notice", Description: "读取当前公告（免 key）。返回公告文本，空表示无公告。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
@@ -238,6 +238,9 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 		if err := os.WriteFile(filepath.Join(st.dir, "artifacts", wb.ID+".html"), []byte(content), 0o644); err != nil {
 			reply(mcpErr("落盘失败: " + err.Error()))
 			return
+		}
+		if pv, _ := args["preview"].(string); pv != "" {
+			wb.HasPreview = savePreview(st, wb.ID, pv)
 		}
 		st.mu.Lock()
 		st.data.Workbenches = append(st.data.Workbenches, wb)

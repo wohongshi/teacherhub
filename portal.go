@@ -70,6 +70,9 @@ func (s *cloudStore) portalHTML() string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>教研工作台</title>
 <link rel="alternate" type="application/rss+xml" title="教研工作台 · 新产物" href="/feed.xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#15616d">
 <style>
 :root{--paper:#f4f2ec;--panel:#fff;--ink:#22282e;--muted:#6b7280;--line:#e3dfd4;--accent:#15616d;--accent-soft:#e2eef0;--amber:#c26a1e}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -178,6 +181,9 @@ html[data-theme=dark] .pv{background:#222a32}
 html[data-theme=dark] .stat b{color:#fff}
 #lightbox{position:fixed;inset:0;background:rgba(10,14,18,.82);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}
 #lightbox img{max-width:88%;max-height:84%;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+.recentbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 2px 12px;font-size:12px;color:var(--muted)}
+.recentbar a{color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:4px 11px;text-decoration:none;font-size:11.5px}
+.recentbar a:hover{text-decoration:underline}
 .noticebar{background:var(--amber);color:#fff;text-align:center;padding:9px 16px;font-size:13px;font-weight:600}
 html[data-theme=dark] .noticebar{background:#8a5a22}
 .like{text-decoration:none;color:var(--accent);margin-left:8px;font-size:11px;cursor:pointer}
@@ -224,7 +230,8 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
 		tagList = append(tagList, t)
 	}
 	sort.Strings(tagList)
-	b.WriteString(`<div class="toolbar"><div class="fchips" id="tagfilter"><button class="fchip on" data-tag="">全部</button><button class="fchip" data-tag="__fav__">⭐ 我的收藏</button>`)
+	b.WriteString(`<div class="recentbar" id="recentbar" style="display:none"><span>🕘 最近看过</span></div>
+<div class="toolbar"><div class="fchips" id="tagfilter"><button class="fchip on" data-tag="">全部</button><button class="fchip" data-tag="__fav__">⭐ 我的收藏</button>`)
 	for _, t := range tagList {
 		fmt.Fprintf(&b, `<button class="fchip" data-tag="%s">%s</button>`, html.EscapeString(t), html.EscapeString(t))
 	}
@@ -377,7 +384,32 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
     e.preventDefault();q.value=it.textContent;drop.style.display='none';search();
   });
   document.addEventListener('click',function(e){if(!e.target.closest('.search'))drop.style.display='none'});
-  /* 预览图大图 */
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
+/* 长按看大图（手机）+ 最近看过足迹 */
+(function(){
+  var lp=null;
+  grid.addEventListener('touchstart',function(e){
+    var img=e.target.closest('img.pv');if(!img)return;
+    lp=setTimeout(function(){
+      var lb=document.getElementById('lightbox');lb.querySelector('img').src=img.src;lb.style.display='flex';
+    },450);
+  },{passive:true});
+  grid.addEventListener('touchend',function(){clearTimeout(lp)});
+  grid.addEventListener('touchmove',function(){clearTimeout(lp)},{passive:true});
+  var RKEY='th_recent';
+  try{
+    var rec=JSON.parse(localStorage.getItem(RKEY)||'[]');
+    if(rec.length){
+      var bar=document.getElementById('recentbar');
+      bar.style.display='flex';
+      rec.slice(0,5).forEach(function(x){
+        var a=document.createElement('a');a.href='/w/'+encodeURIComponent(x.id);a.textContent=x.title.slice(0,12);
+        bar.appendChild(a);
+      });
+    }
+  }catch(e){}
+})();
+/* 预览图大图 */
 grid.addEventListener('click',function(e){
   var img=e.target.closest('img.pv');if(!img)return;
   e.preventDefault();e.stopPropagation();
@@ -505,9 +537,29 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#12333a;d
 .bar .t{flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 iframe{flex:1;width:100%%;border:0;background:#fff}
 </style></head><body>
-<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
+<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a href="javascript:void(0)" id="qrbtn">📱 扫码</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
 <iframe src="/w/` + w.ID + `/raw"></iframe>
+<script src="/qr.js"></script>
+<div class="lightbox" id="qrov" style="display:none;position:fixed;inset:0;background:rgba(10,14,18,.78);align-items:center;justify-content:center;z-index:99;cursor:zoom-out">
+  <div style="background:#fff;border-radius:16px;padding:20px 24px;text-align:center">
+    <canvas id="qrcv"></canvas>
+    <div style="font-size:12.5px;color:#556;margin-top:10px">手机扫码直达本页</div>
+  </div>
+</div>
 <script>
+document.getElementById('qrbtn').addEventListener('click',function(){
+  var ov=document.getElementById('qrov');
+  if(ov.style.display!=='flex'){qrRender(document.getElementById('qrcv'),location.href);ov.style.display='flex'}
+  else ov.style.display='none';
+});
+document.getElementById('qrov').addEventListener('click',function(){this.style.display='none'});
+
+try{
+  var RKEY='th_recent';
+  var rec=JSON.parse(localStorage.getItem(RKEY)||'[]').filter(function(x){return x.id!=='` + w.ID + `'});
+  rec.unshift({id:'` + w.ID + `',title:'` + title + `'.slice(0,16)});
+  localStorage.setItem(RKEY,JSON.stringify(rec.slice(0,5)));
+}catch(e){}
 document.getElementById('sharelink').addEventListener('click',async function(){
   var btn=this,url=location.href;
   if(navigator.share){try{await navigator.share({title:document.title,url:url});return}catch(e){}}

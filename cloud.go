@@ -776,6 +776,61 @@ func cmdServe(args []string) {
 		_, _ = w.Write([]byte(b.String()))
 	})
 
+	// 公开统计 API（免 key）：外部看板/监控接入
+	mux.HandleFunc("/api/stats", func(w http.ResponseWriter, r *http.Request) {
+		st.mu.Lock()
+		teachers := map[string]bool{}
+		views, downloads := 0, 0
+		today := st.data.DailyViews[time.Now().Format("2006-01-02")]
+		daily := map[string]int{}
+		for k, v := range st.data.DailyViews {
+			daily[k] = v
+		}
+		for _, c := range st.data.Contribs {
+			teachers[c.Teacher] = true
+		}
+		for _, w2 := range st.data.Workbenches {
+			if w2.Teacher != "" {
+				teachers[w2.Teacher] = true
+			}
+			views += w2.Views
+			downloads += w2.Downloads
+		}
+		out := map[string]any{"ok": true, "teachers": len(teachers), "contribs": len(st.data.Contribs),
+			"workbenches": len(st.data.Workbenches), "views": views, "downloads": downloads,
+			"today_views": today, "daily": daily, "board_msgs": len(st.data.Board)}
+		st.mu.Unlock()
+		writeJSON(w, 200, out)
+	})
+
+	// 迷你 QR 编码器（查看页扫码用）
+	mux.HandleFunc("/qr.js", handleQRJS)
+
+	// PWA：manifest + sw + 图标（手机可"添加到主屏幕"）
+	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/manifest+json; charset=utf-8")
+		_, _ = w.Write([]byte(`{"name":"教研工作台","short_name":"教研台","start_url":"/","display":"standalone","theme_color":"#15616d","background_color":"#f4f2ec","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}`))
+	})
+	mux.HandleFunc("/icon.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="22" fill="#15616d"/><path d="M24 30c8-4 16-4 24 0v40c-8-4-16-4-24 0V30z" fill="#fff"/><path d="M72 30c-8-4-16-4-24 0v40c8-4 16-4 24 0V30z" fill="#bfe0e4"/><circle cx="48" cy="22" r="5" fill="#e8a33d"/></svg>`))
+	})
+	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = w.Write([]byte(`self.addEventListener('install',function(e){self.skipWaiting()});
+self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim())});
+self.addEventListener('fetch',function(e){
+  if(e.request.method!=='GET')return;
+  e.respondWith(fetch(e.request).catch(function(){
+    return caches.open('th-v1').then(function(c){return c.match(e.request)}).then(function(r){return r||new Response('offline',{status:503})});
+  }).then(function(resp){
+    if(resp&&resp.ok){var cl=resp.clone();caches.open('th-v1').then(function(c){c.put(e.request,cl)})}
+    return resp;
+  }));
+});`))
+	})
+
 	// 管理面板：/admin 页面（前端带 key 拉数据）+ /api/admin/ping（key 校验 + 每日浏览）
 	mux.HandleFunc("/admin", handleAdmin)
 	mux.HandleFunc("/api/admin/ping", func(w http.ResponseWriter, r *http.Request) {
