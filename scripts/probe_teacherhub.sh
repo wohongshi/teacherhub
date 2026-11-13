@@ -110,7 +110,7 @@ curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" ||
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==7,d" 2>/dev/null && ok "MCP 工具清单七件" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==9,d" 2>/dev/null && ok "MCP 工具清单九件" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -144,6 +144,11 @@ curl -s -o /dev/null -w '%{http_code}' "$BASE/admin" | grep -q 200 && ok "管理
 curl -s "$BASE/api/admin/ping" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "admin ping 无 key 拒" || bad "admin ping 鉴权"
 curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/ping" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and 'daily' in d,d" 2>/dev/null && ok "admin ping 带 key 返回每日浏览" || bad "admin ping"
 
+# ---- 产物删除 / 备份导出 断言 ----
+curl -s -X DELETE "$BASE/api/workbenches/$WPID" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw '{}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "产物删除（管理 key）" || bad "产物删除"
+curl -s -o /dev/null -w '%{http_code}' "$BASE/api/workbenches/$WPID/file" | grep -q 404 && ok "删除后产物文件已下线" || bad "删除核验"
+curl -s -H "X-Access-Key: $KEY" -o /tmp/th-export.zip -w '%{http_code}' "$BASE/api/admin/export" | grep -q 200 && ok "备份导出 zip（200）" || bad "备份导出"
+python3 -c "import zipfile;z=zipfile.ZipFile('/tmp/th-export.zip');assert 'store.json' in z.namelist(),z.namelist()" 2>/dev/null && ok "备份 zip 含 store.json" || bad "备份内容"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

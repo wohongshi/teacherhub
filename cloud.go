@@ -6,11 +6,13 @@ package main
 
 import (
 	"crypto/rand"
+	"archive/zip"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -368,6 +370,27 @@ func cmdServe(args []string) {
 	mux.HandleFunc("/api/workbenches/", func(w http.ResponseWriter, r *http.Request) {
 		api(w, r, func(w http.ResponseWriter, r *http.Request) {
 			id := strings.TrimPrefix(r.URL.Path, "/api/workbenches/")
+			if r.Method == http.MethodDelete { // 删除产物（管理 key；历史备份 .hist 保留可恢复）
+				st.mu.Lock()
+				found := false
+				for i := range st.data.Workbenches {
+					if st.data.Workbenches[i].ID == id {
+						st.data.Workbenches = append(st.data.Workbenches[:i], st.data.Workbenches[i+1:]...)
+						found = true
+						break
+					}
+				}
+				if found {
+					_ = st.save()
+				}
+				st.mu.Unlock()
+				if found {
+					_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".html"))
+					_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".preview"))
+				}
+				writeJSON(w, 200, map[string]any{"ok": found})
+				return
+			}
 			if r.Method == http.MethodPut { // 更新产物内容（覆盖式升级，写操作须 key）
 				var in struct {
 					Title   string   `json:"title"`
@@ -772,6 +795,38 @@ func cmdServe(args []string) {
 		today := st.data.DailyViews[time.Now().Format("2006-01-02")]
 		st.mu.Unlock()
 		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "daily": daily})
+	})
+
+	// 管理备份导出：zip（store.json + artifacts 全量）
+	mux.HandleFunc("/api/admin/export", func(w http.ResponseWriter, r *http.Request) {
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if got != st.data.Key {
+			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
+			return
+		}
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Disposition", `attachment; filename="teacherhub-backup.zip"`)
+		zw := zip.NewWriter(w)
+		defer zw.Close()
+		add := func(name, path string) {
+			if b, err := os.ReadFile(path); err == nil {
+				if fw, err := zw.Create(name); err == nil {
+					_, _ = fw.Write(b)
+				}
+			}
+		}
+		add("store.json", filepath.Join(st.dir, "store.json"))
+		_ = filepath.WalkDir(filepath.Join(st.dir, "artifacts"), func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			rel, _ := filepath.Rel(st.dir, path)
+			add(filepath.ToSlash(rel), path)
+			return nil
+		})
 	})
 
 	// MCP 端点：AI 客户端（WorkBuddy 等）直连（JSON-RPC；读免 key、写留 key）

@@ -21,6 +21,7 @@ body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Microsoft 
 .card{background:var(--panel);border:1px solid #d5e0e3;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(28,60,70,.05)}
 .stage-wrap{position:relative}
 canvas#stage{width:100%;height:auto;display:block;border-radius:12px;background:#dce8eb}
+.progress{position:absolute;top:0;left:0;height:3px;background:var(--theme);border-radius:16px 16px 0 0;width:0;z-index:5;transition:width .12s linear}
 .ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
 .vsep{width:1px;height:26px;background:currentColor;opacity:.14;margin:0 4px}
 button{border:1px solid #c6d4d8;background:#fff;color:var(--ink);border-radius:11px;min-height:42px;min-width:42px;padding:0 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -105,6 +106,7 @@ html[data-theme=dark] input[type=range]{filter:brightness(.92)}
 <main class="wrap">
   <section>
     <div class="card stage-wrap">
+      <div class="progress" id="progress"></div>
       <canvas id="stage" width="960" height="560"></canvas>
       <div class="ctrl">
         <button id="reset">重置</button>
@@ -429,6 +431,7 @@ function setT(t){
   S.t = clamp(t, 0, MODULE.duration);
   $("scrub").value = Math.round(S.t / MODULE.duration * 2600);
   $("clock").textContent = S.t.toFixed(1) + " s";
+  $("progress").style.width = (S.t / MODULE.duration * 100) + "%";
 }
 function render(){
   MODULE.render(ctx, MODULE.params, S.t, cv.width, cv.height);
@@ -601,6 +604,27 @@ document.addEventListener('keydown',function(e){
   }
 });
 document.getElementById('helpov').addEventListener('click',function(){this.style.display='none'});
+/* 移动端滑动手势：左右滑拖时间轴 */
+(function(){
+  var x0=null,y0=null,base=0,drag=false;
+  var stage=document.getElementById('stage');
+  stage.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1)return;
+    x0=e.touches[0].clientX;y0=e.touches[0].clientY;base=S.t;drag=false;
+  },{passive:true});
+  stage.addEventListener('touchmove',function(e){
+    if(x0===null||e.touches.length!==1)return;
+    var dx=e.touches[0].clientX-x0,dy=e.touches[0].clientY-y0;
+    if(!drag&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)){drag=true;pause()}
+    if(drag){
+      e.preventDefault();
+      setT(base + dx/window.innerWidth*MODULE.duration*1.2);
+      render();
+    }
+  },{passive:false});
+  stage.addEventListener('touchend',function(){x0=null;drag=false});
+})();
+
 /* ---- 启动 ---- */
 buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();
 $("theory").innerHTML = MODULE.theory;

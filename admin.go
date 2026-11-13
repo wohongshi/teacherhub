@@ -54,6 +54,7 @@ button.danger:hover{background:var(--warn-soft)}
     <div class="card">
       <h2>📊 统计概览</h2>
       <div class="stats" id="stats"></div>
+      <div class="row"><button id="exportbtn">📦 导出备份（zip）</button><span style="font-size:11px;color:var(--muted);align-self:center">含全部数据与产物文件</span></div>
       <svg class="trend" id="trend" viewBox="0 0 300 66" preserveAspectRatio="none"></svg>
     </div>
     <div class="card">
@@ -114,7 +115,7 @@ button.danger:hover{background:var(--warn-soft)}
       }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px">暂无留言</div>';
       /* 产物 */
       document.getElementById('wblist').innerHTML=wbs.map(function(w){
-        return '<div class="wbrow"><a href="/w/'+encodeURIComponent(w.id)+'" target="_blank">'+esc(w.title)+'</a><span class="n">👁 '+w.views+' · ⬇ '+w.downloads+'</span></div>';
+        return '<div class="wbrow"><a href="/w/'+encodeURIComponent(w.id)+'" target="_blank">'+esc(w.title)+'</a><span class="n">👁 '+w.views+' · ⬇ '+w.downloads+'</span><button class="danger" data-delw="'+esc(w.id)+'">删除</button></div>';
       }).join('');
     });
     jget('/api/notice').then(function(n){document.getElementById('noticein').value=n.notice||''});
@@ -136,6 +137,18 @@ button.danger:hover{background:var(--warn-soft)}
     if(!confirm('删除这条留言？'))return;
     var r=await jsend('DELETE','/api/board',{id:b.getAttribute('data-del')});
     if(r.ok){var p=await jget('/api/admin/ping');load(p)}
+  });
+  document.getElementById('wblist').addEventListener('click',async function(e){
+    var b=e.target.closest('[data-delw]');if(!b)return;
+    if(!confirm('删除这个产物？（历史备份会保留，可找我恢复）'))return;
+    var r=await jsend('DELETE','/api/workbenches/'+b.getAttribute('data-delw'));
+    if(r.ok){var p=await jget('/api/admin/ping');load(p)}
+  });
+  document.getElementById('exportbtn').addEventListener('click',async function(){
+    var r=await fetch('/api/admin/export',{headers:{'X-Access-Key':key()}});
+    if(!r.ok){alert('导出失败');return}
+    var b=await r.blob();var a=document.createElement('a');
+    a.href=URL.createObjectURL(b);a.download='teacherhub-backup.zip';a.click();
   });
   if(key())enter();
 })();

@@ -45,6 +45,8 @@ var mcpTools = []mcpTool{
 		InputSchema: json.RawMessage(`{"type":"object","properties":{"title":{"type":"string","description":"产物标题"},"desc":{"type":"string","description":"一句话简介"},"tags":{"type":"array","items":{"type":"string"},"description":"标签，如 [\"化学\",\"实验\"]"},"keywords":{"type":"array","items":{"type":"string"},"description":"检索关键词"},"teacher":{"type":"string","description":"作者姓名"},"content":{"type":"string","description":"完整单文件 HTML 内容"}},"required":["title","content"]}`)},
 	{Name: "get_board", Description: "读取留言墙最近留言（免 key）。返回昵称/内容/点赞数/时间。", InputSchema: json.RawMessage(`{"type":"object","properties":{"limit":{"type":"integer","description":"返回条数，默认 10，最多 30"}}}`)},
 	{Name: "get_stats", Description: "获取云端统计（免 key）：参与教师/贡献/产物/浏览热度/今日浏览/留言数。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
+	{Name: "get_notice", Description: "读取当前公告（免 key）。返回公告文本，空表示无公告。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
+	{Name: "set_notice", Description: "发布/更新/撤下公告（写操作，需要统一访问 key；text 传空字符串即撤下）。", InputSchema: json.RawMessage(`{"type":"object","properties":{"text":{"type":"string","description":"公告内容，空字符串=撤下"}},"required":["text"]}`)},
 }
 
 // mcpText 成功结果包装成 MCP content[] 文本。
@@ -260,6 +262,22 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 			blist = blist[:limit]
 		}
 		reply(mcpText(map[string]any{"ok": true, "board": blist}))
+	case "get_notice":
+		st.mu.Lock()
+		text := st.data.Notice
+		st.mu.Unlock()
+		reply(mcpText(map[string]any{"ok": true, "notice": text}))
+	case "set_notice":
+		if !keyOK() {
+			reply(mcpErr("写操作需要统一访问 key（X-Access-Key 头或 ?key=）"))
+			return
+		}
+		text, _ := args["text"].(string)
+		st.mu.Lock()
+		st.data.Notice = strings.TrimSpace(text)
+		_ = st.save()
+		st.mu.Unlock()
+		reply(mcpText(map[string]any{"ok": true}))
 	case "get_stats":
 		st.mu.Lock()
 		teachers := map[string]bool{}

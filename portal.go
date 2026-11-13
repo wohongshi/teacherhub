@@ -297,6 +297,15 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
   function toggleFav(id){var f=favs(),i=f.indexOf(id);if(i>=0)f.splice(i,1);else f.push(id);localStorage.setItem(FAV_KEY,JSON.stringify(f));return i<0}
   function syncFavs(){var f=favs();grid.querySelectorAll('.fav').forEach(function(b){b.classList.toggle('on',f.indexOf(b.getAttribute('data-id'))>=0)})}
   grid.addEventListener('click',function(e){
+    var tg=e.target.closest('.tag');
+    if(tg){
+      e.preventDefault();e.stopPropagation();
+      var name=tg.textContent.trim();
+      var chip=null;
+      [].slice.call(document.querySelectorAll('.fchip')).forEach(function(c){if(c.textContent.trim()===name)chip=c});
+      if(chip)chip.click();
+      return;
+    }
     var b=e.target.closest('.fav');if(!b)return;
     e.preventDefault();e.stopPropagation();
     var on=toggleFav(b.getAttribute('data-id'));
