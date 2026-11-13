@@ -399,6 +399,7 @@ document.getElementById('rndbtn').addEventListener('click',function(){
 (function(){
   var tt=document.getElementById('totop');
   window.addEventListener('scroll',function(){tt.classList.toggle('show',window.scrollY>400)},{passive:true});
+  setInterval(function(){tt.classList.toggle('show',window.scrollY>400)},300);
   tt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
   var hv=document.getElementById('helpov');
   hv.addEventListener('click',function(){this.style.display='none'});
