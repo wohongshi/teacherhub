@@ -110,7 +110,7 @@ curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" ||
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==9,d" 2>/dev/null && ok "MCP 工具清单九件" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==11,d" 2>/dev/null && ok "MCP 工具清单十一件" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -155,6 +155,12 @@ curl -s -o /dev/null -w '%{http_code}' "$BASE/manifest.webmanifest" | grep -q 20
 curl -s -o /dev/null -w '%{http_code}' "$BASE/sw.js" | grep -q 200 && ok "PWA service worker" || bad "PWA sw"
 curl -s -o /dev/null -w '%{http_code}' "$BASE/qr.js" | grep -q 200 && ok "QR 编码器脚本" || bad "qr.js"
 
+# ---- 下架/上架 / 自动备份 断言 ----
+curl -s -X POST "$BASE/api/workbenches/wb_t1/hidden" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw '{"hidden":true}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "产物下架" || bad "产物下架"
+curl -s "$BASE/api/workbenches" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not [w for w in d['workbenches'] if w['id']=='wb_t1'],d" 2>/dev/null && ok "下架后列表隐藏" || bad "下架隐藏"
+curl -s "$BASE/api/workbenches?all=1" | python3 -c "import json,sys;d=json.load(sys.stdin);assert [w for w in d['workbenches'] if w['id']=='wb_t1'],d" 2>/dev/null && ok "all=1 可见（管理视角）" || bad "all 视角"
+curl -s -X POST "$BASE/api/workbenches/wb_t1/hidden" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw '{"hidden":false}' >/dev/null && ok "产物上架恢复" || bad "上架恢复"
+ls "$D/backups/"backup-*.zip >/dev/null 2>&1 && ok "自动备份 zip 已生成" || bad "自动备份"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

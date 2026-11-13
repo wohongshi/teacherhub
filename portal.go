@@ -14,8 +14,12 @@ import (
 // portalHTML 门户首页（/ 与 /stats 同页）。
 func (s *cloudStore) portalHTML() string {
 	s.mu.Lock()
-	wbs := make([]Workbench, len(s.data.Workbenches))
-	copy(wbs, s.data.Workbenches)
+	wbs := make([]Workbench, 0, len(s.data.Workbenches))
+	for _, w2 := range s.data.Workbenches {
+		if !w2.Hidden {
+			wbs = append(wbs, w2)
+		}
+	}
 	contribs := make([]Contrib, len(s.data.Contribs))
 	copy(contribs, s.data.Contribs)
 	s.mu.Unlock()
@@ -181,6 +185,12 @@ html[data-theme=dark] .pv{background:#222a32}
 html[data-theme=dark] .stat b{color:#fff}
 #lightbox{position:fixed;inset:0;background:rgba(10,14,18,.82);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}
 #lightbox img{max-width:88%;max-height:84%;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(28,40,44,.92);color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%)}
+.new{position:absolute;top:10px;left:10px;background:#d64541;color:#fff;font-size:10px;font-weight:800;border-radius:8px;padding:2px 7px;letter-spacing:.05em;z-index:2}
+.wb-grid.compact .pv,.wb-grid.compact .pv-ph{display:none}
+.wb-grid.compact{gap:10px}
+.wb-grid.compact .wb .d{-webkit-line-clamp:2;min-height:2.5em}
 .recentbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 2px 12px;font-size:12px;color:var(--muted)}
 .recentbar a{color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:4px 11px;text-decoration:none;font-size:11.5px}
 .recentbar a:hover{text-decoration:underline}
@@ -198,6 +208,7 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
 .helpov kbd{background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 9px;font-size:12px;font-family:inherit;font-weight:700}
 .themebtn{position:fixed;right:16px;bottom:16px;z-index:60;width:46px;height:46px;border-radius:50%;font-size:20px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer}
 </style></head><body>
+<div id="toast"></div>
 <button id="fontminus" class="fontbtn" title="缩小字号">A−</button><button id="fontplus" class="fontbtn" title="放大字号">A+</button>
 <button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
 <header class="hero"><div class="wrap">
@@ -215,7 +226,7 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
 <div class="noticebar" id="noticebar" style="display:none">📢 <span id="noticetext"></span></div>
 <main><div class="wrap"><div class="cols">
   <section>
-    <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span><div class="sbtns" id="sortbtns"><button class="sbtn on" data-sort="new">最新</button><button class="sbtn" data-sort="hot">最热</button></div></h2>`)
+    <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span><div class="sbtns" id="sortbtns"><button class="sbtn on" data-sort="new">最新</button><button class="sbtn" data-sort="hot">最热</button><button class="sbtn" id="layoutbtn">▦ 紧凑</button></div></h2>`)
 	// 标签筛选 + 排序工具条
 	tagSet := map[string]bool{}
 	for _, w2 := range wbs {
@@ -293,8 +304,9 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
   function card(w){
     var tags=(w.tags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('');
     var ch=esc((w.teacher||'?').slice(0,1));
+    var nw=(Date.now()/1000-(w.created_at||0)<604800)?'<span class="new">NEW</span>':'';
     var pv=w.preview?'<img class="pv" src="'+esc(w.preview)+'" alt="">':'<div class="pv-ph">⚗</div>';
-    return '<a class="wb in" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+pv+
+    return '<a class="wb in" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'">'+nw+'<button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+pv+
       '<div class="d">'+esc(w.desc||'')+'</div>'+
       (tags?'<div class="tags">'+tags+'</div>':'')+
       '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">👁 浏览 '+(w.views||0)+'</span></div></a>';
@@ -452,6 +464,19 @@ document.getElementById('rndbtn').addEventListener('click',function(){
     else if(e.key==='t'||e.key==='T'){window.scrollTo({top:0,behavior:'smooth'})}
   });
 })();
+/* toast 轻提示 */
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._tm);t._tm=setTimeout(function(){t.classList.remove('show')},1800)}
+/* 布局切换 */
+(function(){
+  var LKEY='th_layout';
+  function applyLayout(l){
+    grid.classList.toggle('compact',l==='compact');
+    document.getElementById('layoutbtn').textContent=l==='compact'?'▦ 大图':'▦ 紧凑';
+    try{localStorage.setItem(LKEY,l)}catch(e){}
+  }
+  applyLayout((function(){try{return localStorage.getItem(LKEY)||'big'}catch(e){return 'big'}})());
+  document.getElementById('layoutbtn').addEventListener('click',function(){applyLayout(grid.classList.contains('compact')?'big':'compact')});
+})();
 /* 数字滚动 */
   document.querySelectorAll('.stat b').forEach(function(b){
     var target=parseInt(b.textContent,10)||0,t0=null;
@@ -469,13 +494,13 @@ document.getElementById('rndbtn').addEventListener('click',function(){
   }
   document.getElementById('bsend').addEventListener('click',async function(){
     var n=document.getElementById('bname').value.trim(),t=document.getElementById('btext').value.trim();
-    if(!n||!t){alert('填下昵称和内容');return}
+    if(!n||!t){toast('填下昵称和内容');return}
     try{
       var r=await fetch('/api/board',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,text:t})});
       var j=await r.json();
-      if(!j.ok){alert(j.error||'发送失败');return}
-      document.getElementById('btext').value='';loadBoard();
-    }catch(e){alert('网络异常，稍后再试')}
+      if(!j.ok){toast(j.error||'发送失败');return}
+      document.getElementById('btext').value='';toast('留言已发送');loadBoard();
+    }catch(e){toast('网络异常，稍后再试')}
   });
   loadBoard();
   bl.addEventListener('click',async function(e){
@@ -497,6 +522,9 @@ func wbCardHTML(w Workbench) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, `<a class="wb" href="/w/%s" data-tags="%s" data-views="%d" data-created="%d"><button class="fav" data-id="%s" title="收藏（存本机浏览器）">⭐</button><div class="t">%s</div>`,
 		w.ID, html.EscapeString(strings.Join(w.Tags, ",")), w.Views, w.CreatedAt, w.ID, html.EscapeString(w.Title))
+	if time.Now().Unix()-w.CreatedAt < 7*86400 {
+		b.WriteString(`<span class="new">NEW</span>`)
+	}
 	if w.HasPreview {
 		fmt.Fprintf(&b, `<img class="pv" src="/api/workbenches/%s/preview" alt="">`, w.ID)
 	} else {

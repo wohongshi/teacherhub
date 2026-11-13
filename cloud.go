@@ -44,6 +44,7 @@ type Workbench struct {
 	Downloads int      `json:"downloads"`
 	Views     int      `json:"views"`
 	HasPreview bool    `json:"has_preview"`
+	Hidden     bool    `json:"hidden"`
 	CreatedAt int64    `json:"created_at"`
 }
 
@@ -111,6 +112,49 @@ func randToken() string {
 	return hex.EncodeToString(b)
 }
 
+// autoBackup 启动时与每 24h 自动快照（zip：store.json + artifacts，轮转留 7 份）。
+func autoBackup(st *cloudStore) {
+	do := func() {
+		bdir := filepath.Join(st.dir, "backups")
+		_ = os.MkdirAll(bdir, 0o755)
+		f, err := os.Create(filepath.Join(bdir, fmt.Sprintf("backup-%d.zip", time.Now().Unix())))
+		if err != nil {
+			return
+		}
+		zw := zip.NewWriter(f)
+		add := func(n, p string) {
+			if b, err := os.ReadFile(p); err == nil {
+				if fw, err := zw.Create(n); err == nil {
+					_, _ = fw.Write(b)
+				}
+			}
+		}
+		add("store.json", filepath.Join(st.dir, "store.json"))
+		_ = filepath.WalkDir(filepath.Join(st.dir, "artifacts"), func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			rel, _ := filepath.Rel(st.dir, path)
+			add(filepath.ToSlash(rel), path)
+			return nil
+		})
+		_ = zw.Close()
+		_ = f.Close()
+		if entries, err := os.ReadDir(bdir); err == nil && len(entries) > 7 {
+			sort.Slice(entries, func(a, b int) bool { return entries[a].Name() < entries[b].Name() })
+			for _, e := range entries[:len(entries)-7] {
+				_ = os.Remove(filepath.Join(bdir, e.Name()))
+			}
+		}
+	}
+	do()
+	go func() {
+		for range time.Tick(24 * time.Hour) {
+			do()
+		}
+	}()
+}
+
 // backupHistory 把当前产物内容备份到 artifacts/{id}.hist/{unix}.html（滚动保留 5 份）。
 func backupHistory(st *cloudStore, id string) {
 	old, err := os.ReadFile(filepath.Join(st.dir, "artifacts", id+".html"))
@@ -170,6 +214,7 @@ func cmdServe(args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	autoBackup(st) // 启动快照 + 每 24h 自动备份（backups/ 轮转 7 份）
 	mux := http.NewServeMux()
 	// 访问政策：浏览（GET）全免 key——打开即看；写操作（POST/DELETE）必须带统一 key。
 	api := func(w http.ResponseWriter, r *http.Request, h func(http.ResponseWriter, *http.Request)) {
@@ -337,9 +382,14 @@ func cmdServe(args []string) {
 				writeJSON(w, 200, map[string]any{"ok": true, "id": wb.ID, "link": workbenchLink(r, wb.ID)})
 				return
 			}
+			showAll := r.URL.Query().Get("all") == "1"
 			st.mu.Lock()
-			list := make([]Workbench, len(st.data.Workbenches))
-			copy(list, st.data.Workbenches)
+			list := make([]Workbench, 0, len(st.data.Workbenches))
+			for _, w2 := range st.data.Workbenches {
+				if !w2.Hidden || showAll {
+					list = append(list, w2)
+				}
+			}
 			st.mu.Unlock()
 			sort.Slice(list, func(i, j int) bool { return list[i].CreatedAt > list[j].CreatedAt })
 			out := []map[string]any{}
@@ -359,8 +409,12 @@ func cmdServe(args []string) {
 				return
 			}
 			st.mu.Lock()
-			list := make([]Workbench, len(st.data.Workbenches))
-			copy(list, st.data.Workbenches)
+			list := make([]Workbench, 0, len(st.data.Workbenches))
+			for _, w2 := range st.data.Workbenches {
+				if !w2.Hidden {
+					list = append(list, w2)
+				}
+			}
 			st.mu.Unlock()
 			type match struct {
 				Workbench map[string]any `json:"workbench"`
@@ -402,6 +456,31 @@ func cmdServe(args []string) {
 					_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".html"))
 					_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".preview"))
 				}
+				writeJSON(w, 200, map[string]any{"ok": found})
+				return
+			}
+			if r.Method == http.MethodPost && strings.HasSuffix(id, "/hidden") { // 下架/上架（写操作须 key）
+				id = strings.TrimSuffix(id, "/hidden")
+				var in struct {
+					Hidden bool `json:"hidden"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "请求体解析失败"})
+					return
+				}
+				st.mu.Lock()
+				found := false
+				for i := range st.data.Workbenches {
+					if st.data.Workbenches[i].ID == id {
+						st.data.Workbenches[i].Hidden = in.Hidden
+						found = true
+						break
+					}
+				}
+				if found {
+					_ = st.save()
+				}
+				st.mu.Unlock()
 				writeJSON(w, 200, map[string]any{"ok": found})
 				return
 			}
@@ -917,6 +996,7 @@ func wbView(w Workbench, r *http.Request) map[string]any {
 		"keywords": w.Keywords, "teacher": w.Teacher, "size": w.Size,
 		"downloads": w.Downloads, "views": w.Views, "created_at": w.CreatedAt,
 		"preview":   pv,
+		"hidden":    w.Hidden,
 		"link":      workbenchLink(r, w.ID),
 	}
 }

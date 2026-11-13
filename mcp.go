@@ -47,6 +47,8 @@ var mcpTools = []mcpTool{
 	{Name: "get_stats", Description: "获取云端统计（免 key）：参与教师/贡献/产物/浏览热度/今日浏览/留言数。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
 	{Name: "get_notice", Description: "读取当前公告（免 key）。返回公告文本，空表示无公告。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
 	{Name: "set_notice", Description: "发布/更新/撤下公告（写操作，需要统一访问 key；text 传空字符串即撤下）。", InputSchema: json.RawMessage(`{"type":"object","properties":{"text":{"type":"string","description":"公告内容，空字符串=撤下"}},"required":["text"]}`)},
+	{Name: "delete_workbench", Description: "删除一个产物（写操作，需要统一访问 key）。历史备份保留可恢复。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"}},"required":["id"]}`)},
+	{Name: "set_hidden", Description: "产物下架/上架（写操作，需要统一访问 key）。下架后门户不显示但直链仍可访问。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"hidden":{"type":"boolean","description":"true=下架 false=上架"}},"required":["id","hidden"]}`)},
 }
 
 // mcpText 成功结果包装成 MCP content[] 文本。
@@ -265,6 +267,51 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 			blist = blist[:limit]
 		}
 		reply(mcpText(map[string]any{"ok": true, "board": blist}))
+	case "delete_workbench":
+		if !keyOK() {
+			reply(mcpErr("写操作需要统一访问 key（X-Access-Key 头或 ?key=）"))
+			return
+		}
+		id, _ := args["id"].(string)
+		st.mu.Lock()
+		found := false
+		for i := range st.data.Workbenches {
+			if st.data.Workbenches[i].ID == id {
+				st.data.Workbenches = append(st.data.Workbenches[:i], st.data.Workbenches[i+1:]...)
+				found = true
+				break
+			}
+		}
+		if found {
+			_ = st.save()
+		}
+		st.mu.Unlock()
+		if found {
+			_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".html"))
+			_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".preview"))
+		}
+		reply(mcpText(map[string]any{"ok": found}))
+	case "set_hidden":
+		if !keyOK() {
+			reply(mcpErr("写操作需要统一访问 key（X-Access-Key 头或 ?key=）"))
+			return
+		}
+		id, _ := args["id"].(string)
+		hid, _ := args["hidden"].(bool)
+		st.mu.Lock()
+		found := false
+		for i := range st.data.Workbenches {
+			if st.data.Workbenches[i].ID == id {
+				st.data.Workbenches[i].Hidden = hid
+				found = true
+				break
+			}
+		}
+		if found {
+			_ = st.save()
+		}
+		st.mu.Unlock()
+		reply(mcpText(map[string]any{"ok": found}))
 	case "get_notice":
 		st.mu.Lock()
 		text := st.data.Notice

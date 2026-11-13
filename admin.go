@@ -19,6 +19,8 @@ header a:hover{background:rgba(255,255,255,.12);color:#fff}
 main{max-width:1060px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:16px}
 .card h2{font-size:15px;color:var(--accent);margin-bottom:11px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(28,40,44,.92);color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stats .s{background:var(--accent-soft);border-radius:11px;padding:10px 12px}
 .stats .s b{display:block;font-size:21px;color:var(--accent)}
@@ -42,6 +44,7 @@ button.danger:hover{background:var(--warn-soft)}
 .trend{width:100%;height:88px;background:var(--accent-soft);border-radius:10px;margin-top:12px}
 @media(max-width:860px){main{grid-template-columns:1fr}}
 </style></head><body>
+<div id="toast"></div>
 <header><h1>🛠 教研工作台 · 管理面板</h1><a href="/">← 回门户</a></header>
 <div id="login" class="card">
   <h2>统一访问 key</h2>
@@ -77,6 +80,7 @@ button.danger:hover{background:var(--warn-soft)}
 <script>
 (function(){
   var K='th_adminkey';
+  function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._tm);t._tm=setTimeout(function(){t.classList.remove('show')},1800)}
   function key(){return localStorage.getItem(K)||''}
   function jget(u){return fetch(u,{headers:{'X-Access-Key':key()}}).then(function(r){return r.json()})}
   function jsend(m,u,b){return fetch(u,{method:m,headers:{'Content-Type':'application/json','X-Access-Key':key()},body:JSON.stringify(b||{})}).then(function(r){return r.json()})}
@@ -91,7 +95,7 @@ button.danger:hover{background:var(--warn-soft)}
   }
   function load(ping){
     /* 统计 */
-    jget('/api/workbenches').then(async function(wj){
+    jget('/api/workbenches?all=1').then(async function(wj){
       var bj=await jget('/api/board');
       var wbs=wj.workbenches||[],board=bj.board||[];
       var views=0,dl=0;
@@ -115,7 +119,7 @@ button.danger:hover{background:var(--warn-soft)}
       }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px">暂无留言</div>';
       /* 产物 */
       document.getElementById('wblist').innerHTML=wbs.map(function(w){
-        return '<div class="wbrow"><a href="/w/'+encodeURIComponent(w.id)+'" target="_blank">'+esc(w.title)+'</a><span class="n">👁 '+w.views+' · ⬇ '+w.downloads+'</span><button class="danger" data-delw="'+esc(w.id)+'">删除</button></div>';
+        return '<div class="wbrow"><a href="/w/'+encodeURIComponent(w.id)+'" target="_blank">'+esc(w.title)+'</a>'+(w.hidden?'<span style="color:var(--warn);font-size:11px">已下架</span>':'')+'<span class="n">👁 '+w.views+' · ⬇ '+w.downloads+'</span><button data-hide="'+esc(w.id)+'" data-to="'+(w.hidden?'0':'1')+'">'+(w.hidden?'上架':'下架')+'</button><button class="danger" data-delw="'+esc(w.id)+'">删除</button></div>';
       }).join('');
     });
     jget('/api/notice').then(function(n){document.getElementById('noticein').value=n.notice||''});
@@ -139,6 +143,12 @@ button.danger:hover{background:var(--warn-soft)}
     if(r.ok){var p=await jget('/api/admin/ping');load(p)}
   });
   document.getElementById('wblist').addEventListener('click',async function(e){
+    var h=e.target.closest('[data-hide]');
+    if(h){
+      var r=await jsend('POST','/api/workbenches/'+h.getAttribute('data-hide')+'/hidden',{hidden:h.getAttribute('data-to')==='1'});
+      if(r.ok){toast(h.getAttribute('data-to')==='1'?'已下架':'已上架');var p=await jget('/api/admin/ping');load(p)}
+      return;
+    }
     var b=e.target.closest('[data-delw]');if(!b)return;
     if(!confirm('删除这个产物？（历史备份会保留，可找我恢复）'))return;
     var r=await jsend('DELETE','/api/workbenches/'+b.getAttribute('data-delw'));
@@ -146,7 +156,7 @@ button.danger:hover{background:var(--warn-soft)}
   });
   document.getElementById('exportbtn').addEventListener('click',async function(){
     var r=await fetch('/api/admin/export',{headers:{'X-Access-Key':key()}});
-    if(!r.ok){alert('导出失败');return}
+    if(!r.ok){toast('导出失败');return}
     var b=await r.blob();var a=document.createElement('a');
     a.href=URL.createObjectURL(b);a.download='teacherhub-backup.zip';a.click();
   });
