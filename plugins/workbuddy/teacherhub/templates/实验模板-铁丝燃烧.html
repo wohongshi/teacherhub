@@ -90,6 +90,9 @@ html[data-theme=dark] .theory .eq,html[data-theme=dark] .tips{background:#223038
 html[data-theme=dark] .danger p{color:#e8b39a}
 html[data-theme=dark] .kbd-hint,html[data-theme=dark] .foot{color:#77828a}
 html[data-theme=dark] input[type=range]{filter:brightness(.92)}
+.helpov{position:fixed;inset:0;background:rgba(10,14,18,.55);display:none;align-items:center;justify-content:center;z-index:98;cursor:pointer}
+.helpov .hbox{background:var(--panel,#fff);border-radius:16px;padding:22px 26px;max-width:320px;line-height:2.1;font-size:13.5px;color:var(--ink,#222);box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.helpov kbd{background:var(--accent-soft,#eef);color:var(--theme,#369);border-radius:6px;padding:2px 9px;font-size:12px;font-family:inherit;font-weight:700}
 .themebtn{position:fixed;right:14px;bottom:14px;z-index:60;width:44px;height:44px;border-radius:50%;font-size:19px;box-shadow:0 6px 18px rgba(0,0,0,.22);padding:0}
 </style>
 </head>
@@ -142,7 +145,8 @@ html[data-theme=dark] input[type=range]{filter:brightness(.92)}
     </div>
   </aside>
 </main>
-<button id="fontminus" class="fontbtn" title="缩小字号">A−</button><button id="fontplus" class="fontbtn" title="放大字号">A+</button><button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
+<button id="fontminus" class="fontbtn" title="缩小字号">A−</button><button id="fontplus" class="fontbtn" title="放大字号">A+</button><div class="helpov" id="helpov"><div class="hbox"><b>⌨ 快捷键</b><br><kbd>空格</kbd> 播放/暂停 · <kbd>←</kbd><kbd>→</kbd> 逐帧<br><kbd>R</kbd> 重置 · <kbd>S</kbd> 截图 · <kbd>F</kbd> 投屏<br><kbd>?</kbd> 帮助开关（点任意处关闭）</div></div>
+<button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
 <footer class="foot">虚拟实验仅供教学演示，模拟数值为教学化简化，非真实测量数据。<br>确定性模拟 · 单文件 · 离线可用</footer>
 <script>
 "use strict";
@@ -553,6 +557,15 @@ document.getElementById('themebtn').addEventListener('click',function(){var t=do
 })();
 
 $("dict").addEventListener('click',function(e){var c=e.target.closest('.chip');if(!c)return;for(var i=0;i<MODULE.dict.length;i++){if(MODULE.dict[i].k===c.dataset.k){$("phaseHint").textContent=MODULE.dict[i].d;break}}});
+document.addEventListener('keydown',function(e){
+  if(e.key==='?'&&!e.target.match||e.key==='?'){
+    if(e.target&&e.target.tagName==='INPUT')return;
+    e.preventDefault();
+    var h=document.getElementById('helpov');
+    h.style.display=h.style.display==='flex'?'none':'flex';
+  }
+});
+document.getElementById('helpov').addEventListener('click',function(){this.style.display='none'});
 /* ---- 启动 ---- */
 buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();
 $("theory").innerHTML = MODULE.theory;

@@ -753,6 +753,27 @@ func cmdServe(args []string) {
 		_, _ = w.Write([]byte(b.String()))
 	})
 
+	// 管理面板：/admin 页面（前端带 key 拉数据）+ /api/admin/ping（key 校验 + 每日浏览）
+	mux.HandleFunc("/admin", handleAdmin)
+	mux.HandleFunc("/api/admin/ping", func(w http.ResponseWriter, r *http.Request) {
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if got != st.data.Key {
+			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
+			return
+		}
+		st.mu.Lock()
+		daily := map[string]int{}
+		for k, v := range st.data.DailyViews {
+			daily[k] = v
+		}
+		today := st.data.DailyViews[time.Now().Format("2006-01-02")]
+		st.mu.Unlock()
+		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "daily": daily})
+	})
+
 	// MCP 端点：AI 客户端（WorkBuddy 等）直连（JSON-RPC；读免 key、写留 key）
 	mux.HandleFunc("/mcp", handleMCP(st))
 

@@ -139,6 +139,11 @@ curl -s -X POST "$BASE/api/workbenches/$WBID/restore" -H 'Content-Type: applicat
 curl -s -X DELETE "$BASE/api/board" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw "{\"id\":\"$BID\"}" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "留言删除（管理 key）" || bad "留言删除"
 curl -s "$BASE/api/board" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not [x for x in d['board'] if x['id']=='$BID'],d" 2>/dev/null && ok "删除后已移除" || bad "删除核验"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"get_stats","arguments":{}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert 'workbenches' in d['result']['content'][0]['text'],d" 2>/dev/null && ok "MCP get_stats" || bad "MCP get_stats"
+# ---- 管理面板断言 ----
+curl -s -o /dev/null -w '%{http_code}' "$BASE/admin" | grep -q 200 && ok "管理面板页可开" || bad "管理面板页"
+curl -s "$BASE/api/admin/ping" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "admin ping 无 key 拒" || bad "admin ping 鉴权"
+curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/ping" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and 'daily' in d,d" 2>/dev/null && ok "admin ping 带 key 返回每日浏览" || bad "admin ping"
+
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

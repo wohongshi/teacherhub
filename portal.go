@@ -185,12 +185,17 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
 .fontbtn{position:fixed;z-index:60;width:46px;height:46px;border-radius:50%;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer}
 #fontminus{right:16px;bottom:116px}
 #fontplus{right:16px;bottom:170px}
+.totop{position:fixed;left:16px;bottom:16px;z-index:60;width:46px;height:46px;border-radius:50%;font-size:19px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .25s}
+.totop.show{opacity:1;pointer-events:auto}
+.helpov{position:fixed;inset:0;background:rgba(10,14,18,.55);display:none;align-items:center;justify-content:center;z-index:98;cursor:pointer}
+.helpov .hbox{background:var(--panel);border-radius:16px;padding:22px 26px;max-width:340px;line-height:2.1;font-size:13.5px;color:var(--ink);box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.helpov kbd{background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 9px;font-size:12px;font-family:inherit;font-weight:700}
 .themebtn{position:fixed;right:16px;bottom:16px;z-index:60;width:46px;height:46px;border-radius:50%;font-size:20px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer}
 </style></head><body>
 <button id="fontminus" class="fontbtn" title="缩小字号">A−</button><button id="fontplus" class="fontbtn" title="放大字号">A+</button>
 <button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
 <header class="hero"><div class="wrap">
-  <div class="brand"><span class="logo">📚</span><span>教研工作台 · 教研组共享</span></div>
+  <div class="brand" style="display:flex;align-items:center"><span class="logo">📚</span><span>教研工作台 · 教研组共享</span><button id="rndbtn" style="margin-left:auto;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff">🎲 随机看看</button></div>
   <h1>教研成果，一处共享</h1>
   <div class="sub">每位老师贡献的资料、做出来的实验工作台，都在这里沉淀复用——先搜一下，别重复造。</div>
   <div class="search"><input id="q" placeholder="搜工作台：如「钠与水」「铁丝燃烧」"><button id="qbtn">搜索</button></div>
@@ -265,6 +270,13 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
     </div>
   </aside>
 </div></div></main>
+<button id="totop" class="totop" title="回到顶部">↑</button>
+<div class="helpov" id="helpov"><div class="hbox">
+<b>⌨ 快捷键</b><br>
+<kbd>/</kbd> 聚焦搜索 · <kbd>D</kbd> 深色切换<br>
+<kbd>T</kbd> 回到顶部 · <kbd>?</kbd> 帮助开关<br>
+（点任意处关闭）
+</div></div>
 <div id="lightbox"><img alt=""></div>
 <footer>教研工作台 · 零账号 · 浏览免 key · 写入走统一 key · <a href="/feed.xml" style="color:inherit">RSS 订阅</a></footer>
 <script>
@@ -378,6 +390,26 @@ var s=null;try{s=localStorage.getItem(K)}catch(e){}
 ap(s||(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
 document.getElementById('themebtn').addEventListener('click',function(){var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';try{localStorage.setItem(K,t)}catch(e){}ap(t)});
 })();
+/* 随机看看 */
+document.getElementById('rndbtn').addEventListener('click',function(){
+  var links=[].slice.call(document.querySelectorAll('a.wb')).map(function(a){return a.getAttribute('href')});
+  if(links.length)location.href=links[Math.floor(Math.random()*links.length)];
+});
+/* 回顶 + 快捷键帮助 */
+(function(){
+  var tt=document.getElementById('totop');
+  window.addEventListener('scroll',function(){tt.classList.toggle('show',window.scrollY>400)},{passive:true});
+  tt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
+  var hv=document.getElementById('helpov');
+  hv.addEventListener('click',function(){this.style.display='none'});
+  document.addEventListener('keydown',function(e){
+    if(e.target&&e.target.tagName==='INPUT')return;
+    if(e.key==='?'){e.preventDefault();hv.style.display=hv.style.display==='flex'?'none':'flex'}
+    else if(e.key==='/'){e.preventDefault();document.getElementById('q').focus()}
+    else if(e.key==='d'||e.key==='D'){document.getElementById('themebtn').click()}
+    else if(e.key==='t'||e.key==='T'){window.scrollTo({top:0,behavior:'smooth'})}
+  });
+})();
 /* 数字滚动 */
   document.querySelectorAll('.stat b').forEach(function(b){
     var target=parseInt(b.textContent,10)||0,t0=null;
@@ -463,8 +495,15 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#12333a;d
 .bar .t{flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 iframe{flex:1;width:100%%;border:0;background:#fff}
 </style></head><body>
-<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
+<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
 <iframe src="/w/` + w.ID + `/raw"></iframe>
+<script>
+document.getElementById('sharelink').addEventListener('click',async function(){
+  var btn=this,url=location.href;
+  if(navigator.share){try{await navigator.share({title:document.title,url:url});return}catch(e){}}
+  try{await navigator.clipboard.writeText(url);btn.textContent='已复制 ✓';setTimeout(function(){btn.textContent='🔗 复制链接'},1500)}catch(e){prompt('复制链接：',url)}
+});
+</script>
 </body></html>`
 }
 
