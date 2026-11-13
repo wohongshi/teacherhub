@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -62,6 +63,7 @@ type cloudStore struct {
 		Workbenches []Workbench `json:"workbenches"`
 		Board       []BoardMsg  `json:"board,omitempty"`
 		Notice      string      `json:"notice,omitempty"`
+		DailyViews  map[string]int `json:"daily_views,omitempty"`
 	}
 	boardLast map[string]int64 // IP → 上次留言时间（内存限速）
 	boardLikes map[string]bool  // ip|msgID → 已赞
@@ -105,6 +107,23 @@ func randToken() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// backupHistory 把当前产物内容备份到 artifacts/{id}.hist/{unix}.html（滚动保留 5 份）。
+func backupHistory(st *cloudStore, id string) {
+	old, err := os.ReadFile(filepath.Join(st.dir, "artifacts", id+".html"))
+	if err != nil {
+		return
+	}
+	hdir := filepath.Join(st.dir, "artifacts", id+".hist")
+	_ = os.MkdirAll(hdir, 0o755)
+	_ = os.WriteFile(filepath.Join(hdir, fmt.Sprintf("%d.html", time.Now().Unix())), old, 0o644)
+	if entries, err := os.ReadDir(hdir); err == nil && len(entries) > 5 {
+		sort.Slice(entries, func(a, b int) bool { return entries[a].Name() < entries[b].Name() })
+		for _, e := range entries[:len(entries)-5] {
+			_ = os.Remove(filepath.Join(hdir, e.Name()))
+		}
+	}
 }
 
 // savePreview 解析 dataURL（data:image/*;base64,...）落盘 artifacts/{id}.preview；成功返回 true。
@@ -375,6 +394,7 @@ func cmdServe(args []string) {
 							st.data.Workbenches[i].Tags = in.Tags
 						}
 						if in.Content != "" {
+							backupHistory(st, id) // 更新前先存旧版
 							if err := os.WriteFile(filepath.Join(st.dir, "artifacts", id+".html"), []byte(in.Content), 0o644); err == nil {
 								st.data.Workbenches[i].Size = int64(len(in.Content))
 							}
@@ -395,6 +415,54 @@ func cmdServe(args []string) {
 					return
 				}
 				writeJSON(w, 200, map[string]any{"ok": true, "id": id})
+				return
+			}
+			if strings.HasSuffix(id, "/history") { // 版本历史列表（免 key）
+				id = strings.TrimSuffix(id, "/history")
+				type hv struct {
+					TS   int64 `json:"ts"`
+					Size int64 `json:"size"`
+				}
+				list := []hv{}
+				if entries, err := os.ReadDir(filepath.Join(st.dir, "artifacts", id+".hist")); err == nil {
+					for _, e := range entries {
+						if fi, err := e.Info(); err == nil {
+							ts, _ := strconv.ParseInt(strings.TrimSuffix(e.Name(), ".html"), 10, 64)
+							list = append(list, hv{TS: ts, Size: fi.Size()})
+						}
+					}
+				}
+				sort.Slice(list, func(a, b int) bool { return list[a].TS > list[b].TS })
+				writeJSON(w, 200, map[string]any{"ok": true, "history": list})
+				return
+			}
+			if strings.HasSuffix(id, "/restore") { // 恢复历史版本（写操作须 key）
+				id = strings.TrimSuffix(id, "/restore")
+				var in struct {
+					TS int64 `json:"ts"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "请求体解析失败"})
+					return
+				}
+				hfile := filepath.Join(st.dir, "artifacts", id+".hist", fmt.Sprintf("%d.html", in.TS))
+				b, err := os.ReadFile(hfile)
+				if err != nil {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "历史版本不存在"})
+					return
+				}
+				backupHistory(st, id) // 恢复前把当前版本也存档
+				_ = os.WriteFile(filepath.Join(st.dir, "artifacts", id+".html"), b, 0o644)
+				st.mu.Lock()
+				for i := range st.data.Workbenches {
+					if st.data.Workbenches[i].ID == id {
+						st.data.Workbenches[i].Size = int64(len(b))
+						break
+					}
+				}
+				_ = st.save()
+				st.mu.Unlock()
+				writeJSON(w, 200, map[string]any{"ok": true})
 				return
 			}
 			if strings.HasSuffix(id, "/preview") { // 预览图（免 key）
@@ -461,6 +529,18 @@ func cmdServe(args []string) {
 			for i := range st.data.Workbenches {
 				if st.data.Workbenches[i].ID == id {
 					st.data.Workbenches[i].Views++
+					if st.data.DailyViews == nil {
+						st.data.DailyViews = map[string]int{}
+					}
+					today := time.Now().Format("2006-01-02")
+					st.data.DailyViews[today]++
+					if len(st.data.DailyViews) > 30 {
+						for k := range st.data.DailyViews {
+							if k != today {
+								delete(st.data.DailyViews, k)
+							}
+						}
+					}
 					_ = st.save()
 					break
 				}
@@ -477,6 +557,35 @@ func cmdServe(args []string) {
 
 	// 留言墙：免 key 开放留言（60s/条限速 + 200 字限制，滚动存 200 条）
 	mux.HandleFunc("/api/board", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete { // 删除留言（管理 key）
+			got := r.Header.Get("X-Access-Key")
+			if got == "" {
+				got = r.URL.Query().Get("key")
+			}
+			if got != st.data.Key {
+				writeJSON(w, 401, map[string]any{"ok": false, "error": "写操作需要统一访问 key"})
+				return
+			}
+			var in struct {
+				ID string `json:"id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == "" {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 id"})
+				return
+			}
+			st.mu.Lock()
+			kept := st.data.Board[:0]
+			for _, m := range st.data.Board {
+				if m.ID != in.ID {
+					kept = append(kept, m)
+				}
+			}
+			st.data.Board = kept
+			_ = st.save()
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true})
+			return
+		}
 		if r.Method == http.MethodPost {
 			var in struct {
 				Name string `json:"name"`

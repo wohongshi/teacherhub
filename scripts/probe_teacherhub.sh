@@ -110,7 +110,7 @@ curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" ||
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==5,d" 2>/dev/null && ok "MCP 工具清单五件" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==7,d" 2>/dev/null && ok "MCP 工具清单七件" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -130,6 +130,15 @@ BID=$(curl -s "$BASE/api/board" | python3 -c "import json,sys;d=json.load(sys.st
 curl -s -X POST "$BASE/api/board/like" -H 'Content-Type: application/json' --data-raw "{\"id\":\"$BID\"}" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "留言点赞成功" || bad "留言点赞"
 curl -s "$BASE/api/board" | python3 -c "import json,sys;d=json.load(sys.stdin);m=[x for x in d['board'] if x['id']=='$BID'];assert m and m[0]['likes']>=1,m" 2>/dev/null && ok "点赞计数累加" || bad "点赞计数"
 
+# ---- 版本历史 / 留言删除 / 今日浏览 断言 ----
+curl -s -X PUT "$BASE/api/workbenches/$WBID" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw '{"content":"<html><body>v2</body></html>"}' >/dev/null
+HIST=$(curl -s "$BASE/api/workbenches/$WBID/history" | python3 -c "import json,sys;d=json.load(sys.stdin);print(len(d['history']))" 2>/dev/null)
+[ -n "$HIST" ] && [ "$HIST" -ge 1 ] && ok "版本历史备份（$HIST 份）" || bad "版本历史"
+TS=$(curl -s "$BASE/api/workbenches/$WBID/history" | python3 -c "import json,sys;print(json.load(sys.stdin)['history'][0]['ts'])" 2>/dev/null)
+curl -s -X POST "$BASE/api/workbenches/$WBID/restore" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw "{\"ts\":$TS}" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "历史版本恢复" || bad "版本恢复"
+curl -s -X DELETE "$BASE/api/board" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw "{\"id\":\"$BID\"}" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "留言删除（管理 key）" || bad "留言删除"
+curl -s "$BASE/api/board" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not [x for x in d['board'] if x['id']=='$BID'],d" 2>/dev/null && ok "删除后已移除" || bad "删除核验"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"get_stats","arguments":{}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert 'workbenches' in d['result']['content'][0]['text'],d" 2>/dev/null && ok "MCP get_stats" || bad "MCP get_stats"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

@@ -69,7 +69,11 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 .kbd-hint{margin-top:9px;font-size:11px;color:#a2937e;text-align:center}
 body.focus .aside{display:none}
 body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
-body.focus .top .sub,body.focus .foot{display:none}
+body.focus .top,body.focus .foot{display:none}
+body.focus .wrap{margin-top:8px}
+.fontbtn{position:fixed;z-index:60;width:44px;height:44px;border-radius:50%;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.22);padding:0}
+#fontminus{right:14px;bottom:112px}
+#fontplus{right:14px;bottom:164px}
 @media(max-width:920px){.wrap{grid-template-columns:1fr}button{min-height:46px}.kbd-hint{display:none}.ctrl{gap:10px}}
 @media print{.top .sub,.ctrl,.scrub-row,.kbd-hint,.foot,.presets{display:none!important}.wrap{grid-template-columns:1fr;max-width:none}canvas#stage{width:100%}}
 
@@ -138,7 +142,7 @@ html[data-theme=dark] input[type=range]{filter:brightness(.92)}
     </div>
   </aside>
 </main>
-<button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
+<button id="fontminus" class="fontbtn" title="缩小字号">A−</button><button id="fontplus" class="fontbtn" title="放大字号">A+</button><button id="themebtn" class="themebtn" title="深色/浅色切换">🌙</button>
 <footer class="foot">虚拟实验仅供教学演示，模拟数值为教学化简化，非真实测量数据。<br>确定性模拟 · 单文件 · 离线可用</footer>
 <script>
 "use strict";
@@ -532,6 +536,14 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'f' || e.key === 'F'){ focusMode(); }
 });
 
+/* 字号调节 */
+(function(){var K='th_zoom',zs=[0.85,1,1.15,1.3],zi=1;
+function ap(){document.body.style.zoom=zs[zi];try{localStorage.setItem(K,String(zi))}catch(e){}}
+try{var s=localStorage.getItem(K);if(s!==null)zi=Math.min(zs.length-1,Math.max(0,parseInt(s,10)||1))}catch(e){}
+ap();
+document.getElementById('fontminus').addEventListener('click',function(){if(zi>0){zi--;ap()}});
+document.getElementById('fontplus').addEventListener('click',function(){if(zi<zs.length-1){zi++;ap()}});
+})();
 /* ---- 深色模式 ---- */
 (function(){var K='th_theme';
 function ap(t){document.documentElement.setAttribute('data-theme',t);var b=document.getElementById('themebtn');if(b)b.textContent=t==='dark'?'\u2600\uFE0F':'\uD83C\uDF19'}
