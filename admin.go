@@ -22,7 +22,10 @@ main{max-width:1060px;margin:18px auto;padding:0 16px;display:grid;grid-template
 #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(28,40,44,.92);color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none}
 #toast.show{opacity:1;transform:translateX(-50%)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.stats .s{background:var(--accent-soft);border-radius:11px;padding:10px 12px}
+.stats .s{background:linear-gradient(135deg,var(--accent-soft),#eef5f6);border-radius:11px;padding:10px 12px}
+.stats .s em{font-style:normal;font-size:10.5px;margin-left:6px;color:var(--muted)}
+.stats .s em.up{color:#2e7d54}
+.stats .s em.dn{color:var(--warn)}
 .stats .s b{display:block;font-size:21px;color:var(--accent)}
 .stats .s span{font-size:11.5px;color:var(--muted)}
 textarea,input{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13px;font-family:inherit}
@@ -59,6 +62,10 @@ button.danger:hover{background:var(--warn-soft)}
       <div class="stats" id="stats"></div>
       <div class="row"><button id="exportbtn">📦 导出备份（zip）</button><span style="font-size:11px;color:var(--muted);align-self:center">含全部数据与产物文件</span></div>
       <svg class="trend" id="trend" viewBox="0 0 300 80" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="card">
+      <h2>💾 自动备份快照</h2>
+      <div id="backups"></div>
     </div>
     <div class="card">
       <h2>📢 公告</h2>
@@ -104,7 +111,12 @@ button.danger:hover{background:var(--warn-soft)}
         '<div class="s"><b>'+wbs.length+'</b><span>产物</span></div>'+
         '<div class="s"><b>'+views+'</b><span>累计浏览</span></div>'+
         '<div class="s"><b>'+dl+'</b><span>下载</span></div>'+
-        '<div class="s"><b>'+((ping&&ping.today)||0)+'</b><span>今日浏览</span></div>'+
+        '<div class="s"><b>'+((ping&&ping.today)||0)+'</b><span>今日浏览'+(function(){
+          var d=(ping&&ping.daily)||{},now=new Date(),y=new Date(now.getTime()-86400000);
+          var k=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+          var diff=((ping&&ping.today)||0)-(d[k]||0);
+          return diff>0?'<em class="up">较昨日 +'+diff+'</em>':(diff<0?'<em class="dn">较昨日 '+diff+'</em>':'');
+        })()+'</span></div>'+
         '<div class="s"><b>'+board.length+'</b><span>留言</span></div>'+
         '<div class="s"><b>'+((ping&&ping.daily?Object.keys(ping.daily).length:0))+'</b><span>活跃天数</span></div>';
       /* 7 天趋势 */
@@ -124,6 +136,12 @@ button.danger:hover{background:var(--warn-soft)}
       }).join('');
     });
     jget('/api/notice').then(function(n){document.getElementById('noticein').value=n.notice||''});
+    jget('/api/admin/backups').then(function(bj){
+      var list=bj.backups||[];
+      document.getElementById('backups').innerHTML=list.length?list.map(function(b){
+        return '<div class="item"><span class="tx">'+esc(b.name)+'</span><span class="tm">'+(b.size/1024/1024).toFixed(1)+' MB · '+new Date(b.ts*1000).toLocaleDateString()+'</span><button data-dl="'+esc(b.name)+'">下载</button></div>';
+      }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px">暂无备份（每 24h 自动快照）</div>';
+    });
   }
   document.getElementById('keygo').addEventListener('click',function(){localStorage.setItem(K,document.getElementById('keyin').value.trim());enter()});
   document.getElementById('keyin').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('keygo').click()});
@@ -154,6 +172,13 @@ button.danger:hover{background:var(--warn-soft)}
     if(!confirm('删除这个产物？（历史备份会保留，可找我恢复）'))return;
     var r=await jsend('DELETE','/api/workbenches/'+b.getAttribute('data-delw'));
     if(r.ok){var p=await jget('/api/admin/ping');load(p)}
+  });
+  document.getElementById('backups').addEventListener('click',async function(e){
+    var b=e.target.closest('[data-dl]');if(!b)return;
+    var r=await fetch('/api/admin/backups/'+encodeURIComponent(b.getAttribute('data-dl')),{headers:{'X-Access-Key':key()}});
+    if(!r.ok){toast('下载失败');return}
+    var blob=await r.blob();var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=b.getAttribute('data-dl');a.click();
   });
   document.getElementById('exportbtn').addEventListener('click',async function(){
     var r=await fetch('/api/admin/export',{headers:{'X-Access-Key':key()}});

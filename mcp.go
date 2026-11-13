@@ -49,6 +49,8 @@ var mcpTools = []mcpTool{
 	{Name: "set_notice", Description: "发布/更新/撤下公告（写操作，需要统一访问 key；text 传空字符串即撤下）。", InputSchema: json.RawMessage(`{"type":"object","properties":{"text":{"type":"string","description":"公告内容，空字符串=撤下"}},"required":["text"]}`)},
 	{Name: "delete_workbench", Description: "删除一个产物（写操作，需要统一访问 key）。历史备份保留可恢复。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"}},"required":["id"]}`)},
 	{Name: "set_hidden", Description: "产物下架/上架（写操作，需要统一访问 key）。下架后门户不显示但直链仍可访问。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"hidden":{"type":"boolean","description":"true=下架 false=上架"}},"required":["id","hidden"]}`)},
+	{Name: "rate_workbench", Description: "给产物评分 1-5 星（免 key，每 IP 每产物限一评）。返回最新均分。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"stars":{"type":"integer","description":"1-5 星"}},"required":["id","stars"]}`)},
+	{Name: "list_backups", Description: "列出自动备份快照（需要统一访问 key）。返回名称/大小/时间。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
 }
 
 // mcpText 成功结果包装成 MCP content[] 文本。
@@ -312,6 +314,62 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 		}
 		st.mu.Unlock()
 		reply(mcpText(map[string]any{"ok": found}))
+	case "rate_workbench":
+		id, _ := args["id"].(string)
+		starsF, _ := args["stars"].(float64)
+		stars := int(starsF)
+		if stars < 1 || stars > 5 {
+			reply(mcpErr("stars 须为 1-5"))
+			return
+		}
+		ip := r.Header.Get("CF-Connecting-IP")
+		if ip == "" {
+			ip = r.RemoteAddr
+			if i := strings.LastIndex(ip, ":"); i > 0 {
+				ip = ip[:i]
+			}
+		}
+		key := ip + "|rate|" + id
+		st.mu.Lock()
+		if st.boardLikes == nil {
+			st.boardLikes = map[string]bool{}
+		}
+		if st.boardLikes[key] {
+			st.mu.Unlock()
+			reply(mcpText(map[string]any{"ok": true, "already": true}))
+			return
+		}
+		st.boardLikes[key] = true
+		rate := 0.0
+		found := false
+		for i := range st.data.Workbenches {
+			if st.data.Workbenches[i].ID == id {
+				st.data.Workbenches[i].RateSum += stars
+				st.data.Workbenches[i].RateNum++
+				rate = rateOf(st.data.Workbenches[i])
+				found = true
+				break
+			}
+		}
+		if found {
+			_ = st.save()
+		}
+		st.mu.Unlock()
+		reply(mcpText(map[string]any{"ok": found, "rate": rate}))
+	case "list_backups":
+		if !keyOK() {
+			reply(mcpErr("读备份需统一访问 key（X-Access-Key 头或 ?key=）"))
+			return
+		}
+		list := []map[string]any{}
+		if entries, err := os.ReadDir(filepath.Join(st.dir, "backups")); err == nil {
+			for i := len(entries) - 1; i >= 0; i-- {
+				if fi, err := entries[i].Info(); err == nil {
+					list = append(list, map[string]any{"name": entries[i].Name(), "size": fi.Size(), "ts": fi.ModTime().Unix()})
+				}
+			}
+		}
+		reply(mcpText(map[string]any{"ok": true, "backups": list}))
 	case "get_notice":
 		st.mu.Lock()
 		text := st.data.Notice

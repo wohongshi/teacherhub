@@ -110,7 +110,7 @@ curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" ||
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==11,d" 2>/dev/null && ok "MCP 工具清单十一件" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==13,d" 2>/dev/null && ok "MCP 工具清单十三件" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -161,6 +161,12 @@ curl -s "$BASE/api/workbenches" | python3 -c "import json,sys;d=json.load(sys.st
 curl -s "$BASE/api/workbenches?all=1" | python3 -c "import json,sys;d=json.load(sys.stdin);assert [w for w in d['workbenches'] if w['id']=='$WBID'],d" 2>/dev/null && ok "all=1 可见（管理视角）" || bad "all 视角"
 curl -s -X POST "$BASE/api/workbenches/$WBID/hidden" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw '{"hidden":false}' >/dev/null && ok "产物上架恢复" || bad "上架恢复"
 ls "$D/backups/"backup-*.zip >/dev/null 2>&1 && ok "自动备份 zip 已生成" || bad "自动备份"
+# ---- 评分 / 备份清单 断言 ----
+curl -s -X POST "$BASE/api/workbenches/$WBID/rate" -H 'Content-Type: application/json' --data-raw '{"stars":5}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and d.get('rate')==5.0,d" 2>/dev/null && ok "评分成功（免 key，均分 5.0）" || bad "评分"
+curl -s -X POST "$BASE/api/workbenches/$WBID/rate" -H 'Content-Type: application/json' --data-raw '{"stars":3}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('already')==True" 2>/dev/null && ok "评分限一评（二评 already）" || bad "评分限一"
+curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and len(d.get('backups',[]))>=1,d" 2>/dev/null && ok "备份清单可列（≥1 份）" || bad "备份清单"
+BN=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;print(json.load(sys.stdin)['backups'][0]['name'])" 2>/dev/null)
+curl -s -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' "$BASE/api/admin/backups/$BN" | grep -q 200 && ok "备份单份下载（200）" || bad "备份下载"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

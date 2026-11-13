@@ -149,6 +149,10 @@ header.hero .wrap{position:relative;z-index:1}
 .trow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #f0eee8}
 .trow:last-child{border-bottom:0}
 .trow .nm{font-size:14px;font-weight:600;flex:1}
+.rank{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:#b9c3c9;flex:none}
+.rank.r0{background:linear-gradient(135deg,#e8b23a,#d99a22)}
+.rank.r1{background:linear-gradient(135deg,#b9c3c9,#98a4ac)}
+.rank.r2{background:linear-gradient(135deg,#cd8a52,#b3713c)}
 .trow .cnt{font-size:11.5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 9px;white-space:nowrap}
 .feed{font-size:13px}
 .feed .item{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid #f0eee8;line-height:1.6}
@@ -191,6 +195,17 @@ html[data-theme=dark] .pv{background:#222a32}
 html[data-theme=dark] .stat b{color:#fff}
 #lightbox{position:fixed;inset:0;background:rgba(10,14,18,.82);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}
 #lightbox img{max-width:88%;max-height:84%;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+.ratebar{display:flex;align-items:center;gap:10px;padding:7px 16px;background:rgba(255,255,255,.08);color:#cfe3e5;font-size:12.5px;flex:none}
+.ratebar .stars{cursor:pointer;font-size:16px;letter-spacing:2px}
+.ratebar .stars span:hover{color:#f5c242}
+.mnav{display:none}
+@media(max-width:700px){
+  .mnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.96);border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+  html[data-theme=dark] .mnav{background:rgba(28,35,42,.96)}
+  .mnav button{flex:1;min-height:54px;border:0;border-radius:0;background:transparent;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted)}
+  .mnav button b{font-size:18px;line-height:1}
+  body{padding-bottom:56px}
+}
 #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(28,40,44,.92);color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none}
 #toast.show{opacity:1;transform:translateX(-50%)}
 .new{display:inline-block;vertical-align:middle;background:#d64541;color:#fff;font-size:10px;font-weight:800;border-radius:8px;padding:2px 7px;letter-spacing:.05em;margin-right:8px;position:static}
@@ -200,7 +215,8 @@ html[data-theme=dark] .stat b{color:#fff}
 .recentbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 2px 12px;font-size:12px;color:var(--muted)}
 .recentbar a{color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:4px 11px;text-decoration:none;font-size:11.5px}
 .recentbar a:hover{text-decoration:underline}
-.noticebar{background:var(--amber);color:#fff;text-align:center;padding:9px 16px;font-size:13px;font-weight:600}
+.noticebar{background:linear-gradient(135deg,#b8621c,#d98a3d);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;padding:11px 16px;font-size:13.5px;font-weight:600;box-shadow:0 3px 12px rgba(180,100,30,.25)}
+.nicon{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
 html[data-theme=dark] .noticebar{background:#8a5a22}
 .like{text-decoration:none;color:var(--accent);margin-left:8px;font-size:11px;cursor:pointer}
 .like:hover{text-decoration:underline}
@@ -229,7 +245,7 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
     <div class="stat"><b` + zeroCls(s.data.DailyViews[time.Now().Format("2006-01-02")]) + `>` + fmt.Sprint(s.data.DailyViews[time.Now().Format("2006-01-02")]) + `</b><span>今日浏览</span></div>
   </div>
 </div></header>
-<div class="noticebar" id="noticebar" style="display:none">📢 <span id="noticetext"></span></div>
+<div class="noticebar" id="noticebar" style="display:none"><span class="nicon">📢</span><span id="noticetext"></span></div>
 <main><div class="wrap"><div class="cols">
   <section>
     <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span><div class="sbtns" id="sortbtns"><button class="sbtn on" data-sort="new">最新</button><button class="sbtn" data-sort="hot">最热</button><button class="sbtn" id="layoutbtn">▦ 紧凑</button></div></h2>`)
@@ -268,9 +284,9 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
 	if len(rows) == 0 {
 		b.WriteString(`<div class="empty">还没有贡献记录</div>`)
 	}
-	for _, r := range rows {
-		fmt.Fprintf(&b, `<div class="trow"><span class="avatar lg" style="background:%s">%s</span><span class="nm">%s</span><span class="cnt">贡献 %d</span><span class="cnt">工作台 %d</span></div>`,
-			avatarColor(r.Name), avatarChar(r.Name), html.EscapeString(r.Name), r.C, r.W)
+	for i, r := range rows {
+		fmt.Fprintf(&b, `<div class="trow"><span class="rank r%d">%d</span><span class="avatar lg" style="background:%s">%s</span><span class="nm">%s</span><span class="cnt">贡献 %d</span><span class="cnt">工作台 %d</span></div>`,
+			i%3, i+1, avatarColor(r.Name), avatarChar(r.Name), html.EscapeString(r.Name), r.C, r.W)
 	}
 	b.WriteString(`</div>
     <div class="card">
@@ -301,6 +317,12 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
 <kbd>T</kbd> 回到顶部 · <kbd>?</kbd> 帮助开关<br>
 （点任意处关闭）
 </div></div>
+<nav class="mnav" id="mnav">
+  <button id="mn-home"><b>🏠</b>首页</button>
+  <button id="mn-fav"><b>⭐</b>收藏</button>
+  <button id="mn-rnd"><b>🎲</b>随机</button>
+  <button id="mn-top"><b>⬆</b>回顶</button>
+</nav>
 <div id="lightbox"><img alt=""></div>
 <footer>教研工作台 · 零账号 · 浏览免 key · 写入走统一 key · <a href="/feed.xml" style="color:inherit">RSS 订阅</a></footer>
 <script>
@@ -315,7 +337,7 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
     return '<a class="wb in" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'">'+nw+'<button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+pv+
       '<div class="d">'+esc(w.desc||'')+'</div>'+
       (tags?'<div class="tags">'+tags+'</div>':'')+
-      '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">👁 浏览 '+(w.views||0)+'</span></div></a>';
+      '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">'+(w.rate?'⭐ '+w.rate.toFixed(1)+' · ':'')+'👁 浏览 '+(w.views||0)+'</span></div></a>';
   }
   var FAV_KEY='th_favs';
   function favs(){try{return JSON.parse(localStorage.getItem(FAV_KEY)||'[]')}catch(e){return []}}
@@ -381,7 +403,12 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
       var j=await r.json();
       var ms=j.matches||[];
       cnt.textContent=ms.length;
-      grid.innerHTML=ms.length?ms.map(function(m){return card(m.workbench)}).join(''):'<div class="empty">没有找到类似的，可以让老师在 WorkBuddy 里生成一个</div>';
+      if(ms.length){grid.innerHTML=ms.map(function(m){return card(m.workbench)}).join('')}
+      else{
+        var hot=[].slice.call(document.querySelectorAll('.fchip')).map(function(c){return c.textContent.trim()}).filter(function(t){return t!=='全部'&&t.indexOf('我的收藏')<0}).slice(0,6);
+        grid.innerHTML='<div class="empty">没有找到类似的——换个词试试<div style="margin-top:10px">'+hot.map(function(t){return '<span class="qitem" style="cursor:pointer;border:1px solid var(--line);border-radius:999px;padding:5px 12px;margin:0 5px 6px;display:inline-block;font-size:12px">'+esc(t)+'</span>'}).join('')+'</div></div>';
+        grid.querySelectorAll('.qitem').forEach(function(q2){q2.addEventListener('click',function(){q.value=q2.textContent;search()})});
+      }
       pushHist(v);
     }catch(e){grid.innerHTML='<div class="empty">搜索失败，稍后再试</div>'}
     btn.disabled=false;btn.textContent='搜索';
@@ -454,6 +481,11 @@ document.getElementById('rndbtn').addEventListener('click',function(){
   var links=[].slice.call(document.querySelectorAll('a.wb')).map(function(a){return a.getAttribute('href')});
   if(links.length)location.href=links[Math.floor(Math.random()*links.length)];
 });
+/* 移动底栏 */
+document.getElementById('mn-home').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
+document.getElementById('mn-fav').addEventListener('click',function(){var c=document.querySelector('[data-tag=__fav__]');if(c){c.click();document.querySelector('.toolbar').scrollIntoView({behavior:'smooth'})}});
+document.getElementById('mn-rnd').addEventListener('click',function(){document.getElementById('rndbtn').click()});
+document.getElementById('mn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
 /* 回顶 + 快捷键帮助 */
 (function(){
   var tt=document.getElementById('totop');
@@ -552,8 +584,12 @@ func wbCardHTML(w Workbench) string {
 	if who == "" {
 		who = "—"
 	}
-	fmt.Fprintf(&b, `<div class="meta"><span class="avatar" style="background:%s">%s</span>%s<span style="margin-left:auto">👁 浏览 %d · %s</span></div></a>`,
-		avatarColor(who), avatarChar(who), html.EscapeString(who), w.Views, time.Unix(w.CreatedAt, 0).Format("01-02"))
+	rateStr := ""
+	if w.RateNum > 0 {
+		rateStr = fmt.Sprintf("⭐ %.1f · ", rateOf(w))
+	}
+	fmt.Fprintf(&b, `<div class="meta"><span class="avatar" style="background:%s">%s</span>%s<span style="margin-left:auto">%s👁 浏览 %d · %s</span></div></a>`,
+		avatarColor(who), avatarChar(who), html.EscapeString(who), rateStr, w.Views, time.Unix(w.CreatedAt, 0).Format("01-02"))
 	return b.String()
 }
 
@@ -565,13 +601,15 @@ func viewerHTML(w Workbench) string {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#12333a;display:flex;flex-direction:column;height:100vh}
-.bar{display:flex;align-items:center;gap:12px;padding:9px 14px;color:#eef6f6;flex:none}
+.bar{display:flex;align-items:center;gap:12px;padding:10px 14px;color:#eef6f6;flex:none;background:rgba(18,51,58,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.bar a.primary{background:rgba(255,255,255,.16);color:#fff;font-weight:600}
 .bar a{color:#cfe3e5;text-decoration:none;font-size:13.5px;padding:7px 12px;border-radius:9px}
 .bar a:hover{background:rgba(255,255,255,.12);color:#fff}
 .bar .t{flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 iframe{flex:1;width:100%%;border:0;background:#fff}
 </style></head><body>
-<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a href="javascript:void(0)" id="qrbtn">📱 扫码</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
+<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a class="primary" href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a class="primary" href="javascript:void(0)" id="qrbtn">📱 扫码</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
+<div class="ratebar"><span id="ratetxt">评分加载中…</span><span class="stars" id="starslot"></span></div>
 <iframe src="/w/` + w.ID + `/raw"></iframe>
 <script src="/qr.js"></script>
 <div class="lightbox" id="qrov" style="display:none;position:fixed;inset:0;background:rgba(10,14,18,.78);align-items:center;justify-content:center;z-index:99;cursor:zoom-out">
@@ -594,6 +632,19 @@ try{
   rec.unshift({id:'` + w.ID + `',title:'` + title + `'.slice(0,16)});
   localStorage.setItem(RKEY,JSON.stringify(rec.slice(0,5)));
 }catch(e){}
+fetch('/api/workbenches/` + w.ID + `').then(function(r){return r.json()}).then(function(j){
+  var w2=j.workbench||{};
+  var rt=document.getElementById('ratetxt'),sl=document.getElementById('starslot');
+  rt.textContent=w2.rate?'⭐ '+w2.rate+' 分（'+(w2.rate_num||0)+' 人评过）':'还没有人评分';
+  sl.innerHTML=[1,2,3,4,5].map(function(n){return '<span data-s="'+n+'">☆</span>'}).join('');
+  sl.addEventListener('click',async function(e){
+    var t=e.target.closest('span[data-s]');if(!t)return;
+    var r2=await fetch('/api/workbenches/` + w.ID + `/rate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stars:+t.getAttribute('data-s')})});
+    var j2=await r2.json();
+    if(j2.already){rt.textContent='你已经评过分啦';return}
+    if(j2.ok){rt.textContent='⭐ '+j2.rate+' 分 · 感谢评分！';sl.innerHTML=[1,2,3,4,5].map(function(n){return '<span data-s="'+n+'">'+(n<=+t.getAttribute('data-s')?'★':'☆')+'</span>'}).join('')}
+  });
+});
 document.getElementById('sharelink').addEventListener('click',async function(){
   var btn=this,url=location.href;
   if(navigator.share){try{await navigator.share({title:document.title,url:url});return}catch(e){}}
