@@ -83,16 +83,17 @@ h1{font-family:"Songti SC","STSong","SimSun",serif;font-size:30px;letter-spacing
 .search input{flex:1;min-height:46px;border-radius:12px;border:0;padding:0 16px;font-size:15px;font-family:inherit}
 .search button{min-height:46px;padding:0 22px;border:0;border-radius:12px;background:#fff;color:#12333a;font-size:15px;font-weight:700;cursor:pointer}
 .search button:hover{background:#d9e9ea}
-.stats{display:flex;gap:36px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,152px));gap:20px}
 .stat b{display:block;font-family:Georgia,"Songti SC",serif;font-size:32px;line-height:1.1}
-.stat span{font-size:12.5px;opacity:.75;display:block;margin-top:3px}
+.stat span{font-size:12.5px;opacity:.75;display:block;margin-top:3px;letter-spacing:.04em}
 main{padding:22px}
 .cols{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:18px;align-items:start}
+.cols>aside{margin-top:14px}
 h2{font-size:16px;color:var(--accent);margin:4px 2px 12px;display:flex;align-items:center;gap:8px}
 h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px}
 .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 2px 12px}
-.fchips{display:flex;gap:6px;flex-wrap:wrap}
-.fchip{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+.fchips{display:flex;gap:6px 8px;flex-wrap:wrap}
+.fchip{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:4px 11px;font-size:11.5px;cursor:pointer;font-family:inherit;line-height:1.5}
 .fchip:hover{border-color:#9fc4ca;color:var(--accent)}
 .fchip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
 .sbtns{margin-left:auto;display:flex;gap:6px}
@@ -105,10 +106,10 @@ h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);borde
 .fav.on{filter:none;opacity:1}
 .wb:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(34,40,46,.10);border-color:#c9d9dc}
 .wb .t{font-size:16px;font-weight:700;line-height:1.4;text-wrap:balance}
-.wb .d{font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.7;min-height:2.6em}
+.wb .d{font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.7;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:3.7em}
 .wb .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 .tag{font-size:11.5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px}
-.wb .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.wb .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid #eef2f3}
 .avatar{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex:none}
 .avatar.lg{width:34px;height:34px;font-size:15px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 17px;margin-bottom:16px;box-shadow:0 2px 8px rgba(34,40,46,.05)}
@@ -121,13 +122,20 @@ h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);borde
 .feed .item:last-child{border-bottom:0}
 .feed .txt{flex:1}
 .feed .tm{font-size:11px;color:var(--muted);white-space:nowrap}
-.empty{color:var(--muted);font-size:13.5px;padding:26px 10px;text-align:center}
+.empty{color:var(--muted);font-size:13.5px;padding:26px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.empty::before{content:"📭";font-size:22px;opacity:.7}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 @media (max-width:900px){
   .cols{grid-template-columns:1fr}
   h1{font-size:23px}
   .hero{padding:24px 16px}
   main{padding:14px}
+  .stat span{font-size:12px}
+  .fchip{min-height:38px;padding:8px 14px;font-size:13px}
+  .sbtns{margin-left:0;width:100%;justify-content:flex-end}
+  .sbtn{min-height:38px;font-size:13px}
+  .wb .meta{font-size:12px}
+  .cols>aside{margin-top:0}
 }
 </style></head><body>
 <header class="hero"><div class="wrap">
@@ -210,7 +218,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+
       '<div class="d">'+esc(w.desc||'')+'</div>'+
       (tags?'<div class="tags">'+tags+'</div>':'')+
-      '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">👁 '+(w.views||0)+'</span></div></a>';
+      '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">👁 浏览 '+(w.views||0)+'</span></div></a>';
   }
   var FAV_KEY='th_favs';
   function favs(){try{return JSON.parse(localStorage.getItem(FAV_KEY)||'[]')}catch(e){return []}}
@@ -300,7 +308,7 @@ func wbCardHTML(w Workbench) string {
 	if who == "" {
 		who = "—"
 	}
-	fmt.Fprintf(&b, `<div class="meta"><span class="avatar" style="background:%s">%s</span>%s<span style="margin-left:auto">👁 %d · %s</span></div></a>`,
+	fmt.Fprintf(&b, `<div class="meta"><span class="avatar" style="background:%s">%s</span>%s<span style="margin-left:auto">👁 浏览 %d · %s</span></div></a>`,
 		avatarColor(who), avatarChar(who), html.EscapeString(who), w.Views, time.Unix(w.CreatedAt, 0).Format("01-02"))
 	return b.String()
 }

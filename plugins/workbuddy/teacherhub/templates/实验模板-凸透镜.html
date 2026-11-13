@@ -38,7 +38,7 @@ body.focus .aside{display:none}
 body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
 body.focus .top .sub,body.focus .foot{display:none}
 .dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.chip{border:1px solid #cdd5e6;border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted);background:#f4f6fb;cursor:default;transition:all .2s}
+.chip{border:1px solid #cdd5e6;border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);background:#f4f6fb;cursor:default;transition:all .2s}
 .chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(59,91,181,.35)}
 .chip b{margin-right:4px}
 .phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
@@ -60,7 +60,7 @@ body.focus .top .sub,body.focus .foot{display:none}
 .presets .pd{font-size:12px;color:var(--muted);margin-top:3px;display:block;line-height:1.5}
 .readouts{display:flex;flex-direction:column;gap:8px}
 .ro{display:flex;justify-content:space-between;align-items:center;background:#f4f6fb;border-radius:11px;padding:10px 13px;font-size:13px}
-.ro .rv{font-weight:800;font-size:14.5px;color:var(--theme);font-variant-numeric:tabular-nums}
+.ro .rv{font-weight:800;font-size:15px;color:var(--theme);font-variant-numeric:tabular-nums}
 .ro.warn{background:var(--warn-soft)}
 .ro.warn .rv{color:var(--warn)}
 .theory{font-size:13px;line-height:1.95;color:#3d4560}
@@ -69,14 +69,14 @@ body.focus .top .sub,body.focus .foot{display:none}
 .tips h2{color:var(--theme)}
 .tips p{font-size:12.5px;line-height:1.9;color:#3d4560}
 .foot{text-align:center;color:#8aa0a4;font-size:11.5px;padding:20px 16px 30px;line-height:1.9}
-@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}button{min-height:46px}.kbd-hint{display:none}.ctrl{gap:10px}}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="crumb">虚拟实验 · 物理 · 单实验模块</div>
   <h1>凸透镜成像规律 <span class="eq-badge">1/u + 1/v = 1/f</span></h1>
-  <div class="sub">物距自动扫描 · 三条特殊光线作图 · 逐帧回放 · 确定性模拟（同样输入永远同样输出）</div>
+  <div class="sub">物距自动扫描 · 三条特殊光线作图 · 逐帧回放 · 确定性模拟</div>
 </header>
 <main class="wrap">
   <section>
@@ -85,8 +85,8 @@ body.focus .top .sub,body.focus .foot{display:none}
       <div class="ctrl">
         <button id="reset">重置</button>
         <button id="play" class="primary">▶ 开始</button>
-        <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
-        <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
+        <button id="prev" class="ghost" title="上一帧">◀ 上帧</button>
+        <button id="next" class="ghost" title="下一帧">下帧 ▶</button>
         <button id="spd" class="ghost">速度 ×1</button>
         <button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
         <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
@@ -201,8 +201,8 @@ const MODULE = {
     const u = this.uOf(t), v = this.vOf(p, t), f = p.f;
     const m = v === Infinity ? Infinity : Math.abs(v / u);
     return [
-      { l: "物距 u", v: u.toFixed(1) + " cm" },
-      { l: "像距 v", v: v === Infinity ? "∞（平行光）" : (v < 0 ? "−" + Math.abs(v).toFixed(1) + " cm（同侧虚像）" : v.toFixed(1) + " cm") },
+      { l: "物距 u", v: u.toFixed(1) + "cm" },
+      { l: "像距 v", v: v === Infinity ? "∞（平行光）" : (v < 0 ? "−" + Math.abs(v).toFixed(1) + " cm（同侧虚像）" : v.toFixed(1) + "cm") },
       { l: "放大率 |v/u|", v: m === Infinity ? "—" : m.toFixed(2) + " ×" },
       { l: "像的性质", v: this.nature(p, t) },
       { l: "对应应用", v: this.app(p, t) },
@@ -277,7 +277,7 @@ const MODULE = {
     g.fillStyle = "rgba(35,50,90,0.75)"; g.font = "12px sans-serif";
     g.fillText("物（蜡烛）", candleX - 26, axisY + 24);
     g.fillStyle = "rgba(35,50,90,0.6)"; g.font = "11px sans-serif";
-    g.fillText("u = " + u.toFixed(1) + " cm", candleX - 20, axisY + 40);
+    g.fillText("u = " + u.toFixed(1) + "cm", candleX - 20, axisY + 40);
 
     /* 光线作图（三条特殊光线：烛焰顶点发出） */
     const tipY = axisY - candleH - 12;
@@ -343,7 +343,7 @@ const MODULE = {
           g.fillText("虚像（正立放大）", ix - 52, axisY - imgH - 42);
         }
         g.fillStyle = "rgba(35,50,90,0.65)"; g.font = "11px sans-serif";
-        g.fillText("v = " + (virtual ? "−" : "") + Math.abs(v).toFixed(1) + " cm", ix - 24, virtual ? axisY + 30 : axisY + 24);
+        g.fillText("v = " + (virtual ? "−" : "") + Math.abs(v).toFixed(1) + "cm", ix - 24, virtual ? axisY + 30 : axisY + 24);
         if (offScale){
           g.fillStyle = "rgba(179,84,30,0.85)"; g.font = "700 11px sans-serif";
           g.fillText("⚠ 像距过大，像已按画布比例压缩显示", ix - 110, virtual ? axisY + 48 : axisY + 42);
@@ -389,6 +389,8 @@ function render(){
   const act = MODULE.activeKeys(MODULE.params, S.t);
   document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
   $("phase").textContent = MODULE.phase(MODULE.params, S.t);
+  var d0=null;for(var i0=0;i0<MODULE.dict.length;i0++){if(act[act.length-1]===MODULE.dict[i0].k)d0=MODULE.dict[i0]}
+  $("phaseHint").textContent = d0 ? d0.d : "点「开始」，观察现象随时间点亮";
   const rows = MODULE.readouts(MODULE.params, S.t);
   $("readouts").innerHTML = rows.map(r =>
     '<div class="ro' + (r.warn ? " warn" : "") + '"><span>' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join("");
@@ -466,7 +468,7 @@ function buildPresets(){
 }
 function buildDict(){
   $("dict").innerHTML = MODULE.dict.map(d =>
-    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b>' + d.d + '</div>').join("");
+    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b></div>').join("");
 }
 function buildTicks(){
   $("ticks").innerHTML = MODULE.events.map(e =>

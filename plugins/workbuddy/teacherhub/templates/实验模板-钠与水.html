@@ -34,7 +34,7 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 .tick{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--theme);cursor:pointer;white-space:nowrap}
 .tick::before{content:"";display:block;width:1px;height:5px;background:var(--theme2);margin:0 auto 1px}
 .dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.chip{border:1px solid #cddadd;border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted);background:#f4f8f9;cursor:default;transition:all .2s}
+.chip{border:1px solid #cddadd;border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);background:#f4f8f9;cursor:default;transition:all .2s}
 .chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(43,122,140,.35)}
 .chip b{margin-right:4px}
 .phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
@@ -56,7 +56,7 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 .presets .pd{font-size:12px;color:var(--muted);margin-top:3px;display:block;line-height:1.5}
 .readouts{display:flex;flex-direction:column;gap:8px}
 .ro{display:flex;justify-content:space-between;align-items:center;background:#f4f8f9;border-radius:11px;padding:10px 13px;font-size:13px}
-.ro .rv{font-weight:800;font-size:14.5px;color:var(--theme);font-variant-numeric:tabular-nums}
+.ro .rv{font-weight:800;font-size:15px;color:var(--theme);font-variant-numeric:tabular-nums}
 .ro.warn{background:var(--warn-soft)}
 .ro.warn .rv{color:var(--warn)}
 .theory{font-size:13px;line-height:1.95;color:#3c4a4d}
@@ -69,14 +69,14 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 body.focus .aside{display:none}
 body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
 body.focus .top .sub,body.focus .foot{display:none}
-@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}button{min-height:46px}.kbd-hint{display:none}.ctrl{gap:10px}}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="crumb">虚拟实验 · 化学 · 单实验模块</div>
   <h1>钠与水反应 <span class="eq-badge">2Na + 2H₂O → 2NaOH + H₂↑</span></h1>
-  <div class="sub">参数可调 · 预设对比 · 逐帧回放 · 确定性模拟（同样输入永远同样输出，方便反复讲解）</div>
+  <div class="sub">参数可调 · 预设对比 · 逐帧回放 · 确定性模拟</div>
 </header>
 <main class="wrap">
   <section>
@@ -85,8 +85,8 @@ body.focus .top .sub,body.focus .foot{display:none}
       <div class="ctrl">
         <button id="reset">重置</button>
         <button id="play" class="primary">▶ 开始</button>
-        <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
-        <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
+        <button id="prev" class="ghost" title="上一帧">◀ 上帧</button>
+        <button id="next" class="ghost" title="下一帧">下帧 ▶</button>
         <button id="spd" class="ghost">速度 ×1</button>
         <button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
         <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
@@ -138,7 +138,7 @@ const MODULE = {
   defs: [
     { key: "size", label: "钠块大小", type: "seg", options: [
       { v: 1, t: "1 很小" }, { v: 2, t: "2 小" }, { v: 3, t: "3 中" }, { v: 4, t: "4 大" }, { v: 5, t: "5 很大" } ] },
-    { key: "temp", label: "水温", type: "range", min: 5, max: 95, step: 1, unit: " ℃" },
+    { key: "temp", label: "水温", type: "range", min: 5, max: 95, step: 1, unit: "℃" },
     { key: "pp", label: "滴加酚酞", type: "toggle" },
   ],
   presets: [
@@ -211,9 +211,9 @@ const MODULE = {
   readouts(p, t){
     const rem = this.remain(p, t);
     return [
-      { l: "水温", v: this.tempNow(p, t).toFixed(1) + " ℃" },
+      { l: "水温", v: this.tempNow(p, t).toFixed(1) + "℃" },
       { l: "反应强度", v: this.label(p) },
-      { l: "钠块剩余", v: t < 0.25 ? "未投入" : Math.round(rem * 100) + " %" },
+      { l: "钠块剩余", v: t < 0.25 ? "未投入" : Math.round(rem * 100) + "%" },
       { l: "溶液", v: p.pp ? (t >= 2.3 ? "碱性 · 变红" : "滴入酚酞") : "中性" },
       { l: "安全预判", v: this.burning(p) ? "可能燃烧" : "安全可控", warn: this.burning(p) },
     ];
@@ -411,6 +411,8 @@ function render(){
   document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
   /* 阶段 */
   $("phase").textContent = MODULE.phase(MODULE.params, S.t);
+  var d0=null;for(var i0=0;i0<MODULE.dict.length;i0++){if(act[act.length-1]===MODULE.dict[i0].k)d0=MODULE.dict[i0]}
+  $("phaseHint").textContent = d0 ? d0.d : "点「开始」，观察现象随时间点亮";
   /* 读数 */
   const rows = MODULE.readouts(MODULE.params, S.t);
   $("readouts").innerHTML = rows.map(r =>
@@ -488,7 +490,7 @@ function buildPresets(){
 }
 function buildDict(){
   $("dict").innerHTML = MODULE.dict.map(d =>
-    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b>' + d.d + '</div>').join("");
+    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b></div>').join("");
 }
 function buildTicks(){
   $("ticks").innerHTML = MODULE.events.map(e =>

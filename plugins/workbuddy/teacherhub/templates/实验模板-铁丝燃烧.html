@@ -34,7 +34,7 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 .tick{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--theme);cursor:pointer;white-space:nowrap}
 .tick::before{content:"";display:block;width:1px;height:5px;background:var(--theme2);margin:0 auto 1px}
 .dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.chip{border:1px solid #ddcdb9;border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted);background:#f8f2ea;cursor:default;transition:all .2s}
+.chip{border:1px solid #ddcdb9;border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);background:#f8f2ea;cursor:default;transition:all .2s}
 .chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(179,84,30,.35)}
 .chip b{margin-right:4px}
 .phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
@@ -56,7 +56,7 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 .presets .pd{font-size:12px;color:var(--muted);margin-top:3px;display:block;line-height:1.5}
 .readouts{display:flex;flex-direction:column;gap:8px}
 .ro{display:flex;justify-content:space-between;align-items:center;background:#f8f2ea;border-radius:11px;padding:10px 13px;font-size:13px}
-.ro .rv{font-weight:800;font-size:14.5px;color:var(--theme);font-variant-numeric:tabular-nums}
+.ro .rv{font-weight:800;font-size:15px;color:var(--theme);font-variant-numeric:tabular-nums}
 .ro.warn{background:var(--warn-soft)}
 .ro.warn .rv{color:var(--warn)}
 .theory{font-size:13px;line-height:1.95;color:#4d4232}
@@ -69,14 +69,14 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 body.focus .aside{display:none}
 body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
 body.focus .top .sub,body.focus .foot{display:none}
-@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}button{min-height:46px}.kbd-hint{display:none}.ctrl{gap:10px}}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="crumb">虚拟实验 · 化学 · 单实验模块</div>
   <h1>铁丝在氧气中燃烧 <span class="eq-badge">3Fe + 2O₂ —点燃→ Fe₃O₄</span></h1>
-  <div class="sub">参数可调 · 预设对比 · 逐帧回放 · 确定性模拟（同样输入永远同样输出，方便反复讲解）</div>
+  <div class="sub">参数可调 · 预设对比 · 逐帧回放 · 确定性模拟</div>
 </header>
 <main class="wrap">
   <section>
@@ -85,8 +85,8 @@ body.focus .top .sub,body.focus .foot{display:none}
       <div class="ctrl">
         <button id="reset">重置</button>
         <button id="play" class="primary">▶ 开始</button>
-        <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
-        <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
+        <button id="prev" class="ghost" title="上一帧">◀ 上帧</button>
+        <button id="next" class="ghost" title="下一帧">下帧 ▶</button>
         <button id="spd" class="ghost">速度 ×1</button>
         <button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
         <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
@@ -138,7 +138,7 @@ const MODULE = {
   defs: [
     { key: "thick", label: "铁丝粗细", type: "seg", options: [
       { v: 1, t: "细" }, { v: 2, t: "中" }, { v: 3, t: "粗" } ] },
-    { key: "o2", label: "氧气浓度", type: "range", min: 21, max: 100, step: 1, unit: " %" },
+    { key: "o2", label: "氧气浓度", type: "range", min: 21, max: 100, step: 1, unit: "%" },
     { key: "rusted", label: "铁丝未除锈", type: "toggle" },
     { key: "bottom", label: "瓶底处理", type: "seg", options: [
       { v: "water", t: "放少量水" }, { v: "sand", t: "铺细沙" }, { v: "none", t: "什么都不放" } ] },
@@ -208,10 +208,10 @@ const MODULE = {
     const ig = this.igniteT(p);
     const burn = this.burnAt(p, t);
     return [
-      { l: "氧气浓度", v: p.o2 + " %" },
+      { l: "氧气浓度", v: p.o2 + "%" },
       { l: "燃烧状态", v: t < ig ? (t < 1.5 ? "未点燃" : "火柴引燃中") : (burn > 0.04 ? this.label(p) : "已结束") },
-      { l: "火星密度", v: Math.round(clamp(burn, 0, 1) * 100) + " %" },
-      { l: "黑色固体", v: t < ig + 1.4 ? "—" : Math.round(clamp((t - ig - 1.4) / 5, 0, 1) * 100) + " %" },
+      { l: "火星密度", v: Math.round(clamp(burn, 0, 1) * 100) + "%" },
+      { l: "黑色固体", v: t < ig + 1.4 ? "—" : Math.round(clamp((t - ig - 1.4) / 5, 0, 1) * 100) + "%" },
       { l: "瓶底", v: this.crackRisk(p) ? "无防护 · 炸裂风险" : (p.bottom === "water" ? "已放水" : "已铺细沙"), warn: this.crackRisk(p) },
     ];
   },
@@ -376,6 +376,8 @@ function render(){
   const act = MODULE.activeKeys(MODULE.params, S.t);
   document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
   $("phase").textContent = MODULE.phase(MODULE.params, S.t);
+  var d0=null;for(var i0=0;i0<MODULE.dict.length;i0++){if(act[act.length-1]===MODULE.dict[i0].k)d0=MODULE.dict[i0]}
+  $("phaseHint").textContent = d0 ? d0.d : "点「开始」，观察现象随时间点亮";
   const rows = MODULE.readouts(MODULE.params, S.t);
   $("readouts").innerHTML = rows.map(r =>
     '<div class="ro' + (r.warn ? " warn" : "") + '"><span>' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join("");
@@ -453,7 +455,7 @@ function buildPresets(){
 }
 function buildDict(){
   $("dict").innerHTML = MODULE.dict.map(d =>
-    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b>' + d.d + '</div>').join("");
+    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b></div>').join("");
 }
 function buildTicks(){
   $("ticks").innerHTML = MODULE.events.map(e =>
