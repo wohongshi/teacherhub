@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>钠与水反应 · 演示工作台</title>
+<style>
+:root{
+  --bg:#e9f1f3; --panel:#fff; --ink:#1c2b2e; --muted:#68797d;
+  --theme:#2b7a8c; --theme2:#4aa8bd; --accent-soft:#e2f1f4;
+  --warn:#c0492e; --warn-soft:#fbe9e4; --ok:#2e7d54;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+.top{background:linear-gradient(135deg,#1d5563,#2b7a8c);color:#fff;padding:18px 22px}
+.top .crumb{font-size:12px;opacity:.72;margin-bottom:6px}
+.top h1{font-size:23px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.eq-badge{font-size:12.5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 14px;font-family:Georgia,serif}
+.top .sub{font-size:13px;opacity:.82;margin-top:7px}
+.wrap{max-width:1280px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:minmax(0,1.9fr) minmax(290px,1fr);gap:16px;align-items:start}
+.card{background:var(--panel);border:1px solid #d5e0e3;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(28,60,70,.05)}
+.stage-wrap{position:relative}
+canvas#stage{width:100%;height:auto;display:block;border-radius:12px;background:#dce8eb}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid #c6d4d8;background:#fff;color:var(--ink);border-radius:11px;min-height:42px;min-width:42px;padding:0 16px;font-size:14px;cursor:pointer;font-family:inherit}
+button:hover{border-color:var(--theme2);background:var(--accent-soft)}
+button.primary{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:600}
+button.primary:hover{background:#22677a}
+button.ghost{min-width:42px;padding:0 11px}
+.clock{font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;margin-left:auto;background:var(--accent-soft);color:var(--theme);border-radius:10px;padding:8px 14px}
+.scrub-row{margin-top:10px;position:relative}
+input[type=range]{width:100%;accent-color:var(--theme);height:26px}
+.ticks{position:relative;height:16px;margin-top:2px}
+.tick{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--theme);cursor:pointer;white-space:nowrap}
+.tick::before{content:"";display:block;width:1px;height:5px;background:var(--theme2);margin:0 auto 1px}
+.dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border:1px solid #cddadd;border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted);background:#f4f8f9;cursor:default;transition:all .2s}
+.chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(43,122,140,.35)}
+.chip b{margin-right:4px}
+.phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
+.phase-tag{background:var(--theme);color:#fff;border-radius:9px;padding:6px 13px;font-weight:700;font-size:13px}
+.aside{display:flex;flex-direction:column;gap:14px}
+.aside h2{font-size:15px;color:var(--theme);margin-bottom:11px;display:flex;align-items:center;gap:7px}
+.param{margin-bottom:13px}
+.param .lab{font-size:13px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.param .lab .v{color:var(--theme);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-height:38px;min-width:38px;padding:0 8px;font-size:13px;border-radius:10px}
+.seg button.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700}
+.switch{position:relative;width:52px;height:29px;border-radius:999px;background:#c6d2d6;cursor:pointer;transition:.18s;border:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;transition:.18s}
+.switch.on{background:var(--theme)}
+.switch.on::after{left:26px}
+.presets button{width:100%;text-align:left;min-height:auto;padding:11px 13px;margin-bottom:8px;display:block}
+.presets .pt{font-size:13.5px;font-weight:700;display:block}
+.presets .pd{font-size:12px;color:var(--muted);margin-top:3px;display:block;line-height:1.5}
+.readouts{display:flex;flex-direction:column;gap:8px}
+.ro{display:flex;justify-content:space-between;align-items:center;background:#f4f8f9;border-radius:11px;padding:10px 13px;font-size:13px}
+.ro .rv{font-weight:800;font-size:14.5px;color:var(--theme);font-variant-numeric:tabular-nums}
+.ro.warn{background:var(--warn-soft)}
+.ro.warn .rv{color:var(--warn)}
+.theory{font-size:13px;line-height:1.95;color:#3c4a4d}
+.theory .eq{background:var(--accent-soft);border-radius:11px;padding:12px 14px;text-align:center;font-family:Georgia,serif;font-size:15.5px;color:#17454f;margin-bottom:11px;font-weight:600}
+.danger{background:var(--warn-soft);border:1px solid #f0c4b7;border-radius:14px;padding:14px 16px}
+.danger h2{color:var(--warn)}
+.danger p{font-size:12.5px;line-height:1.9;color:#7c3a26}
+.foot{text-align:center;color:#8aa0a4;font-size:11.5px;padding:20px 16px 30px;line-height:1.9}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="crumb">虚拟实验 · 化学 · 单实验模块</div>
+  <h1>钠与水反应 <span class="eq-badge">2Na + 2H₂O → 2NaOH + H₂↑</span></h1>
+  <div class="sub">参数可调 · 预设对比 · 逐帧回放 · 确定性模拟（同样输入永远同样输出，方便反复讲解）</div>
+</header>
+<main class="wrap">
+  <section>
+    <div class="card stage-wrap">
+      <canvas id="stage" width="960" height="560"></canvas>
+      <div class="ctrl">
+        <button id="reset">重置</button>
+        <button id="play" class="primary">▶ 开始</button>
+        <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
+        <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
+        <button id="spd" class="ghost">速度 ×1</button>
+        <div class="clock"><span id="clock">0.0 s</span></div>
+      </div>
+      <div class="scrub-row">
+        <input type="range" id="scrub" min="0" max="2600" value="0">
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div class="dict" id="dict"></div>
+      <div class="phase-line"><span class="phase-tag" id="phase">钠块待投入</span><span id="phaseHint" style="color:#68797d;font-size:12.5px">点「开始」，观察五个字的现象顺序</span></div>
+    </div>
+  </section>
+  <aside class="aside">
+    <div class="card">
+      <h2>🧪 实验条件</h2>
+      <div id="params"></div>
+    </div>
+    <div class="card presets">
+      <h2>⚡ 预设场景</h2>
+      <div id="presets"></div>
+    </div>
+    <div class="card">
+      <h2>📊 实时读数</h2>
+      <div class="readouts" id="readouts"></div>
+    </div>
+    <div class="card theory" id="theory"></div>
+    <div class="danger">
+      <h2>⚠ 安全提示</h2>
+      <p>钠是遇水剧烈反应的危险药品，真实实验必须由老师演示：取用绿豆大小、吸干煤油、佩戴护目镜。严禁学生随意操作！大块钠 + 热水可能起火，本工作台已把危险场景做成可观察的模拟，替代真实冒险。</p>
+    </div>
+  </aside>
+</main>
+<footer class="foot">虚拟实验仅供教学演示，模拟数值为教学化简化，非真实测量数据。<br>确定性模拟 · 单文件 · 离线可用</footer>
+<script>
+"use strict";
+/* ==================================================================
+   实验模块：钠与水反应（一实验一模块）
+   规则（教学化）：强度 = f(钠块大小, 水温)；强度越高 → 游动越快、气泡越密、
+   响声越大；强度极高（大钠块 + 热水）出现燃烧；滴酚酞 → 溶液变红扩散。
+   渲染是 t 的纯函数：任意拖动 / 逐帧，画面严格一致。
+   ================================================================== */
+const MODULE = {
+  key: "na-water",
+  title: "钠与水反应",
+  duration: 26,
+  params: { size: 3, temp: 25, pp: true },
+  defs: [
+    { key: "size", label: "钠块大小", type: "seg", options: [
+      { v: 1, t: "1 很小" }, { v: 2, t: "2 小" }, { v: 3, t: "3 中" }, { v: 4, t: "4 大" }, { v: 5, t: "5 很大" } ] },
+    { key: "temp", label: "水温", type: "range", min: 5, max: 95, step: 1, unit: " ℃" },
+    { key: "pp", label: "滴加酚酞", type: "toggle" },
+  ],
+  presets: [
+    { t: "小钠块 · 冷水", d: "反应平缓：钠熔成小球慢慢游动，适合先讲稳态", p: { size: 1, temp: 10, pp: false } },
+    { t: "中钠块 · 常温水", d: "典型现象：浮熔游响红一次看全", p: { size: 3, temp: 25, pp: true } },
+    { t: "大钠块 · 热水", d: "反应剧烈并可能燃烧（课堂只放模拟！）", p: { size: 5, temp: 85, pp: true } },
+  ],
+  dict: [
+    { k: "浮", d: "钠密度 0.97 g/cm³ 小于水，浮在水面" },
+    { k: "熔", d: "反应放热、钠熔点仅 97.8℃，熔成闪亮小球" },
+    { k: "游", d: "氢气从各方向逸出，推着小球四处游动" },
+    { k: "响", d: "气体快速逸出，发出“嘶嘶”声" },
+    { k: "红", d: "生成 NaOH 使酚酞变红，红色随溶液扩散" },
+  ],
+  events: [
+    { t: 0.25, k: "浮" }, { t: 0.9, k: "熔" }, { t: 1.7, k: "游" }, { t: 1.7, k: "响" }, { t: 2.3, k: "红" },
+  ],
+  theory:
+    '<h2>📖 原理与现象</h2>' +
+    '<div class="eq">2Na + 2H<sub>2</sub>O → 2NaOH + H<sub>2</sub>↑ &nbsp;（放热）</div>' +
+    '<p><b>浮</b>：钠的密度（0.97 g/cm³）小于水，浮在水面。<br>' +
+    '<b>熔</b>：反应放热且钠熔点低（97.8℃），熔成闪亮小球。<br>' +
+    '<b>游</b>：氢气从小球各方向逸出，推动小球四处游动。<br>' +
+    '<b>响</b>：气体快速逸出发出“嘶嘶”声。<br>' +
+    '<b>红</b>：生成 NaOH 使酚酞变红，红色随溶液扩散。</p>',
+
+  /* ---- 教学化公式（与校对版一致） ---- */
+  intensity(p){ return ((p.size - 1) / 4) * 0.62 + ((p.temp - 5) / 90) * 0.78; },   /* 0~1.4 */
+  tempNow(p, t){
+    const rise = 6 + this.intensity(p) * 16;
+    const up = clamp(t / 1.8, 0, 1);
+    const down = 1 - 0.3 * clamp((t - 8) / 16, 0, 1);
+    return p.temp + rise * up * down;
+  },
+  label(p){
+    const i = this.intensity(p);
+    return i < 0.35 ? "平缓" : i < 0.72 ? "较剧烈" : i < 1.05 ? "剧烈" : "剧烈 · 可能燃烧";
+  },
+  burning(p){ return this.intensity(p) >= 1.05; },
+  pos(t, p){
+    const i = this.intensity(p);
+    const amp = 0.32 + i * 0.55;
+    const x = Math.sin(t * 1.15) * 0.5 + Math.sin(t * 2.3 + 1.3) * 0.3 + Math.sin(t * 3.8 + 2.9) * 0.2;
+    const y = Math.sin(t * 1.7 + 0.5) * 0.55 + Math.sin(t * 2.9 + 1.7) * 0.45;
+    return { x: 432 + x * 118 * amp, y: 330 + y * 36 * amp };
+  },
+  /* 钠球剩余比例 1→0（纯函数） */
+  remain(p, t){
+    const i = this.intensity(p);
+    return 1 - clamp((t - 0.35) / (15 - i * 6), 0, 1);
+  },
+  /* 现象字典联动 */
+  activeKeys(p, t){
+    const out = [];
+    if (t >= 0.25 && t < 1.0) out.push("浮");
+    if (t >= 0.9 && t < 1.8) out.push("熔");
+    if (t >= 1.7 && t < 12) out.push("游");
+    if (t >= 1.7 && t < 10.5) out.push("响");
+    if (p.pp && t >= 2.3) out.push("红");
+    return out;
+  },
+  phase(p, t){
+    if (t < 0.25) return "钠块待投入";
+    if (this.remain(p, t) <= 0.02) return "反应结束";
+    if (t < 0.9) return "浮在水面";
+    if (t < 1.8) return "熔成闪亮小球";
+    if (t < 12) return this.burning(p) ? "游动 · 嘶嘶作响 · 燃烧" : "游动 · 嘶嘶作响";
+    return "反应趋缓";
+  },
+  readouts(p, t){
+    const rem = this.remain(p, t);
+    return [
+      { l: "水温", v: this.tempNow(p, t).toFixed(1) + " ℃" },
+      { l: "反应强度", v: this.label(p) },
+      { l: "钠块剩余", v: t < 0.25 ? "未投入" : Math.round(rem * 100) + " %" },
+      { l: "溶液", v: p.pp ? (t >= 2.3 ? "碱性 · 变红" : "滴入酚酞") : "中性" },
+      { l: "安全预判", v: this.burning(p) ? "可能燃烧" : "安全可控", warn: this.burning(p) },
+    ];
+  },
+
+  /* ---- 渲染（t 的纯函数） ---- */
+  render(g, p, t, W, H){
+    const i = this.intensity(p);
+    const rem = this.remain(p, t);
+    const ball = this.pos(t, p);
+
+    /* 背景网格 */
+    g.fillStyle = "#dce8eb"; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "rgba(43,122,140,0.07)"; g.lineWidth = 1;
+    for (let x = 0; x < W; x += 40){ g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y < H; y += 40){ g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+
+    /* 酚酞变红（在水下层） */
+    if (p.pp && t >= 2.3){
+      const rad = clamp((t - 2.3) / 6, 0, 1) * 290 + 30;
+      const gr = g.createRadialGradient(ball.x, ball.y, 8, ball.x, ball.y, rad);
+      gr.addColorStop(0, "rgba(224,72,66,0.42)");
+      gr.addColorStop(1, "rgba(224,72,66,0)");
+      g.fillStyle = gr; g.fillRect(212, 172, 436, 288);
+    }
+
+    /* 烧杯 */
+    g.lineWidth = 5; g.strokeStyle = "rgba(120,150,158,0.85)";
+    roundRect(g, 210, 112, 440, 368, 26); g.stroke();
+    /* 水体 */
+    const wg = g.createLinearGradient(0, 172, 0, 462);
+    wg.addColorStop(0, "rgba(116,178,204,0.55)"); wg.addColorStop(1, "rgba(74,140,172,0.72)");
+    g.fillStyle = wg;
+    roundRect(g, 218, 172, 424, 290, 18); g.fill();
+    /* 水面线 */
+    g.strokeStyle = "rgba(255,255,255,0.75)"; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(222, 172); g.lineTo(638, 172); g.stroke();
+    /* 刻度 */
+    g.fillStyle = "rgba(60,90,98,0.5)"; g.font = "12px sans-serif";
+    for (let m = 100; m <= 400; m += 100){
+      const y = 440 - (m / 400) * 240;
+      g.fillRect(218, y, 18, 2); g.fillText(m + " mL", 240, y - 5);
+    }
+
+    /* 氢气泡（t 纯函数：气泡 i 生成于 ti，寿命 1.1s） */
+    if (t > 0.35 && rem > 0.02){
+      const period = Math.max(0.055, 0.24 - i * 0.13);
+      const n = Math.min(46, Math.floor(11 / period));
+      for (let b = 0; b < n; b++){
+        const ti = 0.35 + b * period;
+        const age = t - ti;
+        if (age <= 0 || age > 1.15) continue;
+        const hx = hash(b) - 0.5, hz = hash(b + 50);
+        const bx = ball.x + hx * 46 + Math.sin(age * 5 + b) * 7;
+        const by = ball.y - age * (66 + hz * 52);
+        const alpha = (1 - age / 1.15) * 0.75;
+        g.beginPath(); g.arc(bx, by, 2.2 + hz * 2.6, 0, Math.PI * 2);
+        g.fillStyle = "rgba(255,255,255," + alpha + ")"; g.fill();
+      }
+    }
+
+    /* 嘶嘶声波纹（响） */
+    if (t > 1.7 && t < 10.5 && rem > 0.02){
+      for (let r = 0; r < 7; r++){
+        const ti = 1.7 + r * 1.15;
+        const age = t - ti;
+        if (age <= 0 || age > 1.1) continue;
+        g.beginPath(); g.arc(ball.x, ball.y, 16 + age * 92, 0, Math.PI * 2);
+        g.strokeStyle = "rgba(255,255,255," + (0.5 * (1 - age / 1.1)) + ")"; g.lineWidth = 2.4; g.stroke();
+      }
+    }
+
+    /* 钠球 */
+    if (t >= 0.12 && rem > 0.02){
+      const r = (11 + p.size * 5.4) * (0.2 + 0.8 * Math.pow(rem, 1.15));
+      const drop = clamp((t - 0.12) / 0.13, 0, 1);           /* 投入下落 */
+      const y = ball.y - (1 - drop) * 220;
+      if (t < 0.9){                                            /* 熔前：方块 */
+        g.fillStyle = "#c9ced2"; roundRect(g, ball.x - r, y - r * 0.82, r * 2, r * 1.64, 5); g.fill();
+        g.fillStyle = "#9aa3a9"; roundRect(g, ball.x - r, y - r * 0.82, r * 2, r * 0.5, 5); g.fill();
+      } else {                                                 /* 熔后：闪亮小球 */
+        const bg = g.createRadialGradient(ball.x - r * 0.38, y - r * 0.38, r * 0.16, ball.x, y, r);
+        bg.addColorStop(0, "#fdfefe"); bg.addColorStop(0.42, "#c3cad0"); bg.addColorStop(1, "#7c868d");
+        g.beginPath(); g.arc(ball.x, y, r, 0, Math.PI * 2); g.fillStyle = bg; g.fill();
+        g.beginPath(); g.arc(ball.x - r * 0.36, y - r * 0.36, r * 0.2, 0, Math.PI * 2);
+        g.fillStyle = "rgba(255,255,255,0.9)"; g.fill();
+      }
+      /* 燃烧（极高强度） */
+      if (this.burning(p) && t > 1.2){
+        const fl = 0.72 + 0.28 * Math.sin(t * 23) * Math.sin(t * 11 + 1.7);
+        const fg = g.createRadialGradient(ball.x, y - r - 12, 4, ball.x, y - r - 12, 40 * fl + 16);
+        fg.addColorStop(0, "rgba(255,226,150,0.95)"); fg.addColorStop(0.55, "rgba(240,150,60,0.8)"); fg.addColorStop(1, "rgba(240,120,40,0)");
+        g.fillStyle = fg;
+        g.beginPath(); g.ellipse(ball.x, y - r - 12, 15 * fl + 7, 34 * fl + 12, 0, 0, Math.PI * 2); g.fill();
+        /* 烟 */
+        for (let s = 0; s < 3; s++){
+          const sy = y - r - 40 - s * 26 - (t * 12 % 24);
+          g.beginPath(); g.arc(ball.x + Math.sin(t * 2 + s * 2) * 12, sy, 7 + s * 3, 0, Math.PI * 2);
+          g.fillStyle = "rgba(120,120,120," + (0.16 - s * 0.045) + ")"; g.fill();
+        }
+      }
+    }
+
+    /* 温度计 */
+    drawThermometer(g, 688, 148, this.tempNow(p, t));
+
+    /* 温度曲线（右上小图表） */
+    drawSparkline(g, 748, 128, 196, 118, p, t, this);
+
+    /* 图注 */
+    g.fillStyle = "rgba(28,60,70,0.66)"; g.font = "600 15px sans-serif";
+    g.fillText("烧杯 · 水 · 钠块（示意）", 210, 528);
+    g.font = "12px sans-serif"; g.fillStyle = "rgba(28,60,70,0.45)";
+    g.fillText("示意尺寸非真实比例", 210, 548);
+  },
+};
+
+/* ================= 通用框架 ================= */
+function hash(n){ const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function roundRect(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function drawThermometer(g, x, y, temp){
+  g.save();
+  /* 管身 */
+  g.strokeStyle = "rgba(120,150,158,0.9)"; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 190); g.stroke();
+  g.beginPath(); g.moveTo(x + 22, y); g.lineTo(x + 22, y + 190); g.stroke();
+  g.beginPath(); g.arc(x + 11, y + 208, 17, 0, Math.PI * 2); g.fillStyle = "#e8f0f2"; g.fill(); g.stroke();
+  /* 刻度 */
+  g.fillStyle = "rgba(60,90,98,0.65)"; g.font = "11px sans-serif";
+  for (let tv = 0; tv <= 100; tv += 10){
+    const ty = y + 190 - (tv / 100) * 186;
+    g.fillRect(x + 22, ty, 8, 1.5);
+    g.fillText(String(tv), x + 33, ty + 4);
+  }
+  /* 水银 */
+  const hgt = (clamp(temp, 0, 100) / 100) * 176;
+  const mg = g.createLinearGradient(x, 0, x + 22, 0);
+  mg.addColorStop(0, "#d8443a"); mg.addColorStop(1, "#b02c22");
+  g.fillStyle = mg;
+  roundRect(g, x + 4, y + 190 - hgt, 14, hgt + 8, 6); g.fill();
+  g.beginPath(); g.arc(x + 11, y + 208, 11, 0, Math.PI * 2); g.fill();
+  /* 读数 */
+  g.fillStyle = "#17454f"; g.font = "700 15px sans-serif";
+  g.fillText(temp.toFixed(1) + "℃", x - 6, y + 246);
+  g.fillStyle = "rgba(28,60,70,0.6)"; g.font = "11px sans-serif";
+  g.fillText("水温", x + 2, y - 12);
+  g.restore();
+}
+function drawSparkline(g, x, y, w, h, p, t, M){
+  g.save();
+  g.fillStyle = "rgba(255,255,255,0.82)"; roundRect(g, x, y, w, h, 11); g.fill();
+  g.strokeStyle = "rgba(43,122,140,0.25)"; g.lineWidth = 1.4; g.stroke();
+  g.fillStyle = "rgba(28,60,70,0.72)"; g.font = "600 12px sans-serif";
+  g.fillText("水温变化曲线", x + 11, y + 19);
+  const t0 = p.temp, t1 = Math.max(100, M.tempNow(p, 2.6) + 8);
+  /* 曲线 */
+  g.beginPath();
+  for (let s = 0; s <= 60; s++){
+    const tt = (s / 60) * M.duration;
+    const px = x + 10 + (tt / M.duration) * (w - 22);
+    const py = y + h - 14 - ((M.tempNow(p, tt) - t0 * 0.6) / (t1 - t0 * 0.6)) * (h - 42);
+    s === 0 ? g.moveTo(px, py) : g.lineTo(px, py);
+  }
+  g.strokeStyle = "#2b7a8c"; g.lineWidth = 2.4; g.stroke();
+  /* 当前点 */
+  const cx = x + 10 + (t / M.duration) * (w - 22);
+  const cy = y + h - 14 - ((M.tempNow(p, t) - t0 * 0.6) / (t1 - t0 * 0.6)) * (h - 42);
+  g.beginPath(); g.arc(cx, cy, 5, 0, Math.PI * 2); g.fillStyle = "#d8443a"; g.fill();
+  g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke();
+  g.fillStyle = "rgba(28,60,70,0.55)"; g.font = "10.5px sans-serif";
+  g.fillText("0s", x + 10, y + h - 3);
+  g.fillText("26s", x + w - 32, y + h - 3);
+  g.restore();
+}
+
+/* ---- 状态与控制 ---- */
+const S = { t: 0, playing: false, speed: 1 };
+const $ = (id) => document.getElementById(id);
+const cv = $("stage"), ctx = cv.getContext("2d");
+
+function setT(t){
+  S.t = clamp(t, 0, MODULE.duration);
+  $("scrub").value = Math.round(S.t / MODULE.duration * 2600);
+  $("clock").textContent = S.t.toFixed(1) + " s";
+}
+function render(){
+  MODULE.render(ctx, MODULE.params, S.t, cv.width, cv.height);
+  /* 字典联动 */
+  const act = MODULE.activeKeys(MODULE.params, S.t);
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
+  /* 阶段 */
+  $("phase").textContent = MODULE.phase(MODULE.params, S.t);
+  /* 读数 */
+  const rows = MODULE.readouts(MODULE.params, S.t);
+  $("readouts").innerHTML = rows.map(r =>
+    '<div class="ro' + (r.warn ? " warn" : "") + '"><span>' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join("");
+}
+function frame(ts){
+  if (S.playing){
+    if (S.last) S.t += (ts - S.last) / 1000 * S.speed;
+    S.last = ts;
+    if (S.t >= MODULE.duration){ S.t = MODULE.duration; S.playing = false; $("play").textContent = "▶ 开始"; S.last = 0; }
+    setT(S.t);
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+function play(){
+  if (S.t >= MODULE.duration) setT(0);
+  S.playing = true; S.last = 0;
+  $("play").textContent = "⏸ 暂停";
+  $("phaseHint").textContent = "观察现象字典随时间点亮";
+}
+function pause(){ S.playing = false; S.last = 0; $("play").textContent = "▶ 开始"; }
+
+/* ---- 构建 UI ---- */
+function buildParams(){
+  $("params").innerHTML = MODULE.defs.map(d => {
+    if (d.type === "seg"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<div class="seg" id="seg-' + d.key + '">' + d.options.map(o =>
+          '<button data-v="' + o.v + '">' + o.t + '</button>').join("") + '</div></div>';
+    }
+    if (d.type === "range"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<input type="range" id="rg-' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="' + (d.step || 1) + '"></div>';
+    }
+    return '<div class="param"><div class="lab"><span>' + d.label + '</span>' +
+      '<button class="switch" id="tg-' + d.key + '"></button></div></div>';
+  }).join("");
+  MODULE.defs.forEach(d => {
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b => b.onclick = () => {
+        MODULE.params[d.key] = Number(b.dataset.v); syncParams(); render();
+      });
+    } else if (d.type === "range"){
+      $("rg-" + d.key).oninput = e => { MODULE.params[d.key] = Number(e.target.value); syncParams(); render(); };
+    } else {
+      $("tg-" + d.key).onclick = () => { MODULE.params[d.key] = !MODULE.params[d.key]; syncParams(); render(); };
+    }
+  });
+}
+function syncParams(){
+  MODULE.defs.forEach(d => {
+    const v = MODULE.params[d.key];
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b =>
+        b.classList.toggle("on", Number(b.dataset.v) === v));
+      const opt = d.options.find(o => o.v === v);
+      $("v-" + d.key).textContent = opt ? opt.t : "";
+    } else if (d.type === "range"){
+      $("rg-" + d.key).value = v;
+      $("v-" + d.key).textContent = v + (d.unit || "");
+    } else {
+      $("tg-" + d.key).classList.toggle("on", !!v);
+    }
+  });
+}
+function buildPresets(){
+  $("presets").innerHTML = MODULE.presets.map((p, idx) =>
+    '<button data-i="' + idx + '"><span class="pt">' + p.t + '</span><span class="pd">' + p.d + '</span></button>').join("");
+  $("presets").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const p = MODULE.presets[Number(b.dataset.i)];
+    Object.assign(MODULE.params, p.p);
+    syncParams(); setT(0); play(); render();
+  });
+}
+function buildDict(){
+  $("dict").innerHTML = MODULE.dict.map(d =>
+    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b>' + d.d + '</div>').join("");
+}
+function buildTicks(){
+  $("ticks").innerHTML = MODULE.events.map(e =>
+    '<div class="tick" style="left:' + (e.t / MODULE.duration * 100) + '%" data-t="' + e.t + '">' + e.k + '</div>').join("");
+  $("ticks").querySelectorAll(".tick").forEach(tk => tk.onclick = () => { setT(Number(tk.dataset.t)); render(); });
+}
+
+/* ---- 事件绑定 ---- */
+$("play").onclick = () => S.playing ? pause() : play();
+$("reset").onclick = () => { pause(); setT(0); render(); $("phaseHint").textContent = "点「开始」，观察五个字的现象顺序"; };
+$("prev").onclick = () => { pause(); setT(S.t - 1 / 30); render(); };
+$("next").onclick = () => { pause(); setT(S.t + 1 / 30); render(); };
+$("spd").onclick = () => {
+  S.speed = S.speed === 1 ? 2 : S.speed === 2 ? 0.5 : 1;
+  $("spd").textContent = "速度 ×" + S.speed;
+};
+$("scrub").oninput = e => { pause(); setT(Number(e.target.value) / 2600 * MODULE.duration); render(); };
+
+/* ---- 启动 ---- */
+buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();
+$("theory").innerHTML = MODULE.theory;
+setT(0); render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

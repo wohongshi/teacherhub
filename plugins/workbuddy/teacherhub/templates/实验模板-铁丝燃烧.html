@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>铁丝在氧气中燃烧 · 演示工作台</title>
+<style>
+:root{
+  --bg:#f2ece6; --panel:#fff; --ink:#2c2418; --muted:#7d6f5c;
+  --theme:#b3541e; --theme2:#e07b39; --accent-soft:#faead9;
+  --warn:#b3261e; --warn-soft:#fbe4e0; --ok:#2e7d54;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+.top{background:linear-gradient(135deg,#7c3412,#b3541e);color:#fff;padding:18px 22px}
+.top .crumb{font-size:12px;opacity:.72;margin-bottom:6px}
+.top h1{font-size:23px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.eq-badge{font-size:12.5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 14px;font-family:Georgia,serif}
+.top .sub{font-size:13px;opacity:.82;margin-top:7px}
+.wrap{max-width:1280px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:minmax(0,1.9fr) minmax(290px,1fr);gap:16px;align-items:start}
+.card{background:var(--panel);border:1px solid #e3d7c8;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(70,45,20,.05)}
+.stage-wrap{position:relative}
+canvas#stage{width:100%;height:auto;display:block;border-radius:12px;background:#e7ddd1}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid #d5c5b1;background:#fff;color:var(--ink);border-radius:11px;min-height:42px;min-width:42px;padding:0 16px;font-size:14px;cursor:pointer;font-family:inherit}
+button:hover{border-color:var(--theme2);background:var(--accent-soft)}
+button.primary{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:600}
+button.primary:hover{background:#96441a}
+button.ghost{min-width:42px;padding:0 11px}
+.clock{font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;margin-left:auto;background:var(--accent-soft);color:var(--theme);border-radius:10px;padding:8px 14px}
+.scrub-row{margin-top:10px;position:relative}
+input[type=range]{width:100%;accent-color:var(--theme);height:26px}
+.ticks{position:relative;height:16px;margin-top:2px}
+.tick{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--theme);cursor:pointer;white-space:nowrap}
+.tick::before{content:"";display:block;width:1px;height:5px;background:var(--theme2);margin:0 auto 1px}
+.dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border:1px solid #ddcdb9;border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted);background:#f8f2ea;cursor:default;transition:all .2s}
+.chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(179,84,30,.35)}
+.chip b{margin-right:4px}
+.phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
+.phase-tag{background:var(--theme);color:#fff;border-radius:9px;padding:6px 13px;font-weight:700;font-size:13px}
+.aside{display:flex;flex-direction:column;gap:14px}
+.aside h2{font-size:15px;color:var(--theme);margin-bottom:11px;display:flex;align-items:center;gap:7px}
+.param{margin-bottom:13px}
+.param .lab{font-size:13px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.param .lab .v{color:var(--theme);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-height:38px;min-width:38px;padding:0 8px;font-size:13px;border-radius:10px}
+.seg button.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700}
+.switch{position:relative;width:52px;height:29px;border-radius:999px;background:#cdbfa9;cursor:pointer;transition:.18s;border:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;transition:.18s}
+.switch.on{background:var(--theme)}
+.switch.on::after{left:26px}
+.presets button{width:100%;text-align:left;min-height:auto;padding:11px 13px;margin-bottom:8px;display:block}
+.presets .pt{font-size:13.5px;font-weight:700;display:block}
+.presets .pd{font-size:12px;color:var(--muted);margin-top:3px;display:block;line-height:1.5}
+.readouts{display:flex;flex-direction:column;gap:8px}
+.ro{display:flex;justify-content:space-between;align-items:center;background:#f8f2ea;border-radius:11px;padding:10px 13px;font-size:13px}
+.ro .rv{font-weight:800;font-size:14.5px;color:var(--theme);font-variant-numeric:tabular-nums}
+.ro.warn{background:var(--warn-soft)}
+.ro.warn .rv{color:var(--warn)}
+.theory{font-size:13px;line-height:1.95;color:#4d4232}
+.theory .eq{background:var(--accent-soft);border-radius:11px;padding:12px 14px;text-align:center;font-family:Georgia,serif;font-size:15.5px;color:#6c3212;margin-bottom:11px;font-weight:600}
+.danger{background:var(--warn-soft);border:1px solid #f0c4b7;border-radius:14px;padding:14px 16px}
+.danger h2{color:var(--warn)}
+.danger p{font-size:12.5px;line-height:1.9;color:#7c3a26}
+.foot{text-align:center;color:#a2937e;font-size:11.5px;padding:20px 16px 30px;line-height:1.9}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="crumb">虚拟实验 · 化学 · 单实验模块</div>
+  <h1>铁丝在氧气中燃烧 <span class="eq-badge">3Fe + 2O₂ —点燃→ Fe₃O₄</span></h1>
+  <div class="sub">参数可调 · 预设对比 · 逐帧回放 · 确定性模拟（同样输入永远同样输出，方便反复讲解）</div>
+</header>
+<main class="wrap">
+  <section>
+    <div class="card stage-wrap">
+      <canvas id="stage" width="960" height="560"></canvas>
+      <div class="ctrl">
+        <button id="reset">重置</button>
+        <button id="play" class="primary">▶ 开始</button>
+        <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
+        <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
+        <button id="spd" class="ghost">速度 ×1</button>
+        <div class="clock"><span id="clock">0.0 s</span></div>
+      </div>
+      <div class="scrub-row">
+        <input type="range" id="scrub" min="0" max="2000" value="0">
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div class="dict" id="dict"></div>
+      <div class="phase-line"><span class="phase-tag" id="phase">准备：打磨铁丝</span><span id="phaseHint" style="color:#7d6f5c;font-size:12.5px">点「开始」，看火柴引燃到火星四射的全过程</span></div>
+    </div>
+  </section>
+  <aside class="aside">
+    <div class="card">
+      <h2>🧪 实验条件</h2>
+      <div id="params"></div>
+    </div>
+    <div class="card presets">
+      <h2>⚡ 预设场景</h2>
+      <div id="presets"></div>
+    </div>
+    <div class="card">
+      <h2>📊 实时读数</h2>
+      <div class="readouts" id="readouts"></div>
+    </div>
+    <div class="card theory" id="theory"></div>
+    <div class="danger">
+      <h2>⚠ 安全提示</h2>
+      <p>火柴不要插太满；铁丝绕成螺旋以聚热；待火柴快燃尽再伸入，由上而下缓慢插入。瓶底必须放少量水或铺细沙，防高温熔融物骤热炸裂集气瓶。真实实验须由老师演示，学生不得自行操作！</p>
+    </div>
+  </aside>
+</main>
+<footer class="foot">虚拟实验仅供教学演示，模拟数值为教学化简化，非真实测量数据。<br>确定性模拟 · 单文件 · 离线可用</footer>
+<script>
+"use strict";
+/* ==================================================================
+   实验模块：铁丝在氧气中燃烧（一实验一模块）
+   规则：除锈、氧气浓度影响能否顺利燃烧；粗铁丝难点燃；
+   瓶底不放水/细沙 → 高温生成物落下有炸裂风险（红字警示 + 裂纹演示）。
+   渲染是 t 的纯函数：火星/黑色固体都是 t 的确定性粒子，任意拖动一致。
+   ================================================================== */
+const MODULE = {
+  key: "fe-o2",
+  title: "铁丝在氧气中燃烧",
+  duration: 20,
+  params: { thick: 1, o2: 80, rusted: false, bottom: "water" },
+  defs: [
+    { key: "thick", label: "铁丝粗细", type: "seg", options: [
+      { v: 1, t: "细" }, { v: 2, t: "中" }, { v: 3, t: "粗" } ] },
+    { key: "o2", label: "氧气浓度", type: "range", min: 21, max: 100, step: 1, unit: " %" },
+    { key: "rusted", label: "铁丝未除锈", type: "toggle" },
+    { key: "bottom", label: "瓶底处理", type: "seg", options: [
+      { v: "water", t: "放少量水" }, { v: "sand", t: "铺细沙" }, { v: "none", t: "什么都不放" } ] },
+  ],
+  presets: [
+    { t: "普通空气 · 粗铁丝", d: "难点燃、火星少——对比用的失败案例", p: { thick: 3, o2: 21, rusted: true, bottom: "sand" } },
+    { t: "高浓度氧气 · 未防护", d: "燃烧剧烈，⚠ 高温生成物落下会炸裂瓶底", p: { thick: 2, o2: 95, rusted: false, bottom: "none" } },
+    { t: "标准实验", d: "细铁丝 + 除锈 + 瓶底放水，火星四射", p: { thick: 1, o2: 80, rusted: false, bottom: "water" } },
+  ],
+  dict: [
+    { k: "除锈", d: "锈层阻碍铁与氧气接触，必须打磨" },
+    { k: "引燃", d: "火柴引燃铁丝，快燃尽时伸入集气瓶" },
+    { k: "火星四射", d: "铁在氧气中剧烈燃烧，高温熔融物向四周飞溅" },
+    { k: "黑色固体", d: "生成的 Fe₃O₄ 熔融物落入瓶底" },
+    { k: "防护", d: "瓶底放水/细沙，防高温熔融物炸裂瓶底" },
+  ],
+  events: [
+    { t: 0.4, k: "除锈" }, { t: 1.6, k: "引燃" }, { t: 4.2, k: "火星四射" }, { t: 5.6, k: "黑色固体" },
+  ],
+  theory:
+    '<h2>📖 原理与现象</h2>' +
+    '<div class="eq">3Fe + 2O<sub>2</sub> <span style="font-size:13px">（点燃）</span> → Fe<sub>3</sub>O<sub>4</sub></div>' +
+    '<p><b>火星四射</b>：铁在纯氧中剧烈燃烧，生成的 Fe<sub>3</sub>O<sub>4</sub> 高温熔融物向四周飞溅。<br>' +
+    '<b>黑色固体</b>：熔融的 Fe<sub>3</sub>O<sub>4</sub> 落入瓶底。<br>' +
+    '<b>为什么要除锈</b>：锈层阻碍铁与氧气接触，火柴难以把铁丝引燃。<br>' +
+    '<b>瓶底为什么放水/细沙</b>：高温熔融物直接落到冷瓶底，局部骤热不均会使集气瓶炸裂。</p>',
+
+  /* ---- 教学化公式（与校对版一致） ---- */
+  intensity(p){
+    const o2f = clamp((p.o2 - 21) / 79, 0, 1);
+    const thickf = p.thick === 1 ? 1 : p.thick === 2 ? 0.72 : 0.42;
+    const rustf = p.rusted ? 0.38 : 1;
+    return o2f * thickf * rustf;
+  },
+  /* 引燃时刻：锈/粗会让火柴烧更久才点着 */
+  igniteT(p){ return 2.2 + (p.rusted ? 2.6 : 0) + (p.thick - 1) * 1.1 + (1 - clamp((p.o2 - 21) / 79, 0, 1)) * 1.4; },
+  label(p){
+    const i = this.intensity(p);
+    return i < 0.18 ? "难以点燃" : i < 0.45 ? "燃烧较弱" : i < 0.75 ? "燃烧明显" : "剧烈燃烧 · 火星四射";
+  },
+  crackRisk(p){ return p.bottom === "none"; },
+  /* 燃烧强度随时间的包络：点燃后迅速增强，约 3s 后衰退 */
+  burnAt(p, t){
+    const ig = this.igniteT(p);
+    if (t < ig) return 0;
+    return this.intensity(p) * (1 - clamp((t - ig - 3.2) / 4.5, 0, 1));
+  },
+  activeKeys(p, t){
+    const out = [];
+    const ig = this.igniteT(p);
+    if (t >= 0.4 && t < 1.5) out.push("除锈");
+    if (t >= 1.6 && t < ig + 0.6) out.push("引燃");
+    if (t >= ig && t < ig + 3.4) out.push("火星四射");
+    if (t >= ig + 1.4) out.push("黑色固体");
+    if (p.bottom !== "none") out.push("防护");
+    return out;
+  },
+  phase(p, t){
+    const ig = this.igniteT(p);
+    if (t < 1.5) return "准备：打磨铁丝";
+    if (t < ig) return "火柴引燃中";
+    if (t < ig + 3.4) return this.intensity(p) < 0.18 ? "微弱燃烧" : "剧烈燃烧 · 火星四射";
+    if (t < ig + 7) return "火星渐弱 · 黑色固体落下";
+    return "反应结束";
+  },
+  readouts(p, t){
+    const ig = this.igniteT(p);
+    const burn = this.burnAt(p, t);
+    return [
+      { l: "氧气浓度", v: p.o2 + " %" },
+      { l: "燃烧状态", v: t < ig ? (t < 1.5 ? "未点燃" : "火柴引燃中") : (burn > 0.04 ? this.label(p) : "已结束") },
+      { l: "火星密度", v: Math.round(clamp(burn, 0, 1) * 100) + " %" },
+      { l: "黑色固体", v: t < ig + 1.4 ? "—" : Math.round(clamp((t - ig - 1.4) / 5, 0, 1) * 100) + " %" },
+      { l: "瓶底", v: this.crackRisk(p) ? "无防护 · 炸裂风险" : (p.bottom === "water" ? "已放水" : "已铺细沙"), warn: this.crackRisk(p) },
+    ];
+  },
+
+  /* ---- 渲染（t 的纯函数） ---- */
+  render(g, p, t, W, H){
+    const ig = this.igniteT(p);
+    const burn = this.burnAt(p, t);
+    const i = this.intensity(p);
+
+    /* 背景 */
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#ece2d5"); bg.addColorStop(1, "#ddd0bf");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "rgba(179,84,30,0.06)"; g.lineWidth = 1;
+    for (let x = 0; x < W; x += 40){ g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y < H; y += 40){ g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+
+    /* 燃烧辉光（瓶内） */
+    if (burn > 0.01){
+      const gr = g.createRadialGradient(480, 300, 30, 480, 300, 330);
+      gr.addColorStop(0, "rgba(255,170,70," + (0.34 * burn) + ")");
+      gr.addColorStop(1, "rgba(255,150,50,0)");
+      g.fillStyle = gr; g.fillRect(150, 60, 660, 460);
+    }
+
+    /* 集气瓶 */
+    g.lineWidth = 5; g.strokeStyle = "rgba(140,120,96,0.8)";
+    roundRect(g, 300, 130, 360, 340, 26); g.stroke();
+    g.fillStyle = "rgba(255,255,255,0.16)"; roundRect(g, 300, 130, 360, 340, 26); g.fill();
+    /* 瓶口 */
+    g.fillStyle = "#b7a68d"; roundRect(g, 430, 100, 100, 34, 8); g.fill();
+    /* O2 标签 */
+    g.fillStyle = "rgba(124,52,18,0.75)"; g.font = "700 17px sans-serif";
+    g.fillText("O₂（高浓度氧气）", 336, 442);
+
+    /* 瓶底处理 */
+    if (p.bottom === "water"){
+      const wg = g.createLinearGradient(0, 420, 0, 466);
+      wg.addColorStop(0, "rgba(110,170,205,0.5)"); wg.addColorStop(1, "rgba(70,130,175,0.65)");
+      g.fillStyle = wg; roundRect(g, 310, 420, 340, 46, 12); g.fill();
+    } else if (p.bottom === "sand"){
+      g.fillStyle = "#c9a874"; roundRect(g, 310, 432, 340, 34, 10); g.fill();
+      for (let s = 0; s < 40; s++){
+        g.fillStyle = "rgba(140,105,60," + (0.3 + hash(s) * 0.4) + ")";
+        g.fillRect(318 + hash(s * 3) * 320, 438 + hash(s * 7) * 22, 3, 2);
+      }
+    } else if (t > ig + 2.2 && ig > 0){
+      /* 炸裂风险：裂纹演示 */
+      g.strokeStyle = "rgba(179,38,30,0.85)"; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(330, 468); g.lineTo(370, 448); g.lineTo(400, 462); g.lineTo(450, 444); g.lineTo(500, 464); g.stroke();
+      g.fillStyle = "rgba(179,38,30,0.9)"; g.font = "700 15px sans-serif";
+      g.fillText("⚠ 高温熔融物骤热瓶底 · 炸裂！", 320, 500);
+    }
+
+    /* 螺旋铁丝（helix） */
+    const wireX = 480, wireTop = 138, wireBot = 330;
+    g.lineWidth = 2 + p.thick * 1.6;
+    g.strokeStyle = p.rusted ? "#8a5a34" : "#6f7880";
+    for (let loop = 0; loop < 5; loop++){
+      const ly = wireTop + loop * ((wireBot - wireTop) / 4.6);
+      g.beginPath(); g.ellipse(wireX, ly, 42 - loop * 3, 12, 0, 0, Math.PI * 2); g.stroke();
+    }
+    g.beginPath(); g.moveTo(wireX, 60); g.lineTo(wireX, wireTop); g.stroke();
+
+    /* 火柴（1.6s 后出现在铁丝末端，点燃到 igniteT） */
+    if (t >= 1.6 && t < ig + 0.4){
+      const mg = g.createLinearGradient(wireX - 3, 0, wireX + 3, 0);
+      mg.addColorStop(0, "#d9b072"); mg.addColorStop(1, "#b98d52");
+      g.fillStyle = mg; roundRect(g, wireX - 3, wireBot - 4, 6, 56, 3); g.fill();
+      g.beginPath(); g.arc(wireX, wireBot + 52, 8, 0, Math.PI * 2); g.fillStyle = "#c0392b"; g.fill();
+      /* 火柴火焰 */
+      const fl = 0.75 + 0.25 * Math.sin(t * 19) * Math.sin(t * 9 + 2);
+      const fg = g.createRadialGradient(wireX, wireBot + 46, 2, wireX, wireBot + 46, 26 * fl + 10);
+      fg.addColorStop(0, "rgba(255,230,160,0.95)"); fg.addColorStop(0.6, "rgba(240,150,60,0.85)"); fg.addColorStop(1, "rgba(240,120,40,0)");
+      g.fillStyle = fg;
+      g.beginPath(); g.ellipse(wireX, wireBot + 42, 10 * fl + 4, 22 * fl + 8, 0, 0, Math.PI * 2); g.fill();
+    }
+
+    /* 火星四射（纯函数粒子：火星 i 生成于 igniteT + i*period） */
+    if (burn > 0.01){
+      const period = Math.max(0.035, 0.22 - i * 0.17);
+      const n = Math.min(60, Math.floor(4.2 / period));
+      for (let s = 0; s < n; s++){
+        const ti = ig + s * period;
+        const age = t - ti;
+        const life = 0.62 + hash(s + 3) * 0.55;
+        if (age <= 0 || age > life) continue;
+        const ang = hash(s) * Math.PI * 2;
+        const spd = 120 + hash(s + 7) * 210 * (0.5 + burn);
+        const sx = 480 + Math.cos(ang) * spd * age * 0.62;
+        const sy = 300 + Math.sin(ang) * spd * age * 0.62 + 130 * age * age;
+        const a = (1 - age / life) * (0.55 + burn * 0.45);
+        /* 尾迹 */
+        g.strokeStyle = "rgba(255,180,60," + a + ")"; g.lineWidth = 2.2;
+        g.beginPath();
+        g.moveTo(480 + Math.cos(ang) * spd * Math.max(0, age - 0.05) * 0.62, 300 + Math.sin(ang) * spd * Math.max(0, age - 0.05) * 0.62 + 130 * Math.max(0, age - 0.05) ** 2);
+        g.lineTo(sx, sy); g.stroke();
+        g.beginPath(); g.arc(sx, sy, 2 + hash(s + 11) * 2.4, 0, Math.PI * 2);
+        g.fillStyle = "rgba(255,220,120," + a + ")"; g.fill();
+      }
+    }
+
+    /* 黑色固体落下堆积（纯函数） */
+    if (t > ig + 1.4){
+      const cnt = Math.min(26, Math.floor((t - ig - 1.4) / 0.19));
+      for (let k = 0; k < cnt; k++){
+        const ti = ig + 1.4 + k * 0.19;
+        const age = t - ti;
+        const fx = 340 + hash(k * 5) * 280;
+        const fall = Math.min(1, age / 1.05);
+        const fy = 306 + fall * (p.bottom === "none" ? 152 : 126);
+        g.beginPath(); g.arc(fx, fy, 2.6 + hash(k) * 2.2, 0, Math.PI * 2);
+        g.fillStyle = "rgba(30,26,22," + (0.55 + hash(k + 9) * 0.4) + ")"; g.fill();
+        /* 落定后堆在瓶底 */
+        if (fall >= 1){
+          g.beginPath(); g.arc(fx, fy + 2, 3 + hash(k + 2) * 2, 0, Math.PI * 2);
+          g.fillStyle = "rgba(22,19,16,0.85)"; g.fill();
+        }
+      }
+    }
+
+    /* 铁丝灼热段（燃烧时） */
+    if (burn > 0.01){
+      const hg = g.createLinearGradient(wireX - 44, 0, wireX + 44, 0);
+      hg.addColorStop(0, "rgba(255,150,50,0)");
+      hg.addColorStop(0.5, "rgba(255,170,70," + (0.5 * burn) + ")");
+      hg.addColorStop(1, "rgba(255,150,50,0)");
+      g.fillStyle = hg;
+      roundRect(g, wireX - 46, wireTop - 6, 92, wireBot - wireTop + 12, 18); g.fill();
+    }
+
+    /* 图注 */
+    g.fillStyle = "rgba(70,45,20,0.66)"; g.font = "600 15px sans-serif";
+    g.fillText("集气瓶 · 螺旋铁丝 · 火柴引燃（示意）", 300, 538);
+    g.font = "12px sans-serif"; g.fillStyle = "rgba(70,45,20,0.45)";
+    g.fillText("示意尺寸非真实比例", 300, 556);
+  },
+};
+
+/* ================= 通用框架 ================= */
+function hash(n){ const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function roundRect(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+/* ---- 状态与控制 ---- */
+const S = { t: 0, playing: false, speed: 1 };
+const $ = (id) => document.getElementById(id);
+const cv = $("stage"), ctx = cv.getContext("2d");
+
+function setT(t){
+  S.t = clamp(t, 0, MODULE.duration);
+  $("scrub").value = Math.round(S.t / MODULE.duration * 2000);
+  $("clock").textContent = S.t.toFixed(1) + " s";
+}
+function render(){
+  MODULE.render(ctx, MODULE.params, S.t, cv.width, cv.height);
+  const act = MODULE.activeKeys(MODULE.params, S.t);
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
+  $("phase").textContent = MODULE.phase(MODULE.params, S.t);
+  const rows = MODULE.readouts(MODULE.params, S.t);
+  $("readouts").innerHTML = rows.map(r =>
+    '<div class="ro' + (r.warn ? " warn" : "") + '"><span>' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join("");
+}
+function frame(ts){
+  if (S.playing){
+    if (S.last) S.t += (ts - S.last) / 1000 * S.speed;
+    S.last = ts;
+    if (S.t >= MODULE.duration){ S.t = MODULE.duration; S.playing = false; $("play").textContent = "▶ 开始"; S.last = 0; }
+    setT(S.t);
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+function play(){
+  if (S.t >= MODULE.duration) setT(0);
+  S.playing = true; S.last = 0;
+  $("play").textContent = "⏸ 暂停";
+  $("phaseHint").textContent = "观察现象字典随时间点亮";
+}
+function pause(){ S.playing = false; S.last = 0; $("play").textContent = "▶ 开始"; }
+
+/* ---- 构建 UI ---- */
+function buildParams(){
+  $("params").innerHTML = MODULE.defs.map(d => {
+    if (d.type === "seg"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<div class="seg" id="seg-' + d.key + '">' + d.options.map(o =>
+          '<button data-v="' + o.v + '">' + o.t + '</button>').join("") + '</div></div>';
+    }
+    if (d.type === "range"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<input type="range" id="rg-' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="' + (d.step || 1) + '"></div>';
+    }
+    return '<div class="param"><div class="lab"><span>' + d.label + '</span>' +
+      '<button class="switch" id="tg-' + d.key + '"></button></div></div>';
+  }).join("");
+  MODULE.defs.forEach(d => {
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b => b.onclick = () => {
+        const raw = b.dataset.v;
+        MODULE.params[d.key] = isNaN(Number(raw)) ? raw : Number(raw); syncParams(); render();
+      });
+    } else if (d.type === "range"){
+      $("rg-" + d.key).oninput = e => { MODULE.params[d.key] = Number(e.target.value); syncParams(); render(); };
+    } else {
+      $("tg-" + d.key).onclick = () => { MODULE.params[d.key] = !MODULE.params[d.key]; syncParams(); render(); };
+    }
+  });
+}
+function syncParams(){
+  MODULE.defs.forEach(d => {
+    const v = MODULE.params[d.key];
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b =>
+        b.classList.toggle("on", String(b.dataset.v) === String(v)));
+      const opt = d.options.find(o => String(o.v) === String(v));
+      $("v-" + d.key).textContent = opt ? opt.t : "";
+    } else if (d.type === "range"){
+      $("rg-" + d.key).value = v;
+      $("v-" + d.key).textContent = v + (d.unit || "");
+    } else {
+      $("tg-" + d.key).classList.toggle("on", !!v);
+    }
+  });
+}
+function buildPresets(){
+  $("presets").innerHTML = MODULE.presets.map((p, idx) =>
+    '<button data-i="' + idx + '"><span class="pt">' + p.t + '</span><span class="pd">' + p.d + '</span></button>').join("");
+  $("presets").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const p = MODULE.presets[Number(b.dataset.i)];
+    Object.assign(MODULE.params, p.p);
+    syncParams(); setT(0); play(); render();
+  });
+}
+function buildDict(){
+  $("dict").innerHTML = MODULE.dict.map(d =>
+    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b>' + d.d + '</div>').join("");
+}
+function buildTicks(){
+  $("ticks").innerHTML = MODULE.events.map(e =>
+    '<div class="tick" style="left:' + (e.t / MODULE.duration * 100) + '%" data-t="' + e.t + '">' + e.k + '</div>').join("");
+  $("ticks").querySelectorAll(".tick").forEach(tk => tk.onclick = () => { setT(Number(tk.dataset.t)); render(); });
+}
+
+/* ---- 事件绑定 ---- */
+$("play").onclick = () => S.playing ? pause() : play();
+$("reset").onclick = () => { pause(); setT(0); render(); $("phaseHint").textContent = "点「开始」，看火柴引燃到火星四射的全过程"; };
+$("prev").onclick = () => { pause(); setT(S.t - 1 / 30); render(); };
+$("next").onclick = () => { pause(); setT(S.t + 1 / 30); render(); };
+$("spd").onclick = () => {
+  S.speed = S.speed === 1 ? 2 : S.speed === 2 ? 0.5 : 1;
+  $("spd").textContent = "速度 ×" + S.speed;
+};
+$("scrub").oninput = e => { pause(); setT(Number(e.target.value) / 2000 * MODULE.duration); render(); };
+
+/* ---- 启动 ---- */
+buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();
+$("theory").innerHTML = MODULE.theory;
+setT(0); render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
