@@ -423,6 +423,9 @@ func cmdServe(args []string) {
 		_, _ = w.Write([]byte(viewerHTML(*meta)))
 	})
 
+	// MCP 端点：AI 客户端（WorkBuddy 等）直连（JSON-RPC；读免 key、写留 key）
+	mux.HandleFunc("/mcp", handleMCP(st))
+
 	// 门户首页 + 统计页（合并；浏览全免 key，打开即看）
 	portal := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" && r.URL.Path != "/stats" {

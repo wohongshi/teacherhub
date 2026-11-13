@@ -99,7 +99,10 @@ h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);borde
 .sbtn{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:9px;padding:5px 13px;font-size:12px;cursor:pointer;font-family:inherit}
 .sbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
 .wb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
-.wb{display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 17px;text-decoration:none;color:var(--ink);box-shadow:0 2px 8px rgba(34,40,46,.05);transition:all .15s}
+.wb{display:block;position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 17px;text-decoration:none;color:var(--ink);box-shadow:0 2px 8px rgba(34,40,46,.05);transition:all .15s}
+.fav{position:absolute;top:10px;right:10px;border:0;background:transparent;font-size:17px;cursor:pointer;filter:grayscale(1);opacity:.4;line-height:1;padding:2px}
+.fav:hover{opacity:.9}
+.fav.on{filter:none;opacity:1}
 .wb:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(34,40,46,.10);border-color:#c9d9dc}
 .wb .t{font-size:16px;font-weight:700;line-height:1.4;text-wrap:balance}
 .wb .d{font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.7;min-height:2.6em}
@@ -155,7 +158,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 		tagList = append(tagList, t)
 	}
 	sort.Strings(tagList)
-	b.WriteString(`<div class="toolbar"><div class="fchips" id="tagfilter"><button class="fchip on" data-tag="">全部</button>`)
+	b.WriteString(`<div class="toolbar"><div class="fchips" id="tagfilter"><button class="fchip on" data-tag="">全部</button><button class="fchip" data-tag="__fav__">⭐ 我的收藏</button>`)
 	for _, t := range tagList {
 		fmt.Fprintf(&b, `<button class="fchip" data-tag="%s">%s</button>`, html.EscapeString(t), html.EscapeString(t))
 	}
@@ -204,17 +207,36 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   function card(w){
     var tags=(w.tags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('');
     var ch=esc((w.teacher||'?').slice(0,1));
-    return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><div class="t">'+esc(w.title)+'</div>'+
+    return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+
       '<div class="d">'+esc(w.desc||'')+'</div>'+
       (tags?'<div class="tags">'+tags+'</div>':'')+
       '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">👁 '+(w.views||0)+'</span></div></a>';
   }
+  var FAV_KEY='th_favs';
+  function favs(){try{return JSON.parse(localStorage.getItem(FAV_KEY)||'[]')}catch(e){return []}}
+  function toggleFav(id){var f=favs(),i=f.indexOf(id);if(i>=0)f.splice(i,1);else f.push(id);localStorage.setItem(FAV_KEY,JSON.stringify(f));return i<0}
+  function syncFavs(){var f=favs();grid.querySelectorAll('.fav').forEach(function(b){b.classList.toggle('on',f.indexOf(b.getAttribute('data-id'))>=0)})}
+  grid.addEventListener('click',function(e){
+    var b=e.target.closest('.fav');if(!b)return;
+    e.preventDefault();e.stopPropagation();
+    var on=toggleFav(b.getAttribute('data-id'));
+    b.classList.toggle('on',on);
+    if(curTag==='__fav__')applyFilter();
+  });
   var curTag='',curSort='new';
   function applyFilter(){
     var cards=[].slice.call(grid.querySelectorAll('.wb'));
+    var f=favs();
     cards.forEach(function(c){
-      var tags=(c.getAttribute('data-tags')||'').split(',');
-      c.style.display=(!curTag||tags.indexOf(curTag)>=0)?'':'none';
+      var ok;
+      if(curTag==='__fav__'){
+        var fb=c.querySelector('.fav');
+        ok=fb&&f.indexOf(fb.getAttribute('data-id'))>=0;
+      }else{
+        var tags=(c.getAttribute('data-tags')||'').split(',');
+        ok=(!curTag||tags.indexOf(curTag)>=0);
+      }
+      c.style.display=ok?'':'none';
     });
     cards.sort(function(a,b){
       return curSort==='hot'
@@ -251,6 +273,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   }
   btn.addEventListener('click',search);
   q.addEventListener('keydown',function(e){if(e.key==='Enter')search()});
+  syncFavs();
 })();
 </script></body></html>`)
 	return b.String()
@@ -259,8 +282,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 // wbCardHTML 产物卡片。
 func wbCardHTML(w Workbench) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, `<a class="wb" href="/w/%s" data-tags="%s" data-views="%d" data-created="%d"><div class="t">%s</div>`,
-		w.ID, html.EscapeString(strings.Join(w.Tags, ",")), w.Views, w.CreatedAt, html.EscapeString(w.Title))
+	fmt.Fprintf(&b, `<a class="wb" href="/w/%s" data-tags="%s" data-views="%d" data-created="%d"><button class="fav" data-id="%s" title="收藏（存本机浏览器）">⭐</button><div class="t">%s</div>`,
+		w.ID, html.EscapeString(strings.Join(w.Tags, ",")), w.Views, w.CreatedAt, w.ID, html.EscapeString(w.Title))
 	if w.Desc != "" {
 		fmt.Fprintf(&b, `<div class="d">%s</div>`, html.EscapeString(w.Desc))
 	} else {
@@ -296,7 +319,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#12333a;d
 .bar .t{flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 iframe{flex:1;width:100%%;border:0;background:#fff}
 </style></head><body>
-<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
+<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
 <iframe src="/w/` + w.ID + `/raw"></iframe>
 </body></html>`
 }

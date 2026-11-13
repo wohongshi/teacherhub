@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>凸透镜成像规律 · 演示工作台</title>
+<style>
+:root{
+  --bg:#e9edf4; --panel:#fff; --ink:#222a3c; --muted:#6c7690;
+  --theme:#3b5bb5; --theme2:#6c8ae0; --accent-soft:#e4eaf8;
+  --warn:#b3541e; --warn-soft:#faead9; --ok:#2e7d54;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+.top{background:linear-gradient(135deg,#253c7c,#3b5bb5);color:#fff;padding:18px 22px}
+.top .crumb{font-size:12px;opacity:.72;margin-bottom:6px}
+.top h1{font-size:23px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.eq-badge{font-size:12.5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 14px;font-family:Georgia,serif}
+.top .sub{font-size:13px;opacity:.82;margin-top:7px}
+.wrap{max-width:1280px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:minmax(0,1.9fr) minmax(290px,1fr);gap:16px;align-items:start}
+.card{background:var(--panel);border:1px solid #d4dbe8;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(35,50,90,.05)}
+.stage-wrap{position:relative}
+canvas#stage{width:100%;height:auto;display:block;border-radius:12px;background:#dfe5f0}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid #c5cee2;background:#fff;color:var(--ink);border-radius:11px;min-height:42px;min-width:42px;padding:0 16px;font-size:14px;cursor:pointer;font-family:inherit}
+button:hover{border-color:var(--theme2);background:var(--accent-soft)}
+button.primary{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:600}
+button.primary:hover{background:#2f4a97}
+button.ghost{min-width:42px;padding:0 11px}
+.clock{font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;margin-left:auto;background:var(--accent-soft);color:var(--theme);border-radius:10px;padding:8px 14px}
+.scrub-row{margin-top:10px;position:relative}
+input[type=range]{width:100%;accent-color:var(--theme);height:26px}
+.ticks{position:relative;height:16px;margin-top:2px}
+.tick{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--theme);cursor:pointer;white-space:nowrap}
+.tick::before{content:"";display:block;width:1px;height:5px;background:var(--theme2);margin:0 auto 1px}
+.kbd-hint{margin-top:9px;font-size:11px;color:#8aa0a4;text-align:center}
+body.focus .aside{display:none}
+body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
+body.focus .top .sub,body.focus .foot{display:none}
+.dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border:1px solid #cdd5e6;border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted);background:#f4f6fb;cursor:default;transition:all .2s}
+.chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(59,91,181,.35)}
+.chip b{margin-right:4px}
+.phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
+.phase-tag{background:var(--theme);color:#fff;border-radius:9px;padding:6px 13px;font-weight:700;font-size:13px}
+.aside{display:flex;flex-direction:column;gap:14px}
+.aside h2{font-size:15px;color:var(--theme);margin-bottom:11px;display:flex;align-items:center;gap:7px}
+.param{margin-bottom:13px}
+.param .lab{font-size:13px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.param .lab .v{color:var(--theme);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-height:38px;min-width:38px;padding:0 8px;font-size:13px;border-radius:10px}
+.seg button.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700}
+.switch{position:relative;width:52px;height:29px;border-radius:999px;background:#c6cde0;cursor:pointer;transition:.18s;border:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;transition:.18s}
+.switch.on{background:var(--theme)}
+.switch.on::after{left:26px}
+.presets button{width:100%;text-align:left;min-height:auto;padding:11px 13px;margin-bottom:8px;display:block}
+.presets .pt{font-size:13.5px;font-weight:700;display:block}
+.presets .pd{font-size:12px;color:var(--muted);margin-top:3px;display:block;line-height:1.5}
+.readouts{display:flex;flex-direction:column;gap:8px}
+.ro{display:flex;justify-content:space-between;align-items:center;background:#f4f6fb;border-radius:11px;padding:10px 13px;font-size:13px}
+.ro .rv{font-weight:800;font-size:14.5px;color:var(--theme);font-variant-numeric:tabular-nums}
+.ro.warn{background:var(--warn-soft)}
+.ro.warn .rv{color:var(--warn)}
+.theory{font-size:13px;line-height:1.95;color:#3d4560}
+.theory .eq{background:var(--accent-soft);border-radius:11px;padding:12px 14px;text-align:center;font-family:Georgia,serif;font-size:15.5px;color:#253c7c;margin-bottom:11px;font-weight:600}
+.tips{background:var(--accent-soft);border:1px solid #c5d2f0;border-radius:14px;padding:14px 16px}
+.tips h2{color:var(--theme)}
+.tips p{font-size:12.5px;line-height:1.9;color:#3d4560}
+.foot{text-align:center;color:#8aa0a4;font-size:11.5px;padding:20px 16px 30px;line-height:1.9}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="crumb">虚拟实验 · 物理 · 单实验模块</div>
+  <h1>凸透镜成像规律 <span class="eq-badge">1/u + 1/v = 1/f</span></h1>
+  <div class="sub">物距自动扫描 · 三条特殊光线作图 · 逐帧回放 · 确定性模拟（同样输入永远同样输出）</div>
+</header>
+<main class="wrap">
+  <section>
+    <div class="card stage-wrap">
+      <canvas id="stage" width="960" height="560"></canvas>
+      <div class="ctrl">
+        <button id="reset">重置</button>
+        <button id="play" class="primary">▶ 开始</button>
+        <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
+        <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
+        <button id="spd" class="ghost">速度 ×1</button>
+        <button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
+        <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
+        <div class="clock"><span id="clock">0.0 s</span></div>
+      </div>
+      <div class="scrub-row">
+        <input type="range" id="scrub" min="0" max="2400" value="0">
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div class="kbd-hint">快捷键：空格 播放/暂停 · ← → 逐帧 · R 重置 · S 截图 · F 投屏</div>
+      <div class="dict" id="dict"></div>
+      <div class="phase-line"><span class="phase-tag" id="phase">物距很远 · 照相机区</span><span id="phaseHint" style="color:#6c7690;font-size:12.5px">点「开始」，看蜡烛移近透镜时像怎样变化</span></div>
+    </div>
+  </section>
+  <aside class="aside">
+    <div class="card">
+      <h2>🔬 实验条件</h2>
+      <div id="params"></div>
+    </div>
+    <div class="card presets">
+      <h2>⚡ 应用场景</h2>
+      <div id="presets"></div>
+    </div>
+    <div class="card">
+      <h2>📊 实时读数</h2>
+      <div class="readouts" id="readouts"></div>
+    </div>
+    <div class="card theory" id="theory"></div>
+    <div class="tips">
+      <h2>📌 实验要点</h2>
+      <p>光具座上蜡烛、凸透镜、光屏三者中心调到同一高度；光屏上要找到「最清晰」的像再读数。口诀：<b>一倍焦距分虚实，二倍焦距分大小</b>。</p>
+    </div>
+  </aside>
+</main>
+<footer class="foot">虚拟实验仅供教学演示，成像按理想薄透镜公式计算，非真实测量数据。<br>确定性模拟 · 单文件 · 离线可用</footer>
+<script>
+"use strict";
+/* ==================================================================
+   实验模块：凸透镜成像规律（一实验一模块，物理）
+   规则：播放 = 物距 u 从 50cm 扫到 3cm（线性），成像由理想薄透镜公式
+   1/u + 1/v = 1/f 严格算出；u>f 成倒立实像（光屏可接），u<f 成正立放大虚像。
+   渲染是 t 的纯函数：光线、像、读数全由 u(t) 与参数推出。
+   ================================================================== */
+const MODULE = {
+  key: "lens-image",
+  title: "凸透镜成像规律",
+  duration: 24,
+  params: { f: 15, h: 2, rays: true },
+  defs: [
+    { key: "f", label: "焦距 f", type: "seg", options: [
+      { v: 10, t: "10 cm" }, { v: 15, t: "15 cm" }, { v: 20, t: "20 cm" } ] },
+    { key: "h", label: "蜡烛高度", type: "seg", options: [
+      { v: 1, t: "矮" }, { v: 2, t: "中" }, { v: 3, t: "高" } ] },
+    { key: "rays", label: "显示光线作图", type: "toggle" },
+  ],
+  presets: [
+    { t: "📷 照相机场景", d: "u > 2f：倒立缩小实像——拍人拍景的原理", p: { f: 15, h: 2, rays: true } },
+    { t: "📽 投影仪场景", d: "f < u < 2f：倒立放大实像——幻灯片放大原理", p: { f: 15, h: 1, rays: true } },
+    { t: "🔍 放大镜场景", d: "u < f：正立放大虚像——放大镜的原理", p: { f: 20, h: 2, rays: true } },
+  ],
+  dict: [
+    { k: "倒立缩小", d: "u > 2f：像距 f < v < 2f，倒立缩小实像（照相机）" },
+    { k: "倒立等大", d: "u = 2f：v = 2f，倒立等大实像（测焦距）" },
+    { k: "倒立放大", d: "f < u < 2f：v > 2f，倒立放大实像（投影仪）" },
+    { k: "不成像", d: "u = f：折射光平行射出，不成像" },
+    { k: "正立放大", d: "u < f：像与物同侧，正立放大虚像（放大镜）" },
+  ],
+  /* 事件刻度按 f=15 的扫描时刻近似标注 */
+  events: [
+    { t: 10.2, k: "u=2f" }, { t: 17.9, k: "u=f" }, { t: 21.7, k: "u=0.5f" },
+  ],
+  theory:
+    '<h2>📖 原理与规律</h2>' +
+    '<div class="eq">1/u + 1/v = 1/f &nbsp;（物距 + 像距 = 焦距倒数和）</div>' +
+    '<p><b>三条特殊光线</b>：①平行主光轴的光 → 折射后过焦点；②过光心的光 → 方向不变；③过焦点的光 → 折射后平行主光轴。<br>' +
+    '<b>规律口诀</b>：一倍焦距分虚实，二倍焦距分大小；物近像远像变大。<br>' +
+    '<b>应用</b>：照相机（u>2f）、投影仪（f<u<2f）、放大镜（u<f）。</p>',
+
+  /* ---- 物距：播放即从 50cm 线性扫到 3cm（t 纯函数） ---- */
+  uOf(t){ return 50 - (t / 24) * 47; },
+  /* 像距：薄透镜公式（u≈f 返回 Infinity） */
+  vOf(p, t){
+    const u = this.uOf(t), f = p.f;
+    if (Math.abs(u - f) < 0.25) return Infinity;
+    return 1 / (1 / f - 1 / u);
+  },
+  /* 像的性质 */
+  nature(p, t){
+    const u = this.uOf(t), f = p.f;
+    if (u > 2 * f + 0.3) return "倒立缩小实像";
+    if (u >= 2 * f - 0.3 && u <= 2 * f + 0.3) return "倒立等大实像";
+    if (u > f + 0.25) return "倒立放大实像";
+    if (u >= f - 0.25 && u <= f + 0.25) return "不成像";
+    return "正立放大虚像";
+  },
+  app(p, t){
+    const u = this.uOf(t), f = p.f;
+    if (u > 2 * f) return "照相机";
+    if (u > f) return "投影仪";
+    return "放大镜";
+  },
+  activeKeys(p, t){
+    const nat = this.nature(p, t);
+    return [nat === "倒立缩小实像" ? "倒立缩小" : nat === "倒立等大实像" ? "倒立等大"
+      : nat === "倒立放大实像" ? "倒立放大" : nat === "不成像" ? "不成像" : "正立放大"];
+  },
+  phase(p, t){
+    const u = this.uOf(t);
+    return "u = " + u.toFixed(1) + " cm · " + this.app(p, t) + "区";
+  },
+  readouts(p, t){
+    const u = this.uOf(t), v = this.vOf(p, t), f = p.f;
+    const m = v === Infinity ? Infinity : Math.abs(v / u);
+    return [
+      { l: "物距 u", v: u.toFixed(1) + " cm" },
+      { l: "像距 v", v: v === Infinity ? "∞（平行光）" : (v < 0 ? "−" + Math.abs(v).toFixed(1) + " cm（同侧虚像）" : v.toFixed(1) + " cm") },
+      { l: "放大率 |v/u|", v: m === Infinity ? "—" : m.toFixed(2) + " ×" },
+      { l: "像的性质", v: this.nature(p, t) },
+      { l: "对应应用", v: this.app(p, t) },
+    ];
+  },
+
+  /* ---- 渲染（t 的纯函数） ---- */
+  render(g, p, t, W, H){
+    const u = this.uOf(t), v = this.vOf(p, t), f = p.f;
+    const nat = this.nature(p, t);
+    const lensX = 540, axisY = 300;            /* 光心位置 */
+    const px = 11;                              /* 1cm ≈ 11px */
+    const candleH = [0, 46, 66, 86][p.h];
+    const candleX = lensX - u * px;
+
+    /* 背景 */
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#e7ecf6"); bg.addColorStop(1, "#d8dfef");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+
+    /* 光具座 */
+    g.fillStyle = "#b9c2d8"; roundRect(g, 60, axisY + 128, 850, 12, 6); g.fill();
+    g.fillStyle = "rgba(35,50,90,0.5)"; g.font = "11px sans-serif";
+    for (let cm = 0; cm <= 70; cm += 10){
+      const x = lensX - cm * px;
+      if (x < 66 || x > 900) continue;
+      g.fillRect(x, axisY + 128, 1.5, 8);
+      g.fillText(cm + "", x - 6, axisY + 156);
+    }
+
+    /* 主光轴 */
+    g.strokeStyle = "rgba(35,50,90,0.4)"; g.lineWidth = 1.6; g.setLineDash([7, 6]);
+    g.beginPath(); g.moveTo(70, axisY); g.lineTo(900, axisY); g.stroke(); g.setLineDash([]);
+
+    /* 焦点 F / F' 与 2f 点 */
+    g.fillStyle = "rgba(35,50,90,0.85)"; g.font = "700 13px sans-serif";
+    [[-1, "F"], [1, "F'"]].forEach(([s, name]) => {
+      const x = lensX + s * f * px;
+      g.beginPath(); g.arc(x, axisY, 4, 0, Math.PI * 2); g.fill();
+      g.fillText(name, x - 5, axisY + 22);
+      const x2 = lensX + s * 2 * f * px;
+      if (x2 > 70 && x2 < 905){
+        g.beginPath(); g.arc(x2, axisY, 3, 0, Math.PI * 2); g.fill();
+        g.fillText("2f", x2 - 7, axisY + 22);
+      }
+    });
+
+    /* 凸透镜（双凸） */
+    const lensG = g.createLinearGradient(lensX - 26, 0, lensX + 26, 0);
+    lensG.addColorStop(0, "rgba(120,160,235,0.18)"); lensG.addColorStop(0.5, "rgba(150,190,255,0.5)"); lensG.addColorStop(1, "rgba(120,160,235,0.18)");
+    g.fillStyle = lensG;
+    g.beginPath();
+    g.moveTo(lensX - 6, axisY - 108);
+    g.quadraticCurveTo(lensX - 34, axisY, lensX - 6, axisY + 108);
+    g.lineTo(lensX + 6, axisY + 108);
+    g.quadraticCurveTo(lensX + 34, axisY, lensX + 6, axisY - 108);
+    g.closePath(); g.fill();
+    g.strokeStyle = "rgba(70,110,200,0.8)"; g.lineWidth = 2.4; g.stroke();
+    g.fillStyle = "rgba(35,50,90,0.8)"; g.font = "700 13px sans-serif";
+    g.fillText("凸透镜", lensX - 26, axisY - 122);
+
+    /* 蜡烛（物） */
+    const cw = 15;
+    g.fillStyle = "#e8d9b8"; roundRect(g, candleX - cw / 2, axisY - candleH, cw, candleH, 4); g.fill();
+    g.fillStyle = "#d8a24a"; g.fillRect(candleX - cw / 2, axisY - candleH - 7, cw, 7); /* 烛芯座 */
+    /* 火焰 */
+    const fl = 0.82 + 0.18 * Math.sin(t * 13) * Math.sin(t * 7 + 1);
+    const fgr = g.createRadialGradient(candleX, axisY - candleH - 21, 1.5, candleX, axisY - candleH - 21, 15 * fl);
+    fgr.addColorStop(0, "rgba(255,236,170,0.95)"); fgr.addColorStop(0.6, "rgba(240,150,50,0.85)"); fgr.addColorStop(1, "rgba(240,120,40,0)");
+    g.fillStyle = fgr;
+    g.beginPath(); g.ellipse(candleX, axisY - candleH - 20, 6 * fl, 15 * fl, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(35,50,90,0.75)"; g.font = "12px sans-serif";
+    g.fillText("物（蜡烛）", candleX - 26, axisY + 24);
+    g.fillStyle = "rgba(35,50,90,0.6)"; g.font = "11px sans-serif";
+    g.fillText("u = " + u.toFixed(1) + " cm", candleX - 20, axisY + 40);
+
+    /* 光线作图（三条特殊光线：烛焰顶点发出） */
+    const tipY = axisY - candleH - 12;
+    if (p.rays){
+      g.lineWidth = 1.8;
+      /* ① 平行主光轴 → 折射过 F' */
+      g.strokeStyle = "rgba(210,90,40,0.8)";
+      g.beginPath(); g.moveTo(candleX, tipY); g.lineTo(lensX, tipY); g.stroke();
+      const fpx = lensX + f * px;
+      if (v !== Infinity){
+        /* 简化：折射线穿过 F' 延伸到画布右缘 */
+        g.beginPath(); g.moveTo(lensX, tipY); g.lineTo(905, tipY + (axisY - tipY) * (905 - lensX) / ((fpx - lensX) || 1)); g.stroke();
+      } else {
+        /* u=f：平行射出 */
+        g.beginPath(); g.moveTo(lensX, tipY); g.lineTo(905, tipY); g.stroke();
+      }
+      /* ② 过光心直行 */
+      g.strokeStyle = "rgba(60,130,90,0.8)";
+      g.beginPath(); g.moveTo(candleX, tipY); g.lineTo(905, tipY + (axisY - tipY) * (905 - candleX) / ((lensX - candleX) || 1)); g.stroke();
+      /* ③ 过 F 的入射 → 平行出射 */
+      const fnx = lensX - f * px;
+      g.strokeStyle = "rgba(120,80,190,0.75)";
+      const slope = (tipY - axisY) / ((candleX - fnx) || 1);
+      const yAtLens = axisY + slope * (lensX - fnx);
+      if (yAtLens < tipY + 2 && yAtLens > axisY - 130){
+        g.beginPath(); g.moveTo(candleX, tipY); g.lineTo(lensX, yAtLens); g.stroke();
+        g.beginPath(); g.moveTo(lensX, yAtLens); g.lineTo(905, yAtLens); g.stroke();
+      }
+    }
+
+    /* 像（实像：右侧倒立；虚像：左侧正立虚线） */
+    if (v !== Infinity && nat !== "不成像"){
+      const m = v / u;
+      const imgH = candleH * Math.abs(m);
+      const imgX = lensX + v * px;
+      const virtual = v < 0;
+      const ix = virtual ? lensX - Math.abs(v) * px : imgX;
+      if (ix > 68 && ix < 902){
+        g.save();
+        if (!virtual){
+          /* 实像：倒立蜡烛（灰蓝色调示意投影） */
+          g.translate(ix, axisY); g.scale(1, -1);
+          g.fillStyle = "rgba(80,110,190,0.42)";
+          roundRect(g, -cw / 2 * Math.min(Math.abs(m), 1.6), -imgH, cw * Math.min(Math.abs(m), 1.6), imgH, 4); g.fill();
+          g.fillStyle = "rgba(80,110,190,0.3)";
+          g.beginPath(); g.ellipse(0, -imgH - 10, 7 * Math.min(Math.abs(m), 1.6), 14 * Math.min(Math.abs(m), 1.6), 0, 0, Math.PI * 2); g.fill();
+          g.restore();
+          /* 光屏 */
+          g.fillStyle = "rgba(255,255,255,0.9)"; roundRect(g, ix - 7, axisY - 122, 14, 250, 6); g.fill();
+          g.strokeStyle = "rgba(35,50,90,0.5)"; g.lineWidth = 1.6; g.stroke();
+          g.fillStyle = "rgba(35,50,90,0.7)"; g.font = "11px sans-serif";
+          g.fillText("光屏", ix - 12, axisY + 146);
+        } else {
+          /* 虚像：正立放大虚线蜡烛（与物同侧） */
+          g.setLineDash([6, 5]); g.lineWidth = 2;
+          g.strokeStyle = "rgba(59,91,181,0.75)";
+          roundRect(g, ix - cw / 2, axisY - imgH, cw, imgH, 4); g.stroke();
+          g.beginPath(); g.ellipse(ix, axisY - imgH - 12, 8, 17, 0, 0, Math.PI * 2); g.stroke();
+          g.setLineDash([]);
+          g.fillStyle = "rgba(59,91,181,0.85)"; g.font = "700 12px sans-serif";
+          g.fillText("虚像（正立放大）", ix - 52, axisY - imgH - 42);
+        }
+        g.fillStyle = "rgba(35,50,90,0.65)"; g.font = "11px sans-serif";
+        g.fillText("v = " + (virtual ? "−" : "") + Math.abs(v).toFixed(1) + " cm", ix - 24, virtual ? axisY + 30 : axisY + 24);
+      }
+    }
+
+    /* 性质徽章（右上） */
+    g.fillStyle = "rgba(255,255,255,0.88)"; roundRect(g, 700, 40, 232, 64, 13); g.fill();
+    g.strokeStyle = "rgba(59,91,181,0.35)"; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = "#253c7c"; g.font = "700 17px sans-serif";
+    g.fillText(nat, 716, 68);
+    g.fillStyle = "rgba(35,50,90,0.65)"; g.font = "12px sans-serif";
+    g.fillText("当前区：「" + this.app(p, t) + "」", 716, 90);
+
+    /* 图注 */
+    g.fillStyle = "rgba(35,50,90,0.6)"; g.font = "600 14px sans-serif";
+    g.fillText("光具座 · 凸透镜 · 蜡烛 · 光屏（示意，1 cm ≈ 11 px）", 70, 546);
+  },
+};
+
+/* ================= 通用框架 ================= */
+function hash(n){ const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function roundRect(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+/* ---- 状态与控制 ---- */
+const S = { t: 0, playing: false, speed: 1 };
+const $ = (id) => document.getElementById(id);
+const cv = $("stage"), ctx = cv.getContext("2d");
+
+function setT(t){
+  S.t = clamp(t, 0, MODULE.duration);
+  $("scrub").value = Math.round(S.t / MODULE.duration * 2400);
+  $("clock").textContent = S.t.toFixed(1) + " s";
+}
+function render(){
+  MODULE.render(ctx, MODULE.params, S.t, cv.width, cv.height);
+  const act = MODULE.activeKeys(MODULE.params, S.t);
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
+  $("phase").textContent = MODULE.phase(MODULE.params, S.t);
+  const rows = MODULE.readouts(MODULE.params, S.t);
+  $("readouts").innerHTML = rows.map(r =>
+    '<div class="ro' + (r.warn ? " warn" : "") + '"><span>' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join("");
+}
+function frame(ts){
+  if (S.playing){
+    if (S.last) S.t += (ts - S.last) / 1000 * S.speed;
+    S.last = ts;
+    if (S.t >= MODULE.duration){ S.t = MODULE.duration; S.playing = false; $("play").textContent = "▶ 开始"; S.last = 0; }
+    setT(S.t);
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+function play(){
+  if (S.t >= MODULE.duration) setT(0);
+  S.playing = true; S.last = 0;
+  $("play").textContent = "⏸ 暂停";
+  $("phaseHint").textContent = "看蜡烛移近时像距与性质的连续变化";
+}
+function pause(){ S.playing = false; S.last = 0; $("play").textContent = "▶ 开始"; }
+
+/* ---- 构建 UI ---- */
+function buildParams(){
+  $("params").innerHTML = MODULE.defs.map(d => {
+    if (d.type === "seg"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<div class="seg" id="seg-' + d.key + '">' + d.options.map(o =>
+          '<button data-v="' + o.v + '">' + o.t + '</button>').join("") + '</div></div>';
+    }
+    if (d.type === "range"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<input type="range" id="rg-' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="' + (d.step || 1) + '"></div>';
+    }
+    return '<div class="param"><div class="lab"><span>' + d.label + '</span>' +
+      '<button class="switch" id="tg-' + d.key + '"></button></div></div>';
+  }).join("");
+  MODULE.defs.forEach(d => {
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b => b.onclick = () => {
+        const raw = b.dataset.v;
+        MODULE.params[d.key] = isNaN(Number(raw)) ? raw : Number(raw); syncParams(); render();
+      });
+    } else if (d.type === "range"){
+      $("rg-" + d.key).oninput = e => { MODULE.params[d.key] = Number(e.target.value); syncParams(); render(); };
+    } else {
+      $("tg-" + d.key).onclick = () => { MODULE.params[d.key] = !MODULE.params[d.key]; syncParams(); render(); };
+    }
+  });
+}
+function syncParams(){
+  MODULE.defs.forEach(d => {
+    const v = MODULE.params[d.key];
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b =>
+        b.classList.toggle("on", String(b.dataset.v) === String(v)));
+      const opt = d.options.find(o => String(o.v) === String(v));
+      $("v-" + d.key).textContent = opt ? opt.t : "";
+    } else if (d.type === "range"){
+      $("rg-" + d.key).value = v;
+      $("v-" + d.key).textContent = v + (d.unit || "");
+    } else {
+      $("tg-" + d.key).classList.toggle("on", !!v);
+    }
+  });
+}
+function buildPresets(){
+  $("presets").innerHTML = MODULE.presets.map((p, idx) =>
+    '<button data-i="' + idx + '"><span class="pt">' + p.t + '</span><span class="pd">' + p.d + '</span></button>').join("");
+  $("presets").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const p = MODULE.presets[Number(b.dataset.i)];
+    Object.assign(MODULE.params, p.p);
+    syncParams(); setT(0); play(); render();
+  });
+}
+function buildDict(){
+  $("dict").innerHTML = MODULE.dict.map(d =>
+    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b>' + d.d + '</div>').join("");
+}
+function buildTicks(){
+  $("ticks").innerHTML = MODULE.events.map(e =>
+    '<div class="tick" style="left:' + (e.t / MODULE.duration * 100) + '%" data-t="' + e.t + '">' + e.k + '</div>').join("");
+  $("ticks").querySelectorAll(".tick").forEach(tk => tk.onclick = () => { setT(Number(tk.dataset.t)); render(); });
+}
+
+/* ---- 事件绑定 ---- */
+$("play").onclick = () => S.playing ? pause() : play();
+$("reset").onclick = () => { pause(); setT(0); render(); $("phaseHint").textContent = "点「开始」，看蜡烛移近透镜时像怎样变化"; };
+$("prev").onclick = () => { pause(); setT(S.t - 1 / 30); render(); };
+$("next").onclick = () => { pause(); setT(S.t + 1 / 30); render(); };
+$("spd").onclick = () => {
+  S.speed = S.speed === 1 ? 2 : S.speed === 2 ? 0.5 : 1;
+  $("spd").textContent = "速度 ×" + S.speed;
+};
+$("scrub").oninput = e => { pause(); setT(Number(e.target.value) / 2400 * MODULE.duration); render(); };
+function shot(){
+  const a = document.createElement('a');
+  a.download = MODULE.title + '-' + S.t.toFixed(1) + 's.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+function focusMode(){
+  document.body.classList.toggle('focus');
+  if (document.body.classList.contains('focus')){
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function(){});
+  } else if (document.fullscreenElement && document.exitFullscreen){
+    document.exitFullscreen().catch(function(){});
+  }
+}
+$("shot").onclick = shot;
+$("focus").onclick = focusMode;
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
+  if (e.key === ' '){ e.preventDefault(); S.playing ? pause() : play(); }
+  else if (e.key === 'ArrowLeft'){ e.preventDefault(); pause(); setT(S.t - 1 / 30); render(); }
+  else if (e.key === 'ArrowRight'){ e.preventDefault(); pause(); setT(S.t + 1 / 30); render(); }
+  else if (e.key === 'r' || e.key === 'R'){ $("reset").click(); }
+  else if (e.key === 's' || e.key === 'S'){ shot(); }
+  else if (e.key === 'f' || e.key === 'F'){ focusMode(); }
+});
+
+/* ---- 启动 ---- */
+buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();
+$("theory").innerHTML = MODULE.theory;
+setT(0); render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

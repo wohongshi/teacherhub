@@ -108,6 +108,11 @@ curl -s "$BASE/api/workbenches/$WBID/file" | grep -q 'updated' && ok "PUT 后内
 curl -s -X PUT "$BASE/api/workbenches/$WBID" -H 'Content-Type: application/json' --data-raw '{"desc":"x"}' | jerr key "PUT 无 key 被拒"
 curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" || bad "门户含筛选工具条"
 
+# ---- MCP 端点断言 ----
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==5,d" 2>/dev/null && ok "MCP 工具清单五件" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
+
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"
