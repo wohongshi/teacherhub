@@ -575,6 +575,7 @@ ap(s||(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'da
 document.getElementById('themebtn').addEventListener('click',function(){var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';try{localStorage.setItem(K,t)}catch(e){}ap(t)});
 })();
 
+$("dict").addEventListener('click',function(e){var c=e.target.closest('.chip');if(!c)return;for(var i=0;i<MODULE.dict.length;i++){if(MODULE.dict[i].k===c.dataset.k){$("phaseHint").textContent=MODULE.dict[i].d;break}}});
 /* ---- 启动 ---- */
 buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();
 $("theory").innerHTML = MODULE.theory;
