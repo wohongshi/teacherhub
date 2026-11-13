@@ -83,18 +83,18 @@ h1{font-family:"Songti SC","STSong","SimSun",serif;font-size:30px;letter-spacing
 .search input{flex:1;min-height:46px;border-radius:12px;border:0;padding:0 16px;font-size:15px;font-family:inherit}
 .search button{min-height:46px;padding:0 22px;border:0;border-radius:12px;background:#fff;color:#12333a;font-size:15px;font-weight:700;cursor:pointer}
 .search button:hover{background:#d9e9ea}
-.stats{display:flex;gap:26px;flex-wrap:wrap}
+.stats{display:flex;gap:36px;flex-wrap:wrap}
 .stat b{display:block;font-family:Georgia,"Songti SC",serif;font-size:32px;line-height:1.1}
-.stat span{font-size:12.5px;opacity:.75}
+.stat span{font-size:12.5px;opacity:.75;display:block;margin-top:3px}
 main{padding:22px}
 .cols{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:18px;align-items:start}
 h2{font-size:16px;color:var(--accent);margin:4px 2px 12px;display:flex;align-items:center;gap:8px}
 h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px}
-.wb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.wb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
 .wb{display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 17px;text-decoration:none;color:var(--ink);box-shadow:0 2px 8px rgba(34,40,46,.05);transition:all .15s}
 .wb:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(34,40,46,.10);border-color:#c9d9dc}
-.wb .t{font-size:16px;font-weight:700;line-height:1.4}
-.wb .d{font-size:13px;color:var(--muted);margin:7px 0 12px;line-height:1.7;min-height:2.6em}
+.wb .t{font-size:16px;font-weight:700;line-height:1.4;text-wrap:balance}
+.wb .d{font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.7;min-height:2.6em}
 .wb .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 .tag{font-size:11.5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px}
 .wb .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
