@@ -40,12 +40,15 @@ body.focus .aside{display:none}
 body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
 body.focus .top,body.focus .foot{display:none}
 body.focus .wrap{margin-top:8px}
-.fontbtn{position:fixed;z-index:60;width:44px;height:44px;border-radius:50%;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.22);padding:0}
+.fontbtn{position:fixed;z-index:60;width:44px;height:44px;border-radius:50%;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.22);padding:0;display:flex;align-items:center;justify-content:center;line-height:1}
+.themebtn{display:flex;align-items:center;justify-content:center;line-height:1}
+.aside{padding-bottom:180px}
 #fontminus{right:14px;bottom:112px}
 #fontplus{right:14px;bottom:164px}
 .dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.chip{border:1px solid #cddacd;border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);background:#f4f8f5;cursor:default;transition:all .2s}
-.chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(46,125,79,.35)}
+.chip{border:1px dashed var(--theme2);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);background:transparent;cursor:default;transition:all .2s;opacity:.62}
+.chip.past{border-style:solid;opacity:1;background:var(--accent-soft);color:var(--theme);border-color:var(--theme2)}
+.chip.on{opacity:1;background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(46,125,79,.35)}
 .chip b{margin-right:4px}
 .phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
 .phase-tag{background:var(--theme);color:#fff;border-radius:9px;padding:6px 13px;font-weight:700;font-size:13px}
@@ -419,7 +422,12 @@ function setT(t){
 function render(){
   MODULE.render(ctx, MODULE.params, S.t, cv.width, cv.height);
   const act = MODULE.activeKeys(MODULE.params, S.t);
-  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
+  document.querySelectorAll(".chip").forEach(c => {
+    var k = c.dataset.k, on = act.includes(k), past = false;
+    for (var i = 0; i < MODULE.events.length; i++){ if (MODULE.events[i].k === k && MODULE.events[i].t <= S.t) past = true; }
+    c.classList.toggle("on", on);
+    c.classList.toggle("past", past && !on);
+  });
   $("phase").textContent = MODULE.phase(MODULE.params, S.t);
   var d0=null;for(var i0=0;i0<MODULE.dict.length;i0++){if(act[act.length-1]===MODULE.dict[i0].k)d0=MODULE.dict[i0]}
   $("phaseHint").textContent = d0 ? d0.d : "点「开始」，观察现象随时间点亮";
@@ -457,8 +465,8 @@ function buildParams(){
       return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
         '<input type="range" id="rg-' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="' + (d.step || 1) + '"></div>';
     }
-    return '<div class="param"><div class="lab"><span>' + d.label + '</span>' +
-      '<button class="switch" id="tg-' + d.key + '"></button></div></div>';
+    return '<div class="param"><div class="lab"><span>' + d.label + '</span><span style="display:flex;align-items:center;gap:8px"><span class="v" id="v-' + d.key + '"></span>' +
+      '<button class="switch" id="tg-' + d.key + '"></button></span></div></div>';
   }).join("");
   MODULE.defs.forEach(d => {
     if (d.type === "seg"){
@@ -486,6 +494,7 @@ function syncParams(){
       $("v-" + d.key).textContent = v + (d.unit || "");
     } else {
       $("tg-" + d.key).classList.toggle("on", !!v);
+      $("v-" + d.key).textContent = v ? "开" : "关";
     }
   });
 }

@@ -91,7 +91,10 @@ h1{font-family:"Songti SC","STSong","SimSun",serif;font-size:30px;letter-spacing
 .search input{flex:1;min-height:46px;border-radius:12px;border:0;padding:0 16px;font-size:15px;font-family:inherit}
 .search button{min-height:46px;padding:0 22px;border:0;border-radius:12px;background:#fff;color:#12333a;font-size:15px;font-weight:700;cursor:pointer}
 .search button:hover{background:#d9e9ea}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,132px));gap:18px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,132px));gap:0}
+.stats .stat+.stat{border-left:1px solid rgba(255,255,255,.2);padding-left:22px;margin-left:22px}
+.stat b.zero{opacity:.42}
+.stat b{display:block;font-family:Georgia,"Songti SC",serif;font-size:32px;line-height:1.1}
 .stat b{display:block;font-family:Georgia,"Songti SC",serif;font-size:32px;line-height:1.1}
 .stat span{font-size:12.5px;opacity:.75;display:block;margin-top:3px;letter-spacing:.04em}
 main{padding:22px}
@@ -100,7 +103,7 @@ main{padding:22px}
 h2{font-size:16px;color:var(--accent);margin:4px 2px 12px;display:flex;align-items:center;gap:8px}
 h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px}
 .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 2px 12px}
-.fchips{display:flex;gap:6px 8px;flex-wrap:wrap}
+.fchips{display:flex;gap:8px 10px;flex-wrap:wrap}
 .fchip{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:4px 11px;font-size:11.5px;cursor:pointer;font-family:inherit;line-height:1.5}
 .fchip:hover{border-color:#9fc4ca;color:var(--accent)}
 .fchip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
@@ -161,7 +164,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   .hero{padding:24px 16px}
   main{padding:14px}
   .stat span{font-size:12px}
-  .fchip{min-height:38px;padding:8px 14px;font-size:13px}
+  .fchip{min-height:44px;padding:10px 15px;font-size:13px}
+  .fontbtn,.themebtn{width:40px;height:40px;font-size:13px;opacity:.92}
+  .wrap{padding-right:52px}
+  .stat span{margin-top:5px}
   .sbtns{margin-left:0;width:100%;justify-content:flex-end}
   .sbtn{min-height:38px;font-size:13px}
   .wb .meta{font-size:12px}
@@ -187,7 +193,7 @@ html[data-theme=dark] .stat b{color:#fff}
 #lightbox img{max-width:88%;max-height:84%;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.5)}
 #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(28,40,44,.92);color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none}
 #toast.show{opacity:1;transform:translateX(-50%)}
-.new{position:absolute;top:10px;left:10px;background:#d64541;color:#fff;font-size:10px;font-weight:800;border-radius:8px;padding:2px 7px;letter-spacing:.05em;z-index:2}
+.new{display:inline-block;vertical-align:middle;background:#d64541;color:#fff;font-size:10px;font-weight:800;border-radius:8px;padding:2px 7px;letter-spacing:.05em;margin-right:8px;position:static}
 .wb-grid.compact .pv,.wb-grid.compact .pv-ph{display:none}
 .wb-grid.compact{gap:10px}
 .wb-grid.compact .wb .d{-webkit-line-clamp:2;min-height:2.5em}
@@ -198,9 +204,9 @@ html[data-theme=dark] .stat b{color:#fff}
 html[data-theme=dark] .noticebar{background:#8a5a22}
 .like{text-decoration:none;color:var(--accent);margin-left:8px;font-size:11px;cursor:pointer}
 .like:hover{text-decoration:underline}
-.fontbtn{position:fixed;z-index:60;width:46px;height:46px;border-radius:50%;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer}
-#fontminus{right:16px;bottom:116px}
-#fontplus{right:16px;bottom:170px}
+.fontbtn{position:fixed;z-index:60;width:46px;height:46px;border-radius:50%;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+#fontminus{right:16px;bottom:72px}
+#fontplus{right:16px;bottom:128px}
 .totop{position:fixed;left:16px;bottom:16px;z-index:60;width:46px;height:46px;border-radius:50%;font-size:19px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:0;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .25s}
 .totop.show{opacity:1;pointer-events:auto}
 .helpov{position:fixed;inset:0;background:rgba(10,14,18,.55);display:none;align-items:center;justify-content:center;z-index:98;cursor:pointer}
@@ -217,10 +223,10 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
   <div class="sub">每位老师贡献的资料、做出来的实验工作台，都在这里沉淀复用——先搜一下，别重复造。</div>
   <div class="search"><input id="q" placeholder="搜工作台：如「钠与水」「铁丝燃烧」"><button id="qbtn">搜索</button></div>
   <div class="stats">
-    <div class="stat"><b>` + fmt.Sprint(len(rows)) + `</b><span>参与教师</span></div>
-    <div class="stat"><b>` + fmt.Sprint(len(contribs)) + `</b><span>贡献记录</span></div>
-    <div class="stat"><b>` + fmt.Sprint(len(wbs)) + `</b><span>工作台产物</span></div>
-    <div class="stat"><b>` + fmt.Sprint(s.data.DailyViews[time.Now().Format("2006-01-02")]) + `</b><span>今日浏览</span></div>
+    <div class="stat"><b` + zeroCls(len(rows)) + `>` + fmt.Sprint(len(rows)) + `</b><span>参与教师</span></div>
+    <div class="stat"><b` + zeroCls(len(contribs)) + `>` + fmt.Sprint(len(contribs)) + `</b><span>贡献记录</span></div>
+    <div class="stat"><b` + zeroCls(len(wbs)) + `>` + fmt.Sprint(len(wbs)) + `</b><span>工作台产物</span></div>
+    <div class="stat"><b` + zeroCls(s.data.DailyViews[time.Now().Format("2006-01-02")]) + `>` + fmt.Sprint(s.data.DailyViews[time.Now().Format("2006-01-02")]) + `</b><span>今日浏览</span></div>
   </div>
 </div></header>
 <div class="noticebar" id="noticebar" style="display:none">📢 <span id="noticetext"></span></div>
@@ -595,6 +601,14 @@ document.getElementById('sharelink').addEventListener('click',async function(){
 });
 </script>
 </body></html>`
+}
+
+// zeroCls 统计值为 0 时降级显示。
+func zeroCls(n int) string {
+	if n == 0 {
+		return ` class="zero"`
+	}
+	return ""
 }
 
 // avatarChar 头像字（名字首字）。

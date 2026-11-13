@@ -58,7 +58,7 @@ button.danger:hover{background:var(--warn-soft)}
       <h2>📊 统计概览</h2>
       <div class="stats" id="stats"></div>
       <div class="row"><button id="exportbtn">📦 导出备份（zip）</button><span style="font-size:11px;color:var(--muted);align-self:center">含全部数据与产物文件</span></div>
-      <svg class="trend" id="trend" viewBox="0 0 300 66" preserveAspectRatio="none"></svg>
+      <svg class="trend" id="trend" viewBox="0 0 300 80" preserveAspectRatio="none"></svg>
     </div>
     <div class="card">
       <h2>📢 公告</h2>
@@ -112,7 +112,8 @@ button.danger:hover{background:var(--warn-soft)}
       for(var i=6;i>=0;i--){var dt=new Date(now.getTime()-i*86400000);days.push({k:dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'),v:d[dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')]||0})}
       var max=Math.max(1,Math.max.apply(null,days.map(function(x){return x.v})));
       var pts=days.map(function(x,i){return (10+i*48)+','+(56-x.v/max*44)}).join(' ');
-      document.getElementById('trend').innerHTML='<polyline points="'+pts+'" fill="none" stroke="#15616d" stroke-width="2.5" stroke-linejoin="round"/><text x="8" y="12" font-size="9" fill="#15616d">近 7 天浏览（峰值 '+max+'）</text>';
+      var dots=days.map(function(x,i){return '<circle cx="'+(10+i*48)+'" cy="'+(56-x.v/max*44)+'" r="2.8" fill="#15616d"/>'}).join('');
+      document.getElementById('trend').innerHTML='<polyline points="'+pts+'" fill="none" stroke="#15616d" stroke-width="2.5" stroke-linejoin="round"/>'+dots+'<text x="8" y="13" font-size="9.5" fill="#15616d">近 7 天浏览（峰值 '+max+'）</text><text x="6" y="75" font-size="8.5" fill="#8a969c">'+days[0].k.slice(5)+'</text><text x="252" y="75" font-size="8.5" fill="#8a969c">'+days[6].k.slice(5)+'</text>';
       /* 留言 */
       document.getElementById('boardlist').innerHTML=board.length?board.map(function(m){
         return '<div class="item"><span class="tx"><b>'+esc(m.name)+'</b> '+esc(m.text)+(m.likes?' · 👍'+m.likes:'')+'</span><span class="tm">'+new Date(m.at*1000).toLocaleDateString()+'</span><button class="danger" data-del="'+esc(m.id)+'">删除</button></div>';
