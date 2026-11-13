@@ -322,54 +322,18 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 			reply(mcpErr("stars 须为 1-5"))
 			return
 		}
-		ip := r.Header.Get("CF-Connecting-IP")
-		if ip == "" {
-			ip = r.RemoteAddr
-			if i := strings.LastIndex(ip, ":"); i > 0 {
-				ip = ip[:i]
-			}
-		}
-		key := ip + "|rate|" + id
-		st.mu.Lock()
-		if st.boardLikes == nil {
-			st.boardLikes = map[string]bool{}
-		}
-		if st.boardLikes[key] {
-			st.mu.Unlock()
-			reply(mcpText(map[string]any{"ok": true, "already": true}))
+		rate, already, found := applyRating(st, clientIP(r), id, stars)
+		if !found {
+			reply(mcpErr("产物不存在: " + id))
 			return
 		}
-		st.boardLikes[key] = true
-		rate := 0.0
-		found := false
-		for i := range st.data.Workbenches {
-			if st.data.Workbenches[i].ID == id {
-				st.data.Workbenches[i].RateSum += stars
-				st.data.Workbenches[i].RateNum++
-				rate = rateOf(st.data.Workbenches[i])
-				found = true
-				break
-			}
-		}
-		if found {
-			_ = st.save()
-		}
-		st.mu.Unlock()
-		reply(mcpText(map[string]any{"ok": found, "rate": rate}))
+		reply(mcpText(map[string]any{"ok": true, "already": already, "rate": rate}))
 	case "list_backups":
 		if !keyOK() {
 			reply(mcpErr("读备份需统一访问 key（X-Access-Key 头或 ?key=）"))
 			return
 		}
-		list := []map[string]any{}
-		if entries, err := os.ReadDir(filepath.Join(st.dir, "backups")); err == nil {
-			for i := len(entries) - 1; i >= 0; i-- {
-				if fi, err := entries[i].Info(); err == nil {
-					list = append(list, map[string]any{"name": entries[i].Name(), "size": fi.Size(), "ts": fi.ModTime().Unix()})
-				}
-			}
-		}
-		reply(mcpText(map[string]any{"ok": true, "backups": list}))
+		reply(mcpText(map[string]any{"ok": true, "backups": listBackups(st)}))
 	case "get_notice":
 		st.mu.Lock()
 		text := st.data.Notice

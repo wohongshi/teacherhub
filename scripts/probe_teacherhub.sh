@@ -110,7 +110,7 @@ curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" ||
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==13,d" 2>/dev/null && ok "MCP 工具清单十三件" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==13 and {'rate_workbench','list_backups'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十三件（含评分/备份）" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -162,11 +162,17 @@ curl -s "$BASE/api/workbenches?all=1" | python3 -c "import json,sys;d=json.load(
 curl -s -X POST "$BASE/api/workbenches/$WBID/hidden" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" --data-raw '{"hidden":false}' >/dev/null && ok "产物上架恢复" || bad "上架恢复"
 ls "$D/backups/"backup-*.zip >/dev/null 2>&1 && ok "自动备份 zip 已生成" || bad "自动备份"
 # ---- 评分 / 备份清单 断言 ----
+curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/workbenches/$WBID/rate" -H 'Content-Type: application/json' --data-raw '{"stars":6}' | grep -q 400 && ok "评分越界拒绝（400）" || bad "评分越界"
+curl -s "$BASE/api/workbenches/$WBID" | python3 -c "import json,sys;w=json.load(sys.stdin)['workbench'];assert w['rate']==0 and w['rate_num']==0,w" 2>/dev/null && ok "越界评分未计分" || bad "越界未计分"
 curl -s -X POST "$BASE/api/workbenches/$WBID/rate" -H 'Content-Type: application/json' --data-raw '{"stars":5}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and d.get('rate')==5.0,d" 2>/dev/null && ok "评分成功（免 key，均分 5.0）" || bad "评分"
 curl -s -X POST "$BASE/api/workbenches/$WBID/rate" -H 'Content-Type: application/json' --data-raw '{"stars":3}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('already')==True" 2>/dev/null && ok "评分限一评（二评 already）" || bad "评分限一"
+curl -s "$BASE/api/workbenches/$WBID" | python3 -c "import json,sys;w=json.load(sys.stdin)['workbench'];assert w['rate']==5.0 and w['rate_num']==1,w" 2>/dev/null && ok "重复评分不计分（5.0/1 人）" || bad "重复评分被计分"
+curl -s "$BASE/api/admin/backups" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "备份清单无 key 拒" || bad "备份清单鉴权"
+curl -s --path-as-is -o /tmp/th-trav.txt -w '%{http_code}' -H "X-Access-Key: $KEY" "$BASE/api/admin/backups/../store.json" | grep -qE '^(30[0-9]|40[0-9])$' && ! grep -q '"key"' /tmp/th-trav.txt && ok "备份下载拒绝路径穿越（不泄露）" || bad "备份路径穿越"
 curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and len(d.get('backups',[]))>=1,d" 2>/dev/null && ok "备份清单可列（≥1 份）" || bad "备份清单"
 BN=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;print(json.load(sys.stdin)['backups'][0]['name'])" 2>/dev/null)
-curl -s -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' "$BASE/api/admin/backups/$BN" | grep -q 200 && ok "备份单份下载（200）" || bad "备份下载"
+[ -n "$BN" ] && curl -s -H "X-Access-Key: $KEY" -o /tmp/th-bn.zip -w '%{http_code} %{size_download}' "$BASE/api/admin/backups/$BN" | grep -qE '^200 [1-9][0-9]*$' && ok "备份单份下载（200，非空）" || bad "备份下载（BN=${BN:-空}）"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_backups","arguments":{}}}' | python3 -c "import json,sys;assert json.load(sys.stdin)['result'].get('isError')==True" 2>/dev/null && ok "MCP 备份清单无 key 拒" || bad "MCP 备份清单鉴权"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

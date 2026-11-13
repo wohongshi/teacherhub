@@ -14,6 +14,7 @@ import (
 	"html"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -728,19 +729,7 @@ func cmdServe(args []string) {
 				writeJSON(w, 400, map[string]any{"ok": false, "error": "留言太长（200 字内）"})
 				return
 			}
-			ip := r.Header.Get("CF-Connecting-IP")
-			if ip == "" {
-				ip = r.Header.Get("X-Forwarded-For")
-				if i := strings.Index(ip, ","); i > 0 {
-					ip = strings.TrimSpace(ip[:i])
-				}
-			}
-			if ip == "" { // 直连（局域网/探针）
-				ip = r.RemoteAddr
-				if i := strings.LastIndex(ip, ":"); i > 0 {
-					ip = ip[:i]
-				}
-			}
+			ip := clientIP(r)
 			now := time.Now().Unix()
 			st.mu.Lock()
 			if st.boardLast == nil {
@@ -819,13 +808,7 @@ func cmdServe(args []string) {
 			writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 id"})
 			return
 		}
-		ip := r.Header.Get("CF-Connecting-IP")
-		if ip == "" {
-			ip = r.RemoteAddr
-			if i := strings.LastIndex(ip, ":"); i > 0 {
-				ip = ip[:i]
-			}
-		}
+		ip := clientIP(r)
 		key := ip + "|" + in.ID
 		st.mu.Lock()
 		if st.boardLikes == nil {
@@ -835,6 +818,9 @@ func cmdServe(args []string) {
 			st.mu.Unlock()
 			writeJSON(w, 200, map[string]any{"ok": true, "already": true})
 			return
+		}
+		if len(st.boardLikes) > 20000 {
+			st.boardLikes = map[string]bool{}
 		}
 		st.boardLikes[key] = true
 		liked := false
@@ -898,15 +884,7 @@ func cmdServe(args []string) {
 			http.ServeFile(w, r, filepath.Join(bdir, name))
 			return
 		}
-		list := []map[string]any{}
-		if entries, err := os.ReadDir(bdir); err == nil {
-			for i := len(entries) - 1; i >= 0; i-- {
-				if fi, err := entries[i].Info(); err == nil {
-					list = append(list, map[string]any{"name": entries[i].Name(), "size": fi.Size(), "ts": fi.ModTime().Unix()})
-				}
-			}
-		}
-		writeJSON(w, 200, map[string]any{"ok": true, "backups": list})
+		writeJSON(w, 200, map[string]any{"ok": true, "backups": listBackups(st)})
 	}
 	mux.HandleFunc("/api/admin/backups/", backHandler)
 	mux.HandleFunc("/api/admin/backups", backHandler)
@@ -957,7 +935,8 @@ self.addEventListener('fetch',function(e){
 		}
 		today := st.data.DailyViews[time.Now().Format("2006-01-02")]
 		st.mu.Unlock()
-		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "daily": daily})
+		yk := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily})
 	})
 
 	// 管理备份导出：zip（store.json + artifacts 全量）
@@ -1028,38 +1007,57 @@ func workbenchLink(r *http.Request, id string) string {
 	return fmt.Sprintf("%s://%s/w/%s", scheme, r.Host, id)
 }
 
-// rateH 评分处理（免 key，每 IP 每产物一评）。
-func rateH(st *cloudStore, w http.ResponseWriter, r *http.Request, id string) {
-	var in struct {
-		Stars int `json:"stars"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Stars < 1 || in.Stars > 5 {
-		writeJSON(w, 400, map[string]any{"ok": false, "error": "stars 须为 1-5"})
-		return
-	}
-	ip := r.Header.Get("CF-Connecting-IP")
-	if ip == "" {
-		ip = r.RemoteAddr
-		if i := strings.LastIndex(ip, ":"); i > 0 {
-			ip = ip[:i]
+// clientIP 取真实客户端 IP：优先校验过的 CF-Connecting-IP/XFF，防伪造头，回落 RemoteAddr。
+func clientIP(r *http.Request) string {
+	for _, h := range []string{"CF-Connecting-IP", "X-Forwarded-For"} {
+		v := strings.TrimSpace(r.Header.Get(h))
+		if h == "X-Forwarded-For" && strings.Contains(v, ",") {
+			v = strings.TrimSpace(strings.SplitN(v, ",", 2)[0])
+		}
+		if v != "" && net.ParseIP(v) != nil {
+			return v
 		}
 	}
-	key := ip + "|rate|" + id
+	ip := r.RemoteAddr
+	if i := strings.LastIndex(ip, ":"); i > 0 {
+		ip = ip[:i]
+	}
+	return ip
+}
+
+// boardDedup 记去重键（超限整体清空防膨胀）。
+func boardDedup(st *cloudStore, key string) (already bool) {
 	st.mu.Lock()
+	defer st.mu.Unlock()
 	if st.boardLikes == nil {
 		st.boardLikes = map[string]bool{}
 	}
 	if st.boardLikes[key] {
-		st.mu.Unlock()
-		writeJSON(w, 200, map[string]any{"ok": true, "already": true})
-		return
+		return true
+	}
+	if len(st.boardLikes) > 20000 {
+		st.boardLikes = map[string]bool{}
 	}
 	st.boardLikes[key] = true
-	rate := 0.0
-	found := false
+	return false
+}
+
+// applyRating 评分（REST/MCP 共享）：先定位产物再计分与去重；found=false 表示产物不存在。
+func applyRating(st *cloudStore, ip, id string, stars int) (rate float64, already, found bool) {
+	if boardDedup(st, ip+"|rate|"+id) {
+		st.mu.Lock()
+		defer st.mu.Unlock()
+		for i := range st.data.Workbenches {
+			if st.data.Workbenches[i].ID == id {
+				return rateOf(st.data.Workbenches[i]), true, true
+			}
+		}
+		return 0, true, false
+	}
+	st.mu.Lock()
 	for i := range st.data.Workbenches {
 		if st.data.Workbenches[i].ID == id {
-			st.data.Workbenches[i].RateSum += in.Stars
+			st.data.Workbenches[i].RateSum += stars
 			st.data.Workbenches[i].RateNum++
 			rate = rateOf(st.data.Workbenches[i])
 			found = true
@@ -1070,7 +1068,42 @@ func rateH(st *cloudStore, w http.ResponseWriter, r *http.Request, id string) {
 		_ = st.save()
 	}
 	st.mu.Unlock()
-	writeJSON(w, 200, map[string]any{"ok": found, "rate": rate})
+	if !found { // 产物不存在：退还去重位，避免拼错 id 永久占坑
+		st.mu.Lock()
+		delete(st.boardLikes, ip+"|rate|"+id)
+		st.mu.Unlock()
+	}
+	return rate, false, found
+}
+
+// listBackups 备份快照清单（REST/MCP 共享）。
+func listBackups(st *cloudStore) []map[string]any {
+	list := []map[string]any{}
+	if entries, err := os.ReadDir(filepath.Join(st.dir, "backups")); err == nil {
+		for i := len(entries) - 1; i >= 0; i-- {
+			if fi, err := entries[i].Info(); err == nil {
+				list = append(list, map[string]any{"name": entries[i].Name(), "size": fi.Size(), "ts": fi.ModTime().Unix()})
+			}
+		}
+	}
+	return list
+}
+
+// rateH 评分处理（免 key，每 IP 每产物一评）。
+func rateH(st *cloudStore, w http.ResponseWriter, r *http.Request, id string) {
+	var in struct {
+		Stars int `json:"stars"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Stars < 1 || in.Stars > 5 {
+		writeJSON(w, 400, map[string]any{"ok": false, "error": "stars 须为 1-5"})
+		return
+	}
+	rate, already, found := applyRating(st, clientIP(r), id, in.Stars)
+	if !found {
+		writeJSON(w, 404, map[string]any{"ok": false, "error": "产物不存在"})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "already": already, "rate": rate})
 }
 
 // rateOf 均分（0~5，保留 1 位）。

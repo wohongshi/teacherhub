@@ -112,9 +112,7 @@ button.danger:hover{background:var(--warn-soft)}
         '<div class="s"><b>'+views+'</b><span>累计浏览</span></div>'+
         '<div class="s"><b>'+dl+'</b><span>下载</span></div>'+
         '<div class="s"><b>'+((ping&&ping.today)||0)+'</b><span>今日浏览'+(function(){
-          var d=(ping&&ping.daily)||{},now=new Date(),y=new Date(now.getTime()-86400000);
-          var k=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
-          var diff=((ping&&ping.today)||0)-(d[k]||0);
+          var diff=((ping&&ping.today)||0)-((ping&&ping.yesterday)||0);
           return diff>0?'<em class="up">较昨日 +'+diff+'</em>':(diff<0?'<em class="dn">较昨日 '+diff+'</em>':'');
         })()+'</span></div>'+
         '<div class="s"><b>'+board.length+'</b><span>留言</span></div>'+

@@ -205,6 +205,9 @@ html[data-theme=dark] .stat b{color:#fff}
   .mnav button{flex:1;min-height:54px;border:0;border-radius:0;background:transparent;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted)}
   .mnav button b{font-size:18px;line-height:1}
   body{padding-bottom:56px}
+  .totop,.themebtn{bottom:70px}
+  #fontminus{bottom:126px}
+  #fontplus{bottom:182px}
 }
 #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:rgba(28,40,44,.92);color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none}
 #toast.show{opacity:1;transform:translateX(-50%)}
@@ -286,7 +289,7 @@ html[data-theme=dark] .noticebar{background:#8a5a22}
 	}
 	for i, r := range rows {
 		fmt.Fprintf(&b, `<div class="trow"><span class="rank r%d">%d</span><span class="avatar lg" style="background:%s">%s</span><span class="nm">%s</span><span class="cnt">贡献 %d</span><span class="cnt">工作台 %d</span></div>`,
-			i%3, i+1, avatarColor(r.Name), avatarChar(r.Name), html.EscapeString(r.Name), r.C, r.W)
+			i, i+1, avatarColor(r.Name), avatarChar(r.Name), html.EscapeString(r.Name), r.C, r.W)
 	}
 	b.WriteString(`</div>
     <div class="card">
@@ -546,7 +549,7 @@ function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.c
     e.preventDefault();
     try{var r=await fetch('/api/board/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:a.getAttribute('data-id')})});var j=await r.json();if(j.ok)loadBoard()}catch(err){}
   });
-  (async function(){try{var r=await fetch('/api/notice');var j=await r.json();if(j.notice){document.getElementById('noticetext').textContent=j.notice;document.getElementById('noticebar').style.display='block'}}catch(e){}})();
+  (async function(){try{var r=await fetch('/api/notice');var j=await r.json();if(j.notice){document.getElementById('noticetext').textContent=j.notice;document.getElementById('noticebar').style.display='flex'}}catch(e){}})();
   btn.addEventListener('click',search);
   q.addEventListener('keydown',function(e){if(e.key==='Enter')search()});
   syncFavs();
