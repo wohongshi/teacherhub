@@ -278,10 +278,24 @@ func cmdServe(args []string) {
 			for i := len(st.data.Contribs) - 1; i >= 0 && len(recent) < 15; i-- {
 				recent = append(recent, st.data.Contribs[i])
 			}
+			views, downloads := 0, 0
+			for _, w2 := range st.data.Workbenches {
+				views += w2.Views
+				downloads += w2.Downloads
+			}
+			daily := map[string]int{}
+			for k, v := range st.data.DailyViews {
+				daily[k] = v
+			}
 			writeJSON(w, 200, map[string]any{
 				"ok": true, "total_workbenches": len(st.data.Workbenches),
 				"total_contribs": len(st.data.Contribs),
 				"by_teacher":     list, "recent": recent,
+				"totals": map[string]any{
+					"views": views, "downloads": downloads,
+					"today_views": daily[time.Now().Format("2006-01-02")],
+					"board_msgs":  len(st.data.Board), "daily": daily,
+				},
 			})
 		})
 	})
@@ -774,33 +788,6 @@ func cmdServe(args []string) {
 		}
 		b.WriteString(`</channel></rss>`)
 		_, _ = w.Write([]byte(b.String()))
-	})
-
-	// 公开统计 API（免 key）：外部看板/监控接入
-	mux.HandleFunc("/api/stats", func(w http.ResponseWriter, r *http.Request) {
-		st.mu.Lock()
-		teachers := map[string]bool{}
-		views, downloads := 0, 0
-		today := st.data.DailyViews[time.Now().Format("2006-01-02")]
-		daily := map[string]int{}
-		for k, v := range st.data.DailyViews {
-			daily[k] = v
-		}
-		for _, c := range st.data.Contribs {
-			teachers[c.Teacher] = true
-		}
-		for _, w2 := range st.data.Workbenches {
-			if w2.Teacher != "" {
-				teachers[w2.Teacher] = true
-			}
-			views += w2.Views
-			downloads += w2.Downloads
-		}
-		out := map[string]any{"ok": true, "teachers": len(teachers), "contribs": len(st.data.Contribs),
-			"workbenches": len(st.data.Workbenches), "views": views, "downloads": downloads,
-			"today_views": today, "daily": daily, "board_msgs": len(st.data.Board)}
-		st.mu.Unlock()
-		writeJSON(w, 200, out)
 	})
 
 	// 迷你 QR 编码器（查看页扫码用）
