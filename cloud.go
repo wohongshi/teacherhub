@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html"
 	"log"
 	"net/http"
 	"os"
@@ -116,13 +115,18 @@ func cmdServe(args []string) {
 		log.Fatal(err)
 	}
 	mux := http.NewServeMux()
+	// 访问政策：浏览（GET）全免 key——打开即看；写操作（POST/DELETE）必须带统一 key。
 	api := func(w http.ResponseWriter, r *http.Request, h func(http.ResponseWriter, *http.Request)) {
+		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			h(w, r)
+			return
+		}
 		got := r.Header.Get("X-Access-Key")
 		if got == "" {
 			got = r.URL.Query().Get("key")
 		}
 		if got == "" || got != st.data.Key {
-			writeJSON(w, 401, map[string]any{"ok": false, "error": "访问 key 不对"})
+			writeJSON(w, 401, map[string]any{"ok": false, "error": "写操作需要统一访问 key"})
 			return
 		}
 		h(w, r)
@@ -333,42 +337,47 @@ func cmdServe(args []string) {
 		})
 	})
 
-	// 浏览器直接看产物（下发链接用；key 走 ?key=）
+	// 产物查看：/w/{id} 顶栏包装（返回工作台），/w/{id}/raw 原文直看——浏览全免 key
 	mux.HandleFunc("/w/", func(w http.ResponseWriter, r *http.Request) {
-		got := r.URL.Query().Get("key")
-		if got == "" || got != st.data.Key {
-			http.Error(w, "访问 key 不对", 401)
-			return
-		}
-		id := strings.TrimPrefix(r.URL.Path, "/w/")
+		rest := strings.TrimPrefix(r.URL.Path, "/w/")
+		raw := strings.HasSuffix(rest, "/raw")
+		id := strings.TrimSuffix(rest, "/raw")
 		if id == "" || strings.ContainsAny(id, "/\\.") {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		http.ServeFile(w, r, filepath.Join(st.dir, "artifacts", id+".html"))
-	})
-
-	// 统计页（浏览器看：谁贡献了什么 + 产物一览）
-	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		got := r.URL.Query().Get("key")
-		if got == "" || got != st.data.Key {
-			http.Error(w, "访问 key 不对", 401)
-			return
+		st.mu.Lock()
+		var meta *Workbench
+		for i := range st.data.Workbenches {
+			if st.data.Workbenches[i].ID == id {
+				meta = &st.data.Workbenches[i]
+				break
+			}
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(st.statsPage(r)))
-	})
-
-	// 根路径：极简落地页（只展示状态，无敏感信息）
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
+		st.mu.Unlock()
+		if meta == nil {
 			http.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(landingHTML))
+		if raw {
+			http.ServeFile(w, r, filepath.Join(st.dir, "artifacts", id+".html"))
+			return
+		}
+		_, _ = w.Write([]byte(viewerHTML(*meta)))
 	})
+
+	// 门户首页 + 统计页（合并；浏览全免 key，打开即看）
+	portal := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" && r.URL.Path != "/stats" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(st.portalHTML()))
+	}
+	mux.HandleFunc("/stats", portal)
+	mux.HandleFunc("/", portal)
 
 	log.Println("教师工作台云端已启动:", addr)
 	log.Println("访问 key:", st.data.Key)
@@ -388,11 +397,7 @@ func workbenchLink(r *http.Request, id string) string {
 	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 		scheme = "https"
 	}
-	key := r.URL.Query().Get("key")
-	if key == "" {
-		key = r.Header.Get("X-Access-Key")
-	}
-	return fmt.Sprintf("%s://%s/w/%s?key=%s", scheme, r.Host, id, key)
+	return fmt.Sprintf("%s://%s/w/%s", scheme, r.Host, id)
 }
 
 func wbView(w Workbench, r *http.Request) map[string]any {
@@ -456,65 +461,4 @@ func similarity(q string, w Workbench) float64 {
 	return sc
 }
 
-// landingHTML 根路径极简落地页。
-const landingHTML = `<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>教研工作台</title>
-<style>
-body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f4f2ec;color:#22282e;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center}
-.card{background:#fff;border:1px solid #e3dfd4;border-radius:16px;padding:38px 42px;text-align:center;box-shadow:0 2px 12px rgba(34,40,46,.07)}
-h1{font-size:24px;color:#15616d;margin:0 0 10px}
-p{color:#6b7280;font-size:14px;line-height:1.9;margin:0}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2e7d4f;margin-right:6px;vertical-align:1px}
-</style></head><body>
-<div class="card">
-<h1>教研工作台</h1>
-<p><span class="dot"></span>云端在线 · 零账号 · 全员统一 key</p>
-<p style="margin-top:14px">贡献统计页：/stats?key=统一key<br>工作台产物链接由 WorkBuddy 插件生成</p>
-</div></body></html>`
 
-// statsPage 简易统计页（服务端渲染）。
-func (s *cloudStore) statsPage(r *http.Request) string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var b strings.Builder
-	b.WriteString(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>教研工作台 · 贡献统计</title><style>
-body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f4f2ec;color:#22282e;margin:0;padding:24px}
-h1{font-size:22px;color:#15616d}h2{font-size:16px;color:#15616d;margin:22px 0 8px}
-.card{background:#fff;border:1px solid #e3dfd4;border-radius:12px;padding:14px 18px;margin:10px 0}
-.muted{color:#6b7280;font-size:13px}table{width:100%;border-collapse:collapse;font-size:14px}
-td,th{padding:8px 10px;border-bottom:1px solid #eee;text-align:left}a{color:#15616d}</style></head><body>`)
-	fmt.Fprintf(&b, "<h1>教研工作台 · 贡献统计</h1><div class='muted'>工作台产物 %d 个 · 贡献记录 %d 条</div>", len(s.data.Workbenches), len(s.data.Contribs))
-
-	byT := map[string][]Contrib{}
-	for _, c := range s.data.Contribs {
-		byT[c.Teacher] = append(byT[c.Teacher], c)
-	}
-	b.WriteString("<h2>教师贡献一览</h2>")
-	names := []string{}
-	for n := range byT {
-		names = append(names, n)
-	}
-	sort.Slice(names, func(i, j int) bool { return len(byT[names[i]]) > len(byT[names[j]]) })
-	for _, n := range names {
-		fmt.Fprintf(&b, "<div class='card'><b>%s</b> <span class='muted'>贡献 %d 条</span><table>", html.EscapeString(n), len(byT[n]))
-		for i := len(byT[n]) - 1; i >= 0 && i >= len(byT[n])-8; i-- {
-			c := byT[n][i]
-			fmt.Fprintf(&b, "<tr><td class='muted'>%s</td><td>%s</td></tr>", time.Unix(c.At, 0).Format("01-02 15:04"), html.EscapeString(c.Text))
-		}
-		b.WriteString("</table></div>")
-	}
-
-	b.WriteString("<h2>工作台产物</h2><div class='card'><table><tr><th>标题</th><th>作者</th><th>标签</th><th>时间</th></tr>")
-	key := r.URL.Query().Get("key")
-	ws := make([]Workbench, len(s.data.Workbenches))
-	copy(ws, s.data.Workbenches)
-	sort.Slice(ws, func(i, j int) bool { return ws[i].CreatedAt > ws[j].CreatedAt })
-	for _, w := range ws {
-		fmt.Fprintf(&b, "<tr><td><a href='/w/%s?key=%s'>%s</a></td><td>%s</td><td class='muted'>%s</td><td class='muted'>%s</td></tr>",
-			w.ID, html.EscapeString(key), html.EscapeString(w.Title), html.EscapeString(w.Teacher),
-			html.EscapeString(strings.Join(w.Tags, "、")), time.Unix(w.CreatedAt, 0).Format("01-02"))
-	}
-	b.WriteString("</table></div></body></html>")
-	return b.String()
-}

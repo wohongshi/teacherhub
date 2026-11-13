@@ -31,13 +31,15 @@ for _ in $(seq 1 30); do curl -s --max-time 1 "$BASE/api/ping?key=$KEY" 2>/dev/n
   kill -0 "$SP" 2>/dev/null || { echo "服务起不来"; tail -5 /tmp/th-probe.log; exit 2; }
   sleep 0.5; done
 
-echo "== 统一 key 鉴权 =="
+echo "== 访问政策：读免 key / 写留 key =="
 R=$(curl -s "$BASE/api/ping?key=$KEY")
 echo "$R" | jassert 'assert d["version"]=="1.0.0", d' "带 key ping 通"
 R=$(curl -s "$BASE/api/ping")
-echo "$R" | jerr "key" "无 key 拒绝"
-R=$(curl -s -H "X-Access-Key: 错的" "$BASE/api/ping")
-echo "$R" | jerr "key" "错 key 拒绝"
+echo "$R" | jassert 'assert d["version"]=="1.0.0", d' "读接口免 key（打开即看）"
+R=$(curl -s -X POST "$BASE/api/contrib" -H 'Content-Type: application/json' --data-raw '{"teacher":"x","text":"y"}')
+echo "$R" | jerr "key" "写操作无 key 拒绝"
+R=$(curl -s -X POST "$BASE/api/workbenches" -H 'Content-Type: application/json' --data-raw '{"title":"x","content":"y"}')
+echo "$R" | jerr "key" "产物推送无 key 拒绝"
 
 echo "== 贡献统计 =="
 R=$(curl -s -X POST "$BASE/api/contrib?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"teacher":"张老师","text":"添加了《钠与水反应》到化学实验库","kb":"化学实验库","item":"钠与水反应"}')
@@ -64,7 +66,7 @@ printf '<html><body>钠与水实验工作台内容</body></html>' > /tmp/th-a.ht
 R=$(curl -s -X POST "$BASE/api/workbenches?key=$KEY" -H 'Content-Type: application/json' --data-raw "{\"title\":\"钠与水反应实验工作台\",\"desc\":\"浮熔游响红\",\"tags\":[\"化学\",\"实验\"],\"keywords\":[\"钠\",\"水\",\"反应\"],\"teacher\":\"张老师\",\"content\":\"$(cat /tmp/th-a.html)\"}")
 WBID=$(echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['id'])" 2>/dev/null)
 LINK=$(echo "$R" | python3 -c "import json,sys;print(json.load(sys.stdin)['link'])" 2>/dev/null)
-[ -n "$WBID" ] && echo "$LINK" | grep -q "/w/$WBID?key=" && ok "推送产物 + 下发链接格式" || bad "推送异常: $R"
+[ -n "$WBID" ] && echo "$LINK" | grep -q "/w/$WBID" && ! echo "$LINK" | grep -q "key=" && ok "推送产物 + 下发链接格式（免 key）" || bad "推送异常: $R"
 R=$(curl -s -G "$BASE/api/workbenches/search?key=$KEY" --data-urlencode "q=钠与水 反应")
 echo "$R" | python3 -c "
 import json,sys
@@ -85,15 +87,15 @@ m=json.load(sys.stdin)['matches']
 assert len(m)>=2 and m[0]['score']>=m[-1]['score'], m" 2>/dev/null \
   && ok "多命中按相似度排序" || bad "排序异常: $R"
 
-echo "== 下发链接 + 统计页 =="
+echo "== 下发链接 + 门户（浏览全免 key） =="
 R=$(curl -s "$LINK")
-echo "$R" | grep -q "钠与水实验工作台内容" && ok "链接浏览器直看产物" || bad "链接打开异常"
-R=$(curl -s "$BASE/api/workbenches/$WBID/file?key=$KEY")
-echo "$R" | grep -q "钠与水实验工作台内容" && ok "产物下载字节一致" || bad "下载异常"
-R=$(curl -s "$BASE/w/$WBID?key=错的")
-[ -n "$R" ] && ! echo "$R" | grep -q "钠与水实验工作台内容" && ok "错 key 看不了产物" || bad "错 key 放行（严重）"
-R=$(curl -s "$BASE/stats?key=$KEY")
-echo "$R" | grep -q "张老师" && echo "$R" | grep -q "钠与水反应实验工作台" && ok "统计页渲染（贡献+产物）" || bad "统计页异常"
+echo "$R" | grep -q "/w/$WBID/raw" && echo "$R" | grep -q "钠与水反应实验工作台" && ok "查看页顶栏包装（免 key）" || bad "查看页异常: ${R:0:80}"
+R=$(curl -s "$BASE/w/$WBID/raw")
+echo "$R" | grep -q "钠与水实验工作台内容" && ok "原文直看（免 key）" || bad "原文异常"
+R=$(curl -s "$BASE/api/workbenches/$WBID/file")
+echo "$R" | grep -q "钠与水实验工作台内容" && ok "产物下载字节一致（免 key）" || bad "下载异常"
+R=$(curl -s "$BASE/stats")
+echo "$R" | grep -q "张老师" && echo "$R" | grep -q "钠与水反应实验工作台" && ok "门户页渲染（免 key，贡献+产物）" || bad "门户异常"
 
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
