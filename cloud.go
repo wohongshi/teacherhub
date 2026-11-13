@@ -1093,6 +1093,7 @@ func wbView(w Workbench, r *http.Request) map[string]any {
 		"preview":   pv,
 		"hidden":    w.Hidden,
 		"rate":      rateOf(w),
+		"rate_num":  w.RateNum,
 		"link":      workbenchLink(r, w.ID),
 	}
 }
