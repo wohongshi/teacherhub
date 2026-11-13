@@ -438,6 +438,11 @@ func cmdServe(args []string) {
 	})
 
 	mux.HandleFunc("/api/workbenches/", func(w http.ResponseWriter, r *http.Request) {
+		id0 := strings.TrimPrefix(r.URL.Path, "/api/workbenches/")
+		if r.Method == http.MethodPost && strings.HasSuffix(id0, "/rate") { // 评分免 key（在鉴权壳外）
+			rateH(st, w, r, strings.TrimSuffix(id0, "/rate"))
+			return
+		}
 		api(w, r, func(w http.ResponseWriter, r *http.Request) {
 			id := strings.TrimPrefix(r.URL.Path, "/api/workbenches/")
 			if r.Method == http.MethodDelete { // 删除产物（管理 key；历史备份 .hist 保留可恢复）
@@ -459,51 +464,6 @@ func cmdServe(args []string) {
 					_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".preview"))
 				}
 				writeJSON(w, 200, map[string]any{"ok": found})
-				return
-			}
-			if r.Method == http.MethodPost && strings.HasSuffix(id, "/rate") { // 评分（免 key，每 IP 每产物一评）
-				id = strings.TrimSuffix(id, "/rate")
-				var in struct {
-					Stars int `json:"stars"`
-				}
-				if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Stars < 1 || in.Stars > 5 {
-					writeJSON(w, 400, map[string]any{"ok": false, "error": "stars 须为 1-5"})
-					return
-				}
-				ip := r.Header.Get("CF-Connecting-IP")
-				if ip == "" {
-					ip = r.RemoteAddr
-					if i := strings.LastIndex(ip, ":"); i > 0 {
-						ip = ip[:i]
-					}
-				}
-				key := ip + "|rate|" + id
-				st.mu.Lock()
-				if st.boardLikes == nil {
-					st.boardLikes = map[string]bool{}
-				}
-				if st.boardLikes[key] {
-					st.mu.Unlock()
-					writeJSON(w, 200, map[string]any{"ok": true, "already": true})
-					return
-				}
-				st.boardLikes[key] = true
-				rate := 0.0
-				found := false
-				for i := range st.data.Workbenches {
-					if st.data.Workbenches[i].ID == id {
-						st.data.Workbenches[i].RateSum += in.Stars
-						st.data.Workbenches[i].RateNum++
-						rate = rateOf(st.data.Workbenches[i])
-						found = true
-						break
-					}
-				}
-				if found {
-					_ = st.save()
-				}
-				st.mu.Unlock()
-				writeJSON(w, 200, map[string]any{"ok": found, "rate": rate})
 				return
 			}
 			if r.Method == http.MethodPost && strings.HasSuffix(id, "/hidden") { // 下架/上架（写操作须 key）
@@ -917,7 +877,7 @@ func cmdServe(args []string) {
 	})
 
 	// 备份快照管理：清单 + 单份下载（管理 key）
-	mux.HandleFunc("/api/admin/backups", func(w http.ResponseWriter, r *http.Request) {
+	backHandler := func(w http.ResponseWriter, r *http.Request) {
 		got := r.Header.Get("X-Access-Key")
 		if got == "" {
 			got = r.URL.Query().Get("key")
@@ -930,7 +890,7 @@ func cmdServe(args []string) {
 		bdir := filepath.Join(st.dir, "backups")
 		if path != "" { // 单份下载
 			name := strings.TrimPrefix(path, "/")
-			if name == "" || strings.ContainsAny(name, "/\\.") {
+			if name == "" || strings.ContainsAny(name, "/\\") {
 				http.NotFound(w, r)
 				return
 			}
@@ -947,7 +907,9 @@ func cmdServe(args []string) {
 			}
 		}
 		writeJSON(w, 200, map[string]any{"ok": true, "backups": list})
-	})
+	}
+	mux.HandleFunc("/api/admin/backups/", backHandler)
+	mux.HandleFunc("/api/admin/backups", backHandler)
 
 	// 迷你 QR 编码器（查看页扫码用）
 	mux.HandleFunc("/qr.js", handleQRJS)
@@ -1064,6 +1026,51 @@ func workbenchLink(r *http.Request, id string) string {
 		scheme = "https"
 	}
 	return fmt.Sprintf("%s://%s/w/%s", scheme, r.Host, id)
+}
+
+// rateH 评分处理（免 key，每 IP 每产物一评）。
+func rateH(st *cloudStore, w http.ResponseWriter, r *http.Request, id string) {
+	var in struct {
+		Stars int `json:"stars"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Stars < 1 || in.Stars > 5 {
+		writeJSON(w, 400, map[string]any{"ok": false, "error": "stars 须为 1-5"})
+		return
+	}
+	ip := r.Header.Get("CF-Connecting-IP")
+	if ip == "" {
+		ip = r.RemoteAddr
+		if i := strings.LastIndex(ip, ":"); i > 0 {
+			ip = ip[:i]
+		}
+	}
+	key := ip + "|rate|" + id
+	st.mu.Lock()
+	if st.boardLikes == nil {
+		st.boardLikes = map[string]bool{}
+	}
+	if st.boardLikes[key] {
+		st.mu.Unlock()
+		writeJSON(w, 200, map[string]any{"ok": true, "already": true})
+		return
+	}
+	st.boardLikes[key] = true
+	rate := 0.0
+	found := false
+	for i := range st.data.Workbenches {
+		if st.data.Workbenches[i].ID == id {
+			st.data.Workbenches[i].RateSum += in.Stars
+			st.data.Workbenches[i].RateNum++
+			rate = rateOf(st.data.Workbenches[i])
+			found = true
+			break
+		}
+	}
+	if found {
+		_ = st.save()
+	}
+	st.mu.Unlock()
+	writeJSON(w, 200, map[string]any{"ok": found, "rate": rate})
 }
 
 // rateOf 均分（0~5，保留 1 位）。
