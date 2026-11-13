@@ -360,6 +360,16 @@ func cmdServe(args []string) {
 		_, _ = w.Write([]byte(st.statsPage(r)))
 	})
 
+	// 根路径：极简落地页（只展示状态，无敏感信息）
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(landingHTML))
+	})
+
 	log.Println("教师工作台云端已启动:", addr)
 	log.Println("访问 key:", st.data.Key)
 	log.Println("统计页:", "http://<地址>"+addr+"/stats?key="+st.data.Key)
@@ -445,6 +455,23 @@ func similarity(q string, w Workbench) float64 {
 	}
 	return sc
 }
+
+// landingHTML 根路径极简落地页。
+const landingHTML = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>教研工作台</title>
+<style>
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f4f2ec;color:#22282e;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#fff;border:1px solid #e3dfd4;border-radius:16px;padding:38px 42px;text-align:center;box-shadow:0 2px 12px rgba(34,40,46,.07)}
+h1{font-size:24px;color:#15616d;margin:0 0 10px}
+p{color:#6b7280;font-size:14px;line-height:1.9;margin:0}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2e7d4f;margin-right:6px;vertical-align:1px}
+</style></head><body>
+<div class="card">
+<h1>教研工作台</h1>
+<p><span class="dot"></span>云端在线 · 零账号 · 全员统一 key</p>
+<p style="margin-top:14px">贡献统计页：/stats?key=统一key<br>工作台产物链接由 WorkBuddy 插件生成</p>
+</div></body></html>`
 
 // statsPage 简易统计页（服务端渲染）。
 func (s *cloudStore) statsPage(r *http.Request) string {
