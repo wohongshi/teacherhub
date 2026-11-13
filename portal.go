@@ -125,7 +125,7 @@ header.hero{position:relative;overflow:hidden}
 header.hero::before{content:"";position:absolute;width:540px;height:540px;right:-150px;top:-230px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.13),transparent 65%);pointer-events:none}
 header.hero::after{content:"";position:absolute;width:400px;height:400px;left:-130px;bottom:-210px;border-radius:50%;background:radial-gradient(circle,rgba(255,196,130,.12),transparent 65%);pointer-events:none}
 header.hero .wrap{position:relative;z-index:1}
-.wb{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .25s ease}
+.wb{opacity:0;transform:translateY(10px);transition:opacity .32s ease,transform .32s ease}
 .wb.in{opacity:1;transform:none}
 .wb.in:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(34,40,46,.10);border-color:#c9d9dc}
 .wb .t{font-size:16px;font-weight:700;line-height:1.4;text-wrap:balance}
@@ -381,8 +381,9 @@ document.getElementById('themebtn').addEventListener('click',function(){var t=do
 /* 卡片滚动渐显 */
 (function(){
   if(!window.IntersectionObserver){document.querySelectorAll('.wb').forEach(function(c){c.classList.add('in')});return}
-  var ob=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');ob.unobserve(e.target)}})},{threshold:.06});
+  var ob=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');ob.unobserve(e.target)}})},{threshold:.04,rootMargin:'60px'});
   document.querySelectorAll('.wb').forEach(function(c){ob.observe(c)});
+  setTimeout(function(){document.querySelectorAll('.wb:not(.in)').forEach(function(c){c.classList.add('in')})},1200);
 })();
 /* 数字滚动 */
   document.querySelectorAll('.stat b').forEach(function(b){
