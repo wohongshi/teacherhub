@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>化学实验演示工作台</title>
+<style>
+/* ============ 设计令牌（纸感实验台：暖纸底 + 深青主色 + 琥珀警示） ============ */
+:root{
+  --paper:#f4f2ec; --panel:#ffffff; --ink:#22282e; --muted:#6b7280; --line:#e3dfd4;
+  --accent:#15616d; --accent-soft:#e2eef0; --amber:#c26a1e; --danger:#c2382e;
+  --ok:#2e7d4f; --pink:#c2298a; --radius:14px; --shadow:0 2px 10px rgba(34,40,46,.07);
+  --serif:"Songti SC","STSong","SimSun",serif;
+  --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html{font-size:16px}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--sans);
+  min-height:100vh; display:flex; flex-direction:column;
+}
+
+/* ============ 顶栏（Monitor 面：一眼看清在做什么实验） ============ */
+header{
+  background:#12333a; color:#f2f6f6; padding:14px 22px;
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+}
+header h1{font-family:var(--serif); font-size:24px; letter-spacing:1px; font-weight:700}
+header .sub{font-size:12.5px; opacity:.75; margin-left:2px}
+.tabs{display:flex; gap:8px; margin-left:auto}
+.tabs button{
+  font-family:var(--sans); font-size:15px; padding:9px 18px; min-height:42px;
+  border:1px solid rgba(255,255,255,.25); border-radius:999px;
+  background:transparent; color:#d7e4e6; cursor:pointer; transition:all .15s;
+}
+.tabs button:hover{background:rgba(255,255,255,.12)}
+.tabs button.active{background:#f2f6f6; color:#12333a; border-color:#f2f6f6; font-weight:600}
+
+/* ============ 实验台两栏：左舞台 / 右控制台 ============ */
+.bench{
+  flex:1; display:grid; grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);
+  gap:16px; padding:16px 22px 20px; align-items:start;
+}
+.stage{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); overflow:hidden; position:relative;
+}
+#cv{display:block; width:100%; height:auto}
+
+/* 危险横幅 */
+.stage-alert{
+  position:absolute; left:14px; right:14px; top:12px;
+  background:var(--danger); color:#fff; font-size:15px; font-weight:600;
+  padding:10px 14px; border-radius:10px; display:none;
+  box-shadow:0 4px 14px rgba(194,56,46,.35);
+}
+.stage-alert.warn{background:var(--amber); box-shadow:0 4px 14px rgba(194,106,30,.3)}
+.stage-alert.show{display:block}
+
+/* 播放控制条 */
+.playbar{
+  display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-top:1px solid var(--line); background:#fbfaf7; flex-wrap:wrap;
+}
+.playbar button{
+  font-family:var(--sans); font-size:14.5px; min-height:42px; padding:0 16px;
+  border:1px solid var(--line); border-radius:10px; background:var(--panel);
+  color:var(--ink); cursor:pointer; transition:all .15s;
+}
+.playbar button:hover{border-color:var(--accent); color:var(--accent)}
+.playbar button.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; min-width:104px}
+.playbar button.primary:hover{background:#12525c; color:#fff}
+#scrub{flex:1; min-width:160px; accent-color:var(--accent); height:36px}
+#clock{font-variant-numeric:tabular-nums; font-size:14px; color:var(--muted); min-width:56px; text-align:right}
+
+/* ============ 右侧控制台（Configure 面：参数为主角） ============ */
+.console{display:flex; flex-direction:column; gap:12px}
+.panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:16px 18px;
+}
+.panel h3{font-size:14px; letter-spacing:.5px; color:var(--accent); margin-bottom:12px; font-weight:700}
+.param{margin-bottom:14px}
+.param:last-child{margin-bottom:0}
+.param .row{display:flex; align-items:center; justify-content:space-between; margin-bottom:7px}
+.param label{font-size:14.5px; font-weight:600}
+.param .val{font-size:13.5px; color:var(--accent); font-weight:700; font-variant-numeric:tabular-nums}
+.param input[type=range]{width:100%; accent-color:var(--accent); height:32px}
+.seg{display:flex; gap:6px; flex-wrap:wrap}
+.seg button{
+  flex:1; min-width:56px; min-height:40px; font-size:13.5px; font-family:var(--sans);
+  border:1px solid var(--line); border-radius:9px; background:#fbfaf7; cursor:pointer; color:var(--ink);
+}
+.seg button.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+.toggle{display:flex; align-items:center; gap:10px; cursor:pointer; min-height:44px}
+.toggle input{width:20px; height:20px; accent-color:var(--accent)}
+.toggle span{font-size:14.5px; font-weight:600}
+
+/* 预设 */
+.preset-grid{display:grid; grid-template-columns:1fr; gap:8px}
+.preset-grid button{
+  text-align:left; font-family:var(--sans); font-size:14px; min-height:46px;
+  padding:10px 14px; border:1px solid var(--line); border-radius:10px;
+  background:#fbfaf7; cursor:pointer; color:var(--ink); line-height:1.35;
+}
+.preset-grid button:hover{border-color:var(--accent); background:var(--accent-soft)}
+.preset-grid button small{display:block; color:var(--muted); font-size:12px; margin-top:2px}
+
+/* 实时现象 */
+.readout{display:grid; grid-template-columns:auto 1fr; gap:8px 14px; font-size:14px}
+.readout dt{color:var(--muted)}
+.readout dd{font-weight:600}
+.readout dd.hot{color:var(--danger)}
+.readout dd.ok{color:var(--ok)}
+
+/* 现象字典 */
+/* 现象字典（舞台底部图例条，常驻可见） */
+.legend{display:flex; align-items:center; gap:12px; padding:10px 14px; border-top:1px solid var(--line); background:#f1efe8; overflow-x:auto}
+.legend-title{font-size:12.5px; color:var(--muted); font-weight:700; letter-spacing:.5px; white-space:nowrap}
+.legend .chips{flex-wrap:nowrap}
+.legend .chip{min-width:52px; padding:6px 9px}
+.legend .chip .zi{font-size:18px}
+.legend .chip .why{font-size:10px}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  min-width:58px; padding:9px 10px; border-radius:11px;
+  border:1px solid var(--line); background:#fbfaf7; transition:all .2s;
+}
+.chip .zi{font-family:var(--serif); font-size:21px; font-weight:700; color:var(--muted)}
+.chip .why{font-size:11px; color:var(--muted); text-align:center; line-height:1.3}
+.chip.lit{background:var(--accent-soft); border-color:var(--accent)}
+.chip.lit .zi{color:var(--accent)}
+.chip.lit.pink{background:#fbe7f3; border-color:var(--pink)}
+.chip.lit.pink .zi{color:var(--pink)}
+
+/* 原理卡 */
+details.panel summary{cursor:pointer; font-size:14px; font-weight:700; color:var(--accent); list-style:none}
+details.panel summary::before{content:"▸ "; }
+details.panel[open] summary::before{content:"▾ "; }
+.theory-body{margin-top:10px; font-size:13.5px; line-height:1.85; color:#3a4148}
+.eq{
+  font-family:var(--serif); font-size:16px; background:#fbfaf7; border:1px solid var(--line);
+  border-radius:9px; padding:9px 13px; margin:8px 0; display:inline-block;
+}
+.theory-body b{color:var(--ink)}
+
+footer{padding:10px 22px 18px; font-size:12px; color:var(--muted); text-align:center}
+
+/* ============ 响应式（手机也能看） ============ */
+@media (max-width: 980px){
+  .bench{grid-template-columns:1fr; padding:12px 12px 16px}
+  header{padding:12px 14px}
+  header h1{font-size:19px}
+  .tabs{margin-left:0; width:100%}
+  .tabs button{flex:1; font-size:14px; padding:9px 8px}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>化学实验演示工作台</h1>
+  <span class="sub">课堂投屏 · 免安装 · 离线可用</span>
+  <nav class="tabs">
+    <button data-exp="na" class="active">钠与水</button>
+    <button data-exp="fe">铁丝在氧气中燃烧</button>
+  </nav>
+</header>
+
+<main class="bench">
+  <section class="stage">
+    <canvas id="cv" width="880" height="600"></canvas>
+    <div class="stage-alert" id="alert"></div>
+    <div class="playbar">
+      <button id="btn-reset">⟲ 重置</button>
+      <button id="btn-play" class="primary">▶ 开始</button>
+      <button id="btn-stepb" title="后退一帧">◀ 帧</button>
+      <button id="btn-stepf" title="前进一帧">帧 ▶</button>
+      <input type="range" id="scrub" min="0" max="1200" value="0" step="1" aria-label="时间轴">
+      <span id="clock">0.0 s</span>
+    </div>
+    <div class="legend"><span class="legend-title">现象字典</span><div class="chips" id="chips"></div></div>
+  </section>
+
+  <aside class="console">
+    <div class="panel"><h3>实验条件</h3><div id="params"></div></div>
+    <div class="panel"><h3>预设场景</h3><div class="preset-grid" id="presets"></div></div>
+    <div class="panel"><h3>实时现象</h3><dl class="readout" id="readout"></dl></div>
+    <details class="panel theory">
+      <summary>原理 · 方程式 · 安全</summary>
+      <div class="theory-body" id="theory"></div>
+    </details>
+  </aside>
+</main>
+
+<footer>化学实验演示工作台 · 单文件网页版 · 断网可用 · 参数为教学模拟量值，帮助理解规律，非精确计算</footer>
+
+<script>
+"use strict";
+/* ================================================================
+   化学实验演示工作台 —— 全部内联，无外部依赖。
+   画面为确定性模拟（同一时刻同一画面），支持暂停、逐帧、拖动时间轴回看。
+   ================================================================ */
+
+/* ---------- 基础工具：确定性伪随机（保证拖动回看画面稳定） ---------- */
+function hash(n){ const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function lerp(a, b, t){ return a + (b - a) * t; }
+
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const W = cv.width, H = cv.height;
+
+/* ================================================================
+   实验一：钠与水
+   规则（教学化）：强度 = f(钠块大小, 水温)；强度越高 → 游动越快、气泡越密、
+   响声越大；强度极高（大钠块 + 热水）可出现燃烧；滴酚酞 → 溶液变红扩散。
+   ================================================================ */
+const NA = {
+  key: "na",
+  duration: 26,
+  params: { size: 3, temp: 25, pp: false },
+  defs: [
+    { key: "size", label: "钠块大小", type: "seg", options: [
+      { v: 1, t: "1 很小" }, { v: 2, t: "2 小" }, { v: 3, t: "3 中" }, { v: 4, t: "4 大" }, { v: 5, t: "5 很大" } ] },
+    { key: "temp", label: "水温", type: "range", min: 5, max: 95, step: 1, unit: " ℃" },
+    { key: "pp", label: "滴加酚酞", type: "toggle" },
+  ],
+  presets: [
+    { t: "小钠块 · 冷水", d: "反应平缓，钠熔成小球慢慢游动", p: { size: 1, temp: 10, pp: false } },
+    { t: "中钠块 · 常温水", d: "典型现象：浮熔游响，滴酚酞变红", p: { size: 3, temp: 25, pp: true } },
+    { t: "大钠块 · 热水", d: "反应剧烈，可能燃烧（课堂演示注意安全）", p: { size: 5, temp: 85, pp: true } },
+  ],
+  theory:
+    '<div class="eq">2Na + 2H<sub>2</sub>O → 2NaOH + H<sub>2</sub>↑ &nbsp;（放热）</div>' +
+    '<p><b>浮</b>：钠的密度（0.97 g/cm³）小于水，浮在水面。<br>' +
+    '<b>熔</b>：反应放热且钠熔点低（97.8℃），熔成闪亮小球。<br>' +
+    '<b>游</b>：氢气从小球各方向逸出，推动小球四处游动。<br>' +
+    '<b>响</b>：气体快速逸出发出“嘶嘶”声。<br>' +
+    '<b>红</b>：生成 NaOH 使酚酞变红，红色随溶液扩散。</p>' +
+    '<p><b>⚠ 安全</b>：钠是遇水剧烈反应的危险药品，真实实验须由老师演示，' +
+    '取用绿豆大小、吸干煤油，严禁学生随意操作。</p>',
+  /* 强度 0~1.4 */
+  intensity(p){ return ((p.size - 1) / 4) * 0.62 + ((p.temp - 5) / 90) * 0.78; },
+  /* 放热使水温先升后缓降（教学化曲线） */
+  tempNow(p, t){
+    const rise = 6 + this.intensity(p) * 16;
+    const up = clamp(t / 1.8, 0, 1);
+    const down = 1 - 0.3 * clamp((t - 8) / 16, 0, 1);
+    return p.temp + rise * up * down;
+  },
+  label(p){
+    const i = this.intensity(p);
+    return i < 0.35 ? "平缓" : i < 0.72 ? "较剧烈" : i < 1.05 ? "剧烈" : "剧烈 · 可能燃烧";
+  },
+  burning(p){ return this.intensity(p) >= 1.05; },
+  /* 钠球位置：确定性游动轨迹 */
+  pos(t, p){
+    const i = this.intensity(p);
+    const amp = 0.32 + i * 0.55;
+    const x = Math.sin(t * 1.15) * 0.5 + Math.sin(t * 2.3 + 1.3) * 0.3 + Math.sin(t * 3.8 + 2.9) * 0.2;
+    const y = Math.sin(t * 1.7 + 0.5) * 0.55 + Math.sin(t * 2.9 + 1.7) * 0.45;
+    return { x: 440 + x * 130 * amp, y: 322 + y * 42 * amp };
+  },
+};
+
+/* ================================================================
+   实验二：铁丝在氧气中燃烧
+   规则：除锈、氧气浓度影响能否顺利燃烧；粗铁丝难点燃；
+   瓶底不放水/细沙 → 高温生成物落下有炸裂风险（红字警示 + 裂纹演示）。
+   ================================================================ */
+const FE = {
+  key: "fe",
+  duration: 20,
+  params: { thick: 1, o2: 80, rusted: false, bottom: "water" },
+  defs: [
+    { key: "thick", label: "铁丝粗细", type: "seg", options: [
+      { v: 1, t: "细" }, { v: 2, t: "中" }, { v: 3, t: "粗" } ] },
+    { key: "o2", label: "氧气浓度", type: "range", min: 21, max: 100, step: 1, unit: " %" },
+    { key: "rusted", label: "铁丝未除锈", type: "toggle" },
+    { key: "bottom", label: "瓶底处理", type: "seg", options: [
+      { v: "water", t: "放少量水" }, { v: "sand", t: "铺细沙" }, { v: "none", t: "什么都不放" } ] },
+  ],
+  presets: [
+    { t: "普通空气 · 粗铁丝", d: "难点燃、火星少——对比用的失败案例", p: { thick: 3, o2: 21, rusted: true, bottom: "sand" } },
+    { t: "高浓度氧气 · 未防护", d: "燃烧剧烈，⚠ 高温生成物落下有炸裂风险", p: { thick: 2, o2: 95, rusted: false, bottom: "none" } },
+    { t: "标准实验", d: "细铁丝 + 除锈 + 瓶底放水，火星四射", p: { thick: 1, o2: 80, rusted: false, bottom: "water" } },
+  ],
+  theory:
+    '<div class="eq">3Fe + 2O<sub>2</sub> <span style="font-size:13px">（点燃）</span> → Fe<sub>3</sub>O<sub>4</sub></div>' +
+    '<p><b>火星四射</b>：铁在纯氧中剧烈燃烧，生成的 Fe<sub>3</sub>O<sub>4</sub> 高温熔融物向四周飞溅。<br>' +
+    '<b>黑色固体</b>：熔融的 Fe<sub>3</sub>O<sub>4</sub> 落入瓶底。<br>' +
+    '<b>为什么要除锈</b>：锈层阻碍铁与氧气接触，火柴难以把铁丝引燃。<br>' +
+    '<b>瓶底为什么放水/细沙</b>：高温熔融物直接落到冷瓶底，局部骤热不均会使集气瓶炸裂。</p>' +
+    '<p><b>⚠ 安全</b>：火柴不要插太满；铁丝绕成螺旋以聚热；' +
+    '待火柴快燃尽再伸入，由上而下缓慢插入。</p>',
+  /* 燃烧强度 0~1 */
+  intensity(p){
+    const o2f = clamp((p.o2 - 21) / 79, 0, 1);
+    const thickf = p.thick === 1 ? 1 : p.thick === 2 ? 0.72 : 0.42;
+    const rustf = p.rusted ? 0.38 : 1;
+    return o2f * thickf * rustf;
+  },
+  /* 引燃时刻：锈/粗会让火柴烧更久才点着 */
+  igniteT(p){ return 2.2 + (p.rusted ? 2.6 : 0) + (p.thick - 1) * 1.1 + (1 - clamp((p.o2 - 21) / 79, 0, 1)) * 1.4; },
+  label(p){
+    const i = this.intensity(p);
+    return i < 0.18 ? "难以点燃" : i < 0.45 ? "燃烧较弱" : i < 0.75 ? "燃烧明显" : "剧烈燃烧 · 火星四射";
+  },
+  crackRisk(p){ return p.bottom === "none"; },
+};
+
+const EXPS = { na: NA, fe: FE };
+
+/* ================================================================
+   全局状态与控制
+   ================================================================ */
+const S = { exp: "na", t: 0, playing: false, last: 0 };
+const $ = (id) => document.getElementById(id);
+
+function exp(){ return EXPS[S.exp]; }
+function params(){ return exp().params; }
+
+function setT(t){
+  S.t = clamp(t, 0, exp().duration);
+  $("scrub").value = Math.round(S.t / exp().duration * 1200);
+  $("clock").textContent = S.t.toFixed(1) + " s";
+}
+
+function play(){
+  if (S.t >= exp().duration) setT(0);
+  S.playing = true;
+  $("btn-play").textContent = "⏸ 暂停";
+}
+function pause(){
+  S.playing = false;
+  $("btn-play").textContent = "▶ 开始";
+}
+
+$("btn-play").addEventListener("click", () => S.playing ? pause() : play());
+$("btn-reset").addEventListener("click", () => { pause(); setT(0); render(); });
+$("btn-stepf").addEventListener("click", () => { pause(); setT(S.t + 1 / 24); render(); });
+$("btn-stepb").addEventListener("click", () => { pause(); setT(S.t - 1 / 24); render(); });
+$("scrub").addEventListener("input", (e) => {
+  pause();
+  setT(e.target.value / 1200 * exp().duration);
+  render();
+});
+
+/* 顶部实验切换 */
+document.querySelectorAll(".tabs button").forEach((b) => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    S.exp = b.getAttribute("data-exp");
+    pause(); setT(0);
+    buildConsole();
+    render();
+  });
+});
+
+/* ================================================================
+   控制台构建（参数 / 预设 / 现象字典 / 原理）
+   ================================================================ */
+function buildConsole(){
+  const E = exp();
+
+  /* 参数 */
+  const box = $("params");
+  box.innerHTML = "";
+  E.defs.forEach((d) => {
+    const wrap = document.createElement("div");
+    wrap.className = "param";
+    if (d.type === "range") {
+      wrap.innerHTML =
+        '<div class="row"><label>' + d.label + '</label><span class="val" id="v-' + d.key + '"></span></div>' +
+        '<input type="range" id="p-' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="' + d.step + '">';
+      box.appendChild(wrap);
+      const inp = wrap.querySelector("input");
+      inp.value = E.params[d.key];
+      const show = () => { $("v-" + d.key).textContent = inp.value + (d.unit || ""); };
+      show();
+      inp.addEventListener("input", () => {
+        E.params[d.key] = Number(inp.value);
+        show(); onParamsChanged();
+      });
+    } else if (d.type === "seg") {
+      wrap.innerHTML = '<div class="row"><label>' + d.label + '</label></div><div class="seg"></div>';
+      const seg = wrap.querySelector(".seg");
+      d.options.forEach((o) => {
+        const b = document.createElement("button");
+        b.textContent = o.t;
+        b.addEventListener("click", () => {
+          E.params[d.key] = o.v;
+          seg.querySelectorAll("button").forEach((x) => x.classList.remove("on"));
+          b.classList.add("on");
+          onParamsChanged();
+        });
+        if (E.params[d.key] === o.v) b.classList.add("on");
+        seg.appendChild(b);
+      });
+      box.appendChild(wrap);
+    } else if (d.type === "toggle") {
+      wrap.innerHTML = '<label class="toggle"><input type="checkbox" id="p-' + d.key + '"><span>' + d.label + '</span></label>';
+      box.appendChild(wrap);
+      const inp = wrap.querySelector("input");
+      inp.checked = !!E.params[d.key];
+      inp.addEventListener("change", () => {
+        E.params[d.key] = inp.checked;
+        onParamsChanged();
+      });
+    }
+  });
+
+  /* 预设 */
+  const pg = $("presets");
+  pg.innerHTML = "";
+  E.presets.forEach((ps) => {
+    const b = document.createElement("button");
+    b.innerHTML = ps.t + "<small>" + ps.d + "</small>";
+    b.addEventListener("click", () => {
+      Object.assign(E.params, ps.p);
+      pause(); setT(0);
+      buildConsole();
+      render();
+    });
+    pg.appendChild(b);
+  });
+
+  /* 现象字典 */
+  const chipDefs = S.exp === "na"
+    ? [
+        { zi: "浮", why: "密度比水小", pink: false },
+        { zi: "熔", why: "放热熔成小球", pink: false },
+        { zi: "游", why: "H₂ 推动游动", pink: false },
+        { zi: "响", why: "嘶嘶声", pink: false },
+        { zi: "红", why: "酚酞变红", pink: true },
+      ]
+    : [
+        { zi: "燃", why: "火柴引燃", pink: false },
+        { zi: "星", why: "火星四射", pink: false },
+        { zi: "黑", why: "黑色固体", pink: false },
+        { zi: "护", why: "瓶底防护", pink: false },
+      ];
+  $("chips").innerHTML = chipDefs.map((c, idx) =>
+    '<div class="chip' + (c.pink ? " pink" : "") + '" id="chip-' + idx + '">' +
+    '<span class="zi">' + c.zi + '</span><span class="why">' + c.why + '</span></div>'
+  ).join("");
+
+  $("theory").innerHTML = E.theory;
+  setT(S.t);
+}
+
+function onParamsChanged(){
+  pause();
+  render();
+}
+
+/* ================================================================
+   渲染：舞台 + 实时现象 + 字典点亮 + 危险横幅
+   ================================================================ */
+function render(){
+  setT(S.t); // 同步时钟/进度条（直设时间取证也不脱节）
+  drawStage();
+  drawReadout();
+  drawChips();
+  drawAlert();
+}
+
+/* ---------- 舞台 ---------- */
+function drawStage(){
+  ctx.clearRect(0, 0, W, H);
+  /* 背景：暖纸 + 台面 */
+  ctx.fillStyle = "#f8f6f0";
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#e9e5da";
+  ctx.fillRect(0, 500, W, 100);
+  ctx.fillStyle = "#ddd8cb";
+  ctx.fillRect(0, 498, W, 4);
+
+  if (S.exp === "na") drawNA();
+  else drawFE();
+}
+
+/* ---------- 实验一画面 ---------- */
+function drawNA(){
+  const p = NA.params, t = S.t;
+  const i = NA.intensity(p);
+  const dur = NA.duration;
+  const left = 210, right = 670, top = 130, bottom = 480;
+  const waterY = top + 68;
+
+  /* 温度计（放热水温动态） */
+  drawThermometer(128, 245, NA.tempNow(p, t));
+
+  /* 烧杯落地阴影 */
+  ctx.beginPath();
+  ctx.ellipse(440, 496, 232, 13, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(60,60,60,0.12)";
+  ctx.fill();
+
+  /* 烧杯（玻璃） */
+  ctx.save();
+  ctx.beginPath();
+  roundedJar(ctx, left, top, right - left, bottom - top, 26);
+  ctx.fillStyle = "rgba(226,236,240,0.5)";
+  ctx.fill();
+  ctx.clip();
+
+  /* 水体：温度色调 + 水面波纹 */
+  const warm = clamp((p.temp - 5) / 90, 0, 1);
+  ctx.fillStyle = "rgba(" + Math.round(lerp(120, 150, warm)) + "," + Math.round(lerp(180, 170, warm)) + "," + Math.round(lerp(235, 190, warm)) + ",0.55)";
+  ctx.beginPath();
+  ctx.moveTo(left - 4, waterY + Math.sin(t * 2) * 3);
+  for (let x = left - 4; x <= right + 4; x += 14) {
+    ctx.lineTo(x, waterY + Math.sin(t * 2 + x * 0.02) * (2 + i * 2.5));
+  }
+  ctx.lineTo(right + 4, bottom + 4);
+  ctx.lineTo(left - 4, bottom + 4);
+  ctx.closePath();
+  ctx.fill();
+
+  /* 酚酞变红：沿钠球轨迹的扩散晕 */
+  if (p.pp && t > 0.8) {
+    const steps = 26;
+    for (let k = 0; k < steps; k++) {
+      const tk = (k / steps) * t;
+      const q = NA.pos(tk, p);
+      const age = t - tk;
+      const r = 16 + age * 15;
+      const alpha = 0.10 * clamp(1 - age / 14, 0, 1) + 0.012;
+      const g = ctx.createRadialGradient(q.x, q.y, 2, q.x, q.y, r);
+      g.addColorStop(0, "rgba(194,41,138," + alpha * 1.6 + ")");
+      g.addColorStop(1, "rgba(194,41,138,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /* 气泡（确定性） */
+  const bubN = Math.round(6 + i * 22);
+  for (let k = 0; k < bubN * 3; k++) {
+    const born = hash(k * 3.7) * Math.max(t, 0.1);
+    const age = t - born;
+    if (age < 0 || age > 1.6) continue;
+    const src = NA.pos(born, p);
+    const bx = src.x + (hash(k * 9.1) - 0.5) * 40 + Math.sin(age * 6 + k) * 5;
+    const by = lerp(src.y + 14, waterY + 6, age / 1.6);
+    const br = 2 + hash(k * 5.3) * 4.5;
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.fill();
+  }
+
+  /* 钠球（消耗到最后 12% 时缩小消失） */
+  const remain = clamp((dur * 0.92 - t) / (dur * 0.16), 0, 1);
+  if (remain > 0.01 && t > 0) {
+    const q = NA.pos(t, p);
+    const r = (12 + p.size * 7) * remain;
+    const g = ctx.createRadialGradient(q.x - r * 0.3, q.y - r * 0.3, r * 0.2, q.x, q.y, r);
+    g.addColorStop(0, "#fdf6de");
+    g.addColorStop(0.55, "#d9cf9e");
+    g.addColorStop(1, "#8f8660");
+    ctx.beginPath();
+    ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+    /* 燃烧火焰 */
+    if (NA.burning(p) && t > 1.2) {
+      const fl = 1 + Math.sin(t * 13) * 0.18 + Math.sin(t * 29) * 0.1;
+      const fh = r * 2.6 * fl;
+      const fg = ctx.createRadialGradient(q.x, q.y - fh * 0.35, 2, q.x, q.y - fh * 0.35, fh * 0.9);
+      fg.addColorStop(0, "rgba(255,244,190,0.95)");
+      fg.addColorStop(0.45, "rgba(255,166,60,0.75)");
+      fg.addColorStop(1, "rgba(255,110,30,0)");
+      ctx.fillStyle = fg;
+      ctx.beginPath();
+      ctx.moveTo(q.x - r * 0.9, q.y - r * 0.4);
+      ctx.quadraticCurveTo(q.x - r * 0.7, q.y - fh, q.x, q.y - fh * 1.15);
+      ctx.quadraticCurveTo(q.x + r * 0.7, q.y - fh, q.x + r * 0.9, q.y - r * 0.4);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  /* 水蒸气 */
+  for (let k = 0; k < 10; k++) {
+    const born = hash(k * 7.7 + 1) * Math.max(t, 0.1);
+    const age = t - born;
+    if (age < 0 || age > 2.2) continue;
+    const sx = 250 + hash(k * 3.3) * 380 + Math.sin(age * 2 + k) * 18;
+    const sy = lerp(waterY - 4, top - 30, age / 2.2);
+    const a = 0.16 * clamp(0.2 + i, 0, 1) * (1 - age / 2.2);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 12 + age * 10, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255," + a + ")";
+    ctx.fill();
+  }
+  ctx.restore();
+
+  /* 玻璃描边 + 刻度 + 底座高光 */
+  ctx.save();
+  ctx.beginPath();
+  roundedJar(ctx, left, top, right - left, bottom - top, 26);
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = "rgba(140,166,180,0.75)";
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.beginPath();
+  ctx.moveTo(left + 16, top + 30);
+  ctx.lineTo(left + 16, bottom - 40);
+  ctx.stroke();
+  ctx.restore();
+
+  /* 液面刻度标签 */
+  ctx.fillStyle = "rgba(80,100,115,0.85)";
+  ctx.font = "600 17px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText("水 " + Math.round(NA.tempNow(p, t)) + " ℃" + (p.pp ? " · 含酚酞" : ""), left + 2, top + 52);
+}
+
+function drawThermometer(x, y, temp){
+  ctx.save();
+  const h = 250, w = 26;
+  /* 玻璃管 */
+  ctx.beginPath();
+  roundedJar(ctx, x, y, w, h, 13);
+  ctx.fillStyle = "rgba(240,244,246,0.9)";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(150,170,182,0.9)";
+  ctx.stroke();
+  /* 水银 */
+  const frac = clamp((temp - 0) / 100, 0, 1);
+  const mh = (h - 40) * frac;
+  ctx.beginPath();
+  roundedJar(ctx, x + 6, y + h - 24 - mh, w - 12, mh + 18, 8);
+  ctx.fillStyle = temp > 60 ? "#d8483c" : "#3b82c4";
+  ctx.fill();
+  /* 底球 + 落地阴影 */
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h + 6, 24, 6, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(60,60,60,0.12)";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + w / 2, y + h - 12, 17, 0, Math.PI * 2);
+  ctx.fillStyle = temp > 60 ? "#d8483c" : "#3b82c4";
+  ctx.fill();
+  /* 刻度 */
+  ctx.fillStyle = "rgba(90,110,125,0.9)";
+  ctx.font = "600 13px sans-serif";
+  for (let k = 0; k <= 4; k++) {
+    const ty = y + 16 + (h - 40) * (1 - k / 4);
+    ctx.fillRect(x + w - 5, ty, 8, 2);
+    ctx.fillText(String(k * 25), x + w + 8, ty + 5);
+  }
+  ctx.restore();
+}
+
+/* ---------- 实验二画面 ---------- */
+function drawFE(){
+  const p = FE.params, t = S.t;
+  const i = FE.intensity(p);
+  const ig = FE.igniteT(p);
+  const burnT = t - ig;                       /* 引燃后经过时间 */
+  const burning = burnT >= 0 && burnT < 6.5;  /* 燃烧窗口 */
+  const cx = 440, top = 110, bottom = 492;
+  const jarL = 260, jarR = 620;
+
+  /* 集气瓶落地阴影 */
+  ctx.beginPath();
+  ctx.ellipse(cx, 497, 190, 12, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(60,60,60,0.12)";
+  ctx.fill();
+
+  /* 集气瓶（带颈） */
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(jarL, top + 70);
+  ctx.lineTo(jarL + 62, top + 70);
+  ctx.lineTo(jarL + 62, top + 18);
+  ctx.lineTo(jarR - 62, top + 18);
+  ctx.lineTo(jarR - 62, top + 70);
+  ctx.lineTo(jarR, top + 70);
+  ctx.quadraticCurveTo(jarR + 8, bottom - 26, jarR - 26, bottom - 6);
+  ctx.quadraticCurveTo(cx, bottom + 10, jarL + 26, bottom - 6);
+  ctx.quadraticCurveTo(jarL - 8, bottom - 26, jarL, top + 70);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(214,232,242,0.5)";
+  ctx.fill();
+  ctx.clip();
+
+  /* 氧气（浓度越高蓝色越实） */
+  ctx.fillStyle = "rgba(96,156,210," + (0.10 + 0.22 * (p.o2 - 21) / 79) + ")";
+  ctx.fillRect(jarL - 10, top, jarR - jarL + 20, bottom - top);
+
+  /* 瓶底处理 */
+  const waterFrac = p.bottom === "water" ? 0.09 : p.bottom === "sand" ? 0.07 : 0;
+  if (waterFrac > 0) {
+    const ly = bottom - (bottom - top) * waterFrac;
+    ctx.fillStyle = p.bottom === "water" ? "rgba(96,156,210,0.5)" : "rgba(203,178,128,0.75)";
+    ctx.fillRect(jarL - 10, ly, jarR - jarL + 20, bottom - ly);
+  }
+
+  /* 火柴（引燃阶段） */
+  if (t < ig + 0.8) {
+    const mAge = clamp(t / Math.max(ig, 0.1), 0, 1);
+    ctx.save();
+    ctx.translate(cx, 208);
+    ctx.rotate(0.5);
+    ctx.fillStyle = "#caa46a";
+    ctx.fillRect(-4, -46, 8, 52);
+    const fg = ctx.createRadialGradient(0, -52, 2, 0, -52, 26 * (0.5 + mAge));
+    fg.addColorStop(0, "rgba(255,220,120,0.95)");
+    fg.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(0, -52, 26 * (0.5 + mAge), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* 螺旋铁丝（自上而下） */
+  ctx.lineWidth = p.thick === 1 ? 4 : p.thick === 2 ? 6.5 : 10;
+  ctx.strokeStyle = burning ? "rgba(255,150,60,0.95)" : (p.rusted ? "#8a5a3b" : "#666e78");
+  ctx.beginPath();
+  for (let k = 0; k <= 40; k++) {
+    const f = k / 40;
+    const wy = 210 + f * 190;
+    const wx = cx + Math.sin(f * Math.PI * 5.5) * (46 - f * 16);
+    if (k === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+  }
+  ctx.stroke();
+
+  /* 燃烧辉光 + 火星 */
+  if (burning) {
+    const g = ctx.createRadialGradient(cx, 320, 10, cx, 320, 170);
+    g.addColorStop(0, "rgba(255,180,80," + (0.16 + i * 0.16) + ")");
+    g.addColorStop(1, "rgba(255,180,80,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(jarL, top, jarR - jarL, bottom - top);
+
+    const sparkN = Math.round(24 + i * 60);
+    for (let k = 0; k < sparkN * 2; k++) {
+      const born = ig + hash(k * 4.1) * 6.2;
+      const age = t - born;
+      if (age < 0 || age > 1.15) continue;
+      const ang = hash(k * 8.3) * Math.PI * 2;
+      const sp = (90 + hash(k * 2.9) * 240) * (0.5 + i);
+      const sx = cx + Math.cos(ang) * sp * age * 0.9;
+      const sy = 300 + Math.sin(ang) * sp * age * 0.55 + 190 * age * age;   /* 抛物线 */
+      const a = (1 - age / 1.15) * (0.5 + i * 0.5);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2.2 + hash(k * 6.7) * 2.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255," + Math.round(170 + hash(k) * 60) + ",70," + a + ")";
+      ctx.fill();
+    }
+  }
+
+  /* 黑色固体（燃烧后落底） */
+  if (burnT > 4) {
+    for (let k = 0; k < 26; k++) {
+      const born = ig + 3.4 + hash(k * 5.1) * 2.2;
+      const age = t - born;
+      if (age < 0) continue;
+      const gx = cx + (hash(k * 7.3) - 0.5) * 150;
+      const gy = Math.min(bottom - 22 - waterFrac * (bottom - top), 360 + age * 150);
+      ctx.beginPath();
+      ctx.arc(gx, gy, 2.5 + hash(k * 3.7) * 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(30,30,32,0.92)";
+      ctx.fill();
+    }
+  }
+
+  /* 炸裂风险：裂纹 + 红闪 */
+  if (FE.crackRisk(p) && burnT > 6.2) {
+    ctx.strokeStyle = "rgba(194,56,46,0.85)";
+    ctx.lineWidth = 3;
+    const paths = [
+      [[jarL + 40, bottom - 8], [jarL + 90, bottom - 60], [jarL + 70, bottom - 120]],
+      [[jarR - 60, bottom - 10], [jarR - 110, bottom - 70], [jarR - 84, bottom - 130]],
+    ];
+    paths.forEach((pp2) => {
+      ctx.beginPath();
+      ctx.moveTo(pp2[0][0], pp2[0][1]);
+      for (let k = 1; k < pp2.length; k++) ctx.lineTo(pp2[k][0], pp2[k][1]);
+      ctx.stroke();
+    });
+  }
+  ctx.restore();
+
+  /* 瓶描边 + 玻璃片 */
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(jarL, top + 70);
+  ctx.lineTo(jarL + 62, top + 70);
+  ctx.lineTo(jarL + 62, top + 18);
+  ctx.lineTo(jarR - 62, top + 18);
+  ctx.lineTo(jarR - 62, top + 70);
+  ctx.lineTo(jarR, top + 70);
+  ctx.quadraticCurveTo(jarR + 8, bottom - 26, jarR - 26, bottom - 6);
+  ctx.quadraticCurveTo(cx, bottom + 10, jarL + 26, bottom - 6);
+  ctx.quadraticCurveTo(jarL - 8, bottom - 26, jarL, top + 70);
+  ctx.closePath();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "rgba(140,166,180,0.8)";
+  ctx.stroke();
+  ctx.restore();
+  /* 玻璃片 */
+  ctx.fillStyle = "rgba(190,212,224,0.85)";
+  ctx.fillRect(jarL + 30, top - 6, jarR - jarL - 60, 12);
+
+  /* 氧气浓度标签 */
+  ctx.fillStyle = "rgba(70,95,115,0.9)";
+  ctx.font = "600 17px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText("O₂ " + p.o2 + "%" + (p.rusted ? " · 铁丝未除锈" : " · 已除锈"), jarL + 6, top + 96);
+}
+
+function roundedJar(c, x, y, w, h, r){
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r);
+  c.quadraticCurveTo(x, y, x + r, y);
+}
+
+/* ---------- 实时现象面板 ---------- */
+function drawReadout(){
+  const E = exp(), p = E.params, t = S.t;
+  let rows;
+  if (S.exp === "na") {
+    const i = NA.intensity(p);
+    const remain = clamp((NA.duration * 0.92 - t) / (NA.duration * 0.16), 0, 1);
+    rows = [
+      ["水温", t <= 0.2 ? p.temp + " ℃" : Math.round(NA.tempNow(p, t)) + " ℃ · 放热升温", t <= 0.2 ? "" : "hot"],
+      ["反应强度", t <= 0 ? "—" : NA.label(p), t <= 0 ? "" : i > 1.0 ? "hot" : ""],
+      ["气泡", t <= 0 ? "—" : i < 0.35 ? "少量" : i < 0.72 ? "较多" : "大量", ""],
+      ["声音", t <= 0 ? "—" : i < 0.35 ? "轻微嘶嘶声" : i < 0.72 ? "嘶嘶声" : "响声明显", ""],
+      ["溶液颜色", p.pp ? (t > 1 ? "变红并扩散" : "无色") : "无色（未加酚酞）", p.pp && t > 1 ? "hot" : ""],
+      ["钠块状态", t <= 0 ? "待放入" : remain > 0.6 ? "熔成小球 · 游动" : remain > 0.02 ? "逐渐变小" : "已反应完", ""],
+    ];
+  } else {
+    const ig = FE.igniteT(p);
+    const burnT = t - ig;
+    rows = [
+      ["引燃", t < ig ? "火柴加热中…" : "已引燃", t < ig ? "" : "ok"],
+      ["燃烧程度", t < ig ? "—" : burnT < 6.5 ? FE.label(p) : "已熄灭 · 余热", ""],
+      ["火星", burnT < 0 ? "—" : burnT < 6.5 ? (FE.intensity(p) > 0.5 ? "火星四射" : "少量火星") : "已停止", ""],
+      ["生成物", burnT > 4 ? "黑色固体 Fe₃O₄" : "—", ""],
+      ["瓶底", p.bottom === "water" ? "有水（安全）" : p.bottom === "sand" ? "有细沙（安全）" : "未防护", p.bottom === "none" ? "hot" : "ok"],
+    ];
+  }
+  $("readout").innerHTML = rows.map((r) =>
+    "<dt>" + r[0] + '</dt><dd class="' + r[2] + '">' + r[1] + "</dd>"
+  ).join("");
+}
+
+/* ---------- 现象字典点亮 ---------- */
+function drawChips(){
+  const p = exp().params, t = S.t;
+  let lit;
+  if (S.exp === "na") {
+    const i = NA.intensity(p);
+    lit = [t > 0.3, t > 1.2 && i > 0.25, t > 0.5, t > 1.6 && i >= 0.35, p.pp && t > 1.2];
+  } else {
+    const ig = FE.igniteT(p), burnT = t - ig;
+    lit = [t >= ig, burnT >= 0 && burnT < 6.5 && FE.intensity(p) > 0.12, burnT > 4, p.bottom !== "none"];
+  }
+  lit.forEach((on, k) => {
+    const el = $("chip-" + k);
+    if (el) el.classList.toggle("lit", !!on);
+  });
+}
+
+/* ---------- 危险横幅 ---------- */
+function drawAlert(){
+  const el = $("alert");
+  const p = exp().params, t = S.t;
+  let msg = "", cls = "";
+  if (S.exp === "fe") {
+    if (FE.crackRisk(p) && t > FE.igniteT(p) + 1.5) {
+      msg = "⚠ 未防护 · 高温生成物落下，集气瓶有炸裂风险（瓶底应放水或铺细沙）";
+    } else if (p.rusted) {
+      msg = "铁丝未除锈 · 难以引燃（对比实验条件）";
+      cls = "warn";
+    } else if (p.o2 < 30) {
+      msg = "氧气不足 · 燃烧不明显（对比实验条件）";
+      cls = "warn";
+    }
+  } else if (NA.burning(p) && t > 1) {
+    msg = "⚠ 大钠块 + 热水 · 反应剧烈可能燃烧，真实实验须老师演示";
+    cls = "warn";
+  }
+  el.textContent = msg;
+  el.className = "stage-alert" + (msg ? " show" : "") + (cls ? " " + cls : "");
+}
+
+/* ================================================================
+   主循环
+   ================================================================ */
+function frame(ts){
+  if (S.playing) {
+    const dt = Math.min((ts - S.last) / 1000, 0.05);
+    setT(S.t + dt);
+    if (S.t >= exp().duration) pause();
+    render();
+  }
+  S.last = ts;
+  requestAnimationFrame(frame);
+}
+
+buildConsole();
+render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
