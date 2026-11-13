@@ -214,7 +214,7 @@ const MODULE = {
     const u = this.uOf(t), v = this.vOf(p, t), f = p.f;
     const nat = this.nature(p, t);
     const lensX = 540, axisY = 300;            /* 光心位置 */
-    const px = 11;                              /* 1cm ≈ 11px */
+    const px = 8;                              /* 1cm ≈ 8px */
     const candleH = [0, 46, 66, 86][p.h];
     const candleX = lensX - u * px;
 
@@ -297,12 +297,12 @@ const MODULE = {
       /* ② 过光心直行 */
       g.strokeStyle = "rgba(60,130,90,0.8)";
       g.beginPath(); g.moveTo(candleX, tipY); g.lineTo(905, tipY + (axisY - tipY) * (905 - candleX) / ((lensX - candleX) || 1)); g.stroke();
-      /* ③ 过 F 的入射 → 平行出射 */
+      /* ③ 过 F 的入射 → 平行出射（打在透镜上下半均可） */
       const fnx = lensX - f * px;
       g.strokeStyle = "rgba(120,80,190,0.75)";
       const slope = (tipY - axisY) / ((candleX - fnx) || 1);
       const yAtLens = axisY + slope * (lensX - fnx);
-      if (yAtLens < tipY + 2 && yAtLens > axisY - 130){
+      if (candleX !== fnx && Math.abs(yAtLens - axisY) < 200){
         g.beginPath(); g.moveTo(candleX, tipY); g.lineTo(lensX, yAtLens); g.stroke();
         g.beginPath(); g.moveTo(lensX, yAtLens); g.lineTo(905, yAtLens); g.stroke();
       }
@@ -311,11 +311,13 @@ const MODULE = {
     /* 像（实像：右侧倒立；虚像：左侧正立虚线） */
     if (v !== Infinity && nat !== "不成像"){
       const m = v / u;
-      const imgH = candleH * Math.abs(m);
-      const imgX = lensX + v * px;
       const virtual = v < 0;
-      const ix = virtual ? lensX - Math.abs(v) * px : imgX;
-      if (ix > 68 && ix < 902){
+      const rawX = lensX + v * px;
+      const ix = clamp(rawX, 82, 872);
+      const offScale = Math.abs(rawX - ix) > 4; // 像距过大被钳位
+      const imgH = Math.min(candleH * Math.abs(m), 150);
+      {
+        /* 实像/虚像绘制（位置已钳入画布） */
         g.save();
         if (!virtual){
           /* 实像：倒立蜡烛（灰蓝色调示意投影） */
@@ -342,6 +344,10 @@ const MODULE = {
         }
         g.fillStyle = "rgba(35,50,90,0.65)"; g.font = "11px sans-serif";
         g.fillText("v = " + (virtual ? "−" : "") + Math.abs(v).toFixed(1) + " cm", ix - 24, virtual ? axisY + 30 : axisY + 24);
+        if (offScale){
+          g.fillStyle = "rgba(179,84,30,0.85)"; g.font = "700 11px sans-serif";
+          g.fillText("⚠ 像距过大，像已按画布比例压缩显示", ix - 110, virtual ? axisY + 48 : axisY + 42);
+        }
       }
     }
 
@@ -355,7 +361,7 @@ const MODULE = {
 
     /* 图注 */
     g.fillStyle = "rgba(35,50,90,0.6)"; g.font = "600 14px sans-serif";
-    g.fillText("光具座 · 凸透镜 · 蜡烛 · 光屏（示意，1 cm ≈ 11 px）", 70, 546);
+    g.fillText("光具座 · 凸透镜 · 蜡烛 · 光屏（示意，1 cm ≈ 8 px）", 70, 546);
   },
 };
 
