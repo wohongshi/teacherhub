@@ -22,6 +22,7 @@ body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Microsoft 
 .stage-wrap{position:relative}
 canvas#stage{width:100%;height:auto;display:block;border-radius:12px;background:#e7ddd1}
 .ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.vsep{width:1px;height:26px;background:currentColor;opacity:.14;margin:0 4px}
 button{border:1px solid #d5c5b1;background:#fff;color:var(--ink);border-radius:11px;min-height:42px;min-width:42px;padding:0 16px;font-size:14px;cursor:pointer;font-family:inherit}
 button:hover{border-color:var(--theme2);background:var(--accent-soft)}
 button.primary{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:600}
@@ -70,6 +71,7 @@ body.focus .aside{display:none}
 body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
 body.focus .top .sub,body.focus .foot{display:none}
 @media(max-width:920px){.wrap{grid-template-columns:1fr}button{min-height:46px}.kbd-hint{display:none}.ctrl{gap:10px}}
+@media print{.top .sub,.ctrl,.scrub-row,.kbd-hint,.foot,.presets{display:none!important}.wrap{grid-template-columns:1fr;max-width:none}canvas#stage{width:100%}}
 </style>
 </head>
 <body>
@@ -88,7 +90,7 @@ body.focus .top .sub,body.focus .foot{display:none}
         <button id="prev" class="ghost" title="上一帧">◀ 上帧</button>
         <button id="next" class="ghost" title="下一帧">下帧 ▶</button>
         <button id="spd" class="ghost">速度 ×1</button>
-        <button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
+        <span class="vsep"></span><button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
         <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
         <div class="clock"><span id="clock">0.0 s</span></div>
       </div>

@@ -69,6 +69,7 @@ func (s *cloudStore) portalHTML() string {
 	b.WriteString(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>教研工作台</title>
+<link rel="alternate" type="application/rss+xml" title="教研工作台 · 新产物" href="/feed.xml">
 <style>
 :root{--paper:#f4f2ec;--panel:#fff;--ink:#22282e;--muted:#6b7280;--line:#e3dfd4;--accent:#15616d;--accent-soft:#e2eef0;--amber:#c26a1e}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -104,6 +105,22 @@ h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);borde
 .fav{position:absolute;top:10px;right:10px;border:0;background:transparent;font-size:17px;cursor:pointer;filter:grayscale(1);opacity:.4;line-height:1;padding:2px}
 .fav:hover{opacity:.9}
 .fav.on{filter:none;opacity:1}
+.pv{width:100%;height:116px;object-fit:cover;border-radius:10px;display:block;margin-bottom:10px;background:#eef2f3}
+.pv-ph{width:100%;height:116px;border-radius:10px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(255,255,255,.9);background:linear-gradient(135deg,#2b6b74,#4aa8bd)}
+.search{position:relative}
+#qdrop{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 26px rgba(34,40,46,.14);padding:10px 12px;z-index:30;display:none}
+#qdrop .qh{font-size:11px;color:var(--muted);margin:4px 2px 6px}
+#qdrop .qitem{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--ink);cursor:pointer;margin:0 6px 6px 0;background:#f7f9f9}
+#qdrop .qitem:hover{border-color:var(--accent);color:var(--accent)}
+.boardform{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.boardform input{border:1px solid var(--line);border-radius:10px;min-height:38px;padding:0 11px;font-size:12.5px;font-family:inherit}
+#bname{width:84px}
+#btext{flex:1;min-width:120px}
+.boardform button{min-height:38px;padding:0 15px;font-size:12.5px}
+.bmsg{font-size:12.5px;line-height:1.7;padding:7px 2px;border-bottom:1px solid #f0ede4}
+.bmsg:last-child{border-bottom:0}
+.bmsg .bn{color:var(--accent);font-weight:700;margin-right:6px}
+.bmsg .bt{color:var(--muted);font-size:11px;float:right}
 .wb:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(34,40,46,.10);border-color:#c9d9dc}
 .wb .t{font-size:16px;font-weight:700;line-height:1.4;text-wrap:balance}
 .wb .d{font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.7;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:3.7em}
@@ -122,7 +139,7 @@ h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);borde
 .feed .item:last-child{border-bottom:0}
 .feed .txt{flex:1}
 .feed .tm{font-size:11px;color:var(--muted);white-space:nowrap}
-.empty{color:var(--muted);font-size:13.5px;padding:26px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.empty{color:var(--muted);font-size:13.5px;padding:15px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px}
 .empty::before{content:"📭";font-size:22px;opacity:.7}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 @media (max-width:900px){
@@ -151,7 +168,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 </div></header>
 <main><div class="wrap"><div class="cols">
   <section>
-    <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span></h2>`)
+    <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span><div class="sbtns" id="sortbtns"><button class="sbtn on" data-sort="new">最新</button><button class="sbtn" data-sort="hot">最热</button></div></h2>`)
 	// 标签筛选 + 排序工具条
 	tagSet := map[string]bool{}
 	for _, w2 := range wbs {
@@ -170,7 +187,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 	for _, t := range tagList {
 		fmt.Fprintf(&b, `<button class="fchip" data-tag="%s">%s</button>`, html.EscapeString(t), html.EscapeString(t))
 	}
-	b.WriteString(`</div><div class="sbtns"><button class="sbtn on" data-sort="new">最新</button><button class="sbtn" data-sort="hot">最热</button></div></div>
+	b.WriteString(`</div></div>
     <div class="wb-grid" id="grid">`)
 	if len(wbs) == 0 {
 		b.WriteString(`<div class="empty">还没有产物——在 WorkBuddy 里说「做个 XX 实验工作台」，生成后自动上架</div>`)
@@ -205,9 +222,14 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 			avatarColor(c.Teacher), avatarChar(c.Teacher), html.EscapeString(c.Teacher), html.EscapeString(c.Text), time.Unix(c.At, 0).Format("01-02 15:04"))
 	}
 	b.WriteString(`</div></div>
+    <div class="card" id="boardcard">
+      <h2>💬 留言墙</h2>
+      <div id="boardlist"><div class="empty">还没有留言，来说两句</div></div>
+      <div class="boardform"><input id="bname" placeholder="昵称" maxlength="16"><input id="btext" placeholder="说点什么（200 字内）" maxlength="200"><button id="bsend">发送</button></div>
+    </div>
   </aside>
 </div></div></main>
-<footer>教研工作台 · 零账号 · 浏览免 key · 写入走统一 key</footer>
+<footer>教研工作台 · 零账号 · 浏览免 key · 写入走统一 key · <a href="/feed.xml" style="color:inherit">RSS 订阅</a></footer>
 <script>
 (function(){
   var q=document.getElementById('q'),btn=document.getElementById('qbtn'),grid=document.getElementById('grid'),cnt=document.getElementById('wb-count');
@@ -215,7 +237,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   function card(w){
     var tags=(w.tags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('');
     var ch=esc((w.teacher||'?').slice(0,1));
-    return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+
+    var pv=w.preview?'<img class="pv" loading="lazy" src="'+esc(w.preview)+'" alt="">':'<div class="pv-ph">⚗</div>';
+    return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+pv+
       '<div class="d">'+esc(w.desc||'')+'</div>'+
       (tags?'<div class="tags">'+tags+'</div>':'')+
       '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">👁 浏览 '+(w.views||0)+'</span></div></a>';
@@ -276,9 +299,52 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
       var ms=j.matches||[];
       cnt.textContent=ms.length;
       grid.innerHTML=ms.length?ms.map(function(m){return card(m.workbench)}).join(''):'<div class="empty">没有找到类似的，可以让老师在 WorkBuddy 里生成一个</div>';
+      pushHist(v);
     }catch(e){grid.innerHTML='<div class="empty">搜索失败，稍后再试</div>'}
     btn.disabled=false;btn.textContent='搜索';
   }
+  /* 搜索历史 + 热门标签 */
+  var HKEY='th_hists';
+  function hists(){try{return JSON.parse(localStorage.getItem(HKEY)||'[]')}catch(e){return []}}
+  function pushHist(v){var h=hists().filter(function(x){return x!==v});h.unshift(v);localStorage.setItem(HKEY,JSON.stringify(h.slice(0,5)))}
+  var drop=document.createElement('div');drop.id='qdrop';q.parentNode.appendChild(drop);
+  function renderDrop(){
+    var h=hists();
+    var hot=[].slice.call(document.querySelectorAll('.fchip')).map(function(c){return c.textContent.trim()}).filter(function(t){return t!=='全部'&&t.indexOf('我的收藏')<0}).slice(0,6);
+    drop.innerHTML=(h.length?'<div class="qh">最近搜过</div>'+h.map(function(t){return '<span class="qitem">'+esc(t)+'</span>'}).join(''):'')+'<div class="qh">热门标签</div>'+hot.map(function(t){return '<span class="qitem">'+esc(t)+'</span>'}).join('');
+  }
+  q.addEventListener('focus',function(){renderDrop();drop.style.display='block'});
+  drop.addEventListener('mousedown',function(e){
+    var it=e.target.closest('.qitem');if(!it)return;
+    e.preventDefault();q.value=it.textContent;drop.style.display='none';search();
+  });
+  document.addEventListener('click',function(e){if(!e.target.closest('.search'))drop.style.display='none'});
+  /* 数字滚动 */
+  document.querySelectorAll('.stat b').forEach(function(b){
+    var target=parseInt(b.textContent,10)||0,t0=null;
+    function step(ts){if(!t0)t0=ts;var p=Math.min((ts-t0)/700,1);b.textContent=Math.round(target*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(step)}
+    requestAnimationFrame(step);
+  });
+  /* 留言墙 */
+  var bl=document.getElementById('boardlist');
+  function timeAgo(t){var d=Date.now()/1000-t;if(d<60)return '刚刚';if(d<3600)return Math.floor(d/60)+' 分钟前';if(d<86400)return Math.floor(d/3600)+' 小时前';return Math.floor(d/86400)+' 天前'}
+  async function loadBoard(){
+    try{
+      var r=await fetch('/api/board');var j=await r.json();var list=j.board||[];
+      bl.innerHTML=list.length?list.map(function(m){return '<div class="bmsg"><span class="bn">'+esc(m.name)+'</span>'+esc(m.text)+'<span class="bt">'+timeAgo(m.at)+'</span></div>'}).join(''):'<div class="empty">还没有留言，来说两句</div>';
+    }catch(e){}
+  }
+  document.getElementById('bsend').addEventListener('click',async function(){
+    var n=document.getElementById('bname').value.trim(),t=document.getElementById('btext').value.trim();
+    if(!n||!t){alert('填下昵称和内容');return}
+    try{
+      var r=await fetch('/api/board',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,text:t})});
+      var j=await r.json();
+      if(!j.ok){alert(j.error||'发送失败');return}
+      document.getElementById('btext').value='';loadBoard();
+    }catch(e){alert('网络异常，稍后再试')}
+  });
+  loadBoard();
   btn.addEventListener('click',search);
   q.addEventListener('keydown',function(e){if(e.key==='Enter')search()});
   syncFavs();
@@ -292,6 +358,11 @@ func wbCardHTML(w Workbench) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, `<a class="wb" href="/w/%s" data-tags="%s" data-views="%d" data-created="%d"><button class="fav" data-id="%s" title="收藏（存本机浏览器）">⭐</button><div class="t">%s</div>`,
 		w.ID, html.EscapeString(strings.Join(w.Tags, ",")), w.Views, w.CreatedAt, w.ID, html.EscapeString(w.Title))
+	if w.HasPreview {
+		fmt.Fprintf(&b, `<img class="pv" loading="lazy" src="/api/workbenches/%s/preview" alt="">`, w.ID)
+	} else {
+		b.WriteString(`<div class="pv-ph">⚗</div>`)
+	}
 	if w.Desc != "" {
 		fmt.Fprintf(&b, `<div class="d">%s</div>`, html.EscapeString(w.Desc))
 	} else {

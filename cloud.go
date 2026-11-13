@@ -6,9 +6,11 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"os"
@@ -38,7 +40,15 @@ type Workbench struct {
 	Size      int64    `json:"size"`
 	Downloads int      `json:"downloads"`
 	Views     int      `json:"views"`
+	HasPreview bool    `json:"has_preview"`
 	CreatedAt int64    `json:"created_at"`
+}
+
+// BoardMsg 留言墙条目（开放留言，限速防刷）。
+type BoardMsg struct {
+	Name string `json:"name"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
 }
 
 type cloudStore struct {
@@ -48,14 +58,16 @@ type cloudStore struct {
 		Key         string      `json:"key"`
 		Contribs    []Contrib   `json:"contribs"`
 		Workbenches []Workbench `json:"workbenches"`
+		Board       []BoardMsg  `json:"board,omitempty"`
 	}
+	boardLast map[string]int64 // IP → 上次留言时间（内存限速）
 }
 
 func openStore(dir, key string) (*cloudStore, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "artifacts"), 0o755); err != nil {
 		return nil, err
 	}
-	s := &cloudStore{dir: dir}
+	s := &cloudStore{dir: dir, boardLast: map[string]int64{}}
 	b, err := os.ReadFile(filepath.Join(dir, "store.json"))
 	if err == nil {
 		_ = json.Unmarshal(b, &s.data)
@@ -84,6 +96,19 @@ func randToken() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// savePreview 解析 dataURL（data:image/*;base64,...）落盘 artifacts/{id}.preview；成功返回 true。
+func savePreview(st *cloudStore, id, dataURL string) bool {
+	i := strings.Index(dataURL, ";base64,")
+	if i < 0 || len(dataURL) > 600_000 {
+		return false
+	}
+	b, err := base64.StdEncoding.DecodeString(dataURL[i+8:])
+	if err != nil || len(b) < 100 || len(b) > 400_000 {
+		return false
+	}
+	return os.WriteFile(filepath.Join(st.dir, "artifacts", id+".preview"), b, 0o644) == nil
 }
 
 // ---------- 云端 HTTP ----------
@@ -242,6 +267,7 @@ func cmdServe(args []string) {
 					Keywords []string `json:"keywords"`
 					Teacher  string   `json:"teacher"`
 					Content  string   `json:"content"`
+					Preview  string   `json:"preview"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Title == "" || in.Content == "" {
 					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 title/content"})
@@ -256,6 +282,9 @@ func cmdServe(args []string) {
 				if err := os.WriteFile(filepath.Join(st.dir, "artifacts", wb.ID+".html"), []byte(in.Content), 0o644); err != nil {
 					writeJSON(w, 500, map[string]any{"ok": false, "error": "落盘失败"})
 					return
+				}
+				if in.Preview != "" {
+					wb.HasPreview = savePreview(st, wb.ID, in.Preview)
 				}
 				st.mu.Lock()
 				st.data.Workbenches = append(st.data.Workbenches, wb)
@@ -317,6 +346,7 @@ func cmdServe(args []string) {
 					Desc    string   `json:"desc"`
 					Tags    []string `json:"tags"`
 					Content string   `json:"content"`
+					Preview string   `json:"preview"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 					writeJSON(w, 400, map[string]any{"ok": false, "error": "请求体解析失败"})
@@ -340,6 +370,9 @@ func cmdServe(args []string) {
 								st.data.Workbenches[i].Size = int64(len(in.Content))
 							}
 						}
+						if in.Preview != "" {
+							st.data.Workbenches[i].HasPreview = savePreview(st, id, in.Preview)
+						}
 						found = true
 						break
 					}
@@ -353,6 +386,16 @@ func cmdServe(args []string) {
 					return
 				}
 				writeJSON(w, 200, map[string]any{"ok": true, "id": id})
+				return
+			}
+			if strings.HasSuffix(id, "/preview") { // 预览图（免 key）
+				id = strings.TrimSuffix(id, "/preview")
+				if id == "" || strings.ContainsAny(id, "/\\.") {
+					http.NotFound(w, r)
+					return
+				}
+				w.Header().Set("Cache-Control", "public, max-age=3600")
+				http.ServeFile(w, r, filepath.Join(st.dir, "artifacts", id+".preview"))
 				return
 			}
 			if strings.HasSuffix(id, "/file") {
@@ -423,6 +466,93 @@ func cmdServe(args []string) {
 		_, _ = w.Write([]byte(viewerHTML(*meta)))
 	})
 
+	// 留言墙：免 key 开放留言（60s/条限速 + 200 字限制，滚动存 200 条）
+	mux.HandleFunc("/api/board", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			var in struct {
+				Name string `json:"name"`
+				Text string `json:"text"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "请求体解析失败"})
+				return
+			}
+			in.Name = strings.TrimSpace(in.Name)
+			in.Text = strings.TrimSpace(in.Text)
+			if in.Name == "" || in.Text == "" {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "缺昵称或内容"})
+				return
+			}
+			if len([]rune(in.Text)) > 200 {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "留言太长（200 字内）"})
+				return
+			}
+			ip := r.RemoteAddr
+			if i := strings.LastIndex(ip, ":"); i > 0 {
+				ip = ip[:i]
+			}
+			now := time.Now().Unix()
+			st.mu.Lock()
+			if st.boardLast == nil {
+				st.boardLast = map[string]int64{}
+			}
+			if now-st.boardLast[ip] < 60 {
+				st.mu.Unlock()
+				writeJSON(w, 429, map[string]any{"ok": false, "error": "发言太快，歇一分钟再来"})
+				return
+			}
+			st.boardLast[ip] = now
+			if nr := []rune(in.Name); len(nr) > 16 {
+				in.Name = string(nr[:16])
+			}
+			st.data.Board = append(st.data.Board, BoardMsg{Name: in.Name, Text: in.Text, At: now})
+			if len(st.data.Board) > 200 {
+				st.data.Board = st.data.Board[len(st.data.Board)-200:]
+			}
+			_ = st.save()
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true})
+			return
+		}
+		st.mu.Lock()
+		list := make([]BoardMsg, len(st.data.Board))
+		copy(list, st.data.Board)
+		st.mu.Unlock()
+		for i := 1; i < len(list); i++ { // 时间倒序
+			for j := i; j > 0 && list[j].At > list[j-1].At; j-- {
+				list[j], list[j-1] = list[j-1], list[j]
+			}
+		}
+		if len(list) > 30 {
+			list = list[:30]
+		}
+		writeJSON(w, 200, map[string]any{"ok": true, "board": list})
+	})
+
+	// RSS 订阅：新产物 feed（免 key）
+	mux.HandleFunc("/feed.xml", func(w http.ResponseWriter, r *http.Request) {
+		st.mu.Lock()
+		list := make([]Workbench, len(st.data.Workbenches))
+		copy(list, st.data.Workbenches)
+		st.mu.Unlock()
+		sort.Slice(list, func(i, j int) bool { return list[i].CreatedAt > list[j].CreatedAt })
+		if len(list) > 20 {
+			list = list[:20]
+		}
+		base := "http://" + r.Host
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			base = "https://" + r.Host
+		}
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+		var b strings.Builder
+		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>教研工作台 · 新产物</title><link>` + base + `/</link><description>教研工作台产物库更新订阅</description>`)
+		for _, wb := range list {
+			b.WriteString(`<item><title>` + html.EscapeString(wb.Title) + `</title><link>` + base + `/w/` + wb.ID + `</link><pubDate>` + time.Unix(wb.CreatedAt, 0).Format(time.RFC1123Z) + `</pubDate><description>` + html.EscapeString(wb.Desc) + `</description></item>`)
+		}
+		b.WriteString(`</channel></rss>`)
+		_, _ = w.Write([]byte(b.String()))
+	})
+
 	// MCP 端点：AI 客户端（WorkBuddy 等）直连（JSON-RPC；读免 key、写留 key）
 	mux.HandleFunc("/mcp", handleMCP(st))
 
@@ -460,10 +590,15 @@ func workbenchLink(r *http.Request, id string) string {
 }
 
 func wbView(w Workbench, r *http.Request) map[string]any {
+	pv := ""
+	if w.HasPreview {
+		pv = "/api/workbenches/" + w.ID + "/preview"
+	}
 	return map[string]any{
 		"id": w.ID, "title": w.Title, "desc": w.Desc, "tags": w.Tags,
 		"keywords": w.Keywords, "teacher": w.Teacher, "size": w.Size,
 		"downloads": w.Downloads, "views": w.Views, "created_at": w.CreatedAt,
+		"preview":   pv,
 		"link":      workbenchLink(r, w.ID),
 	}
 }

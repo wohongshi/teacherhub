@@ -113,6 +113,15 @@ curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"js
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert len(d['result']['tools'])==5,d" 2>/dev/null && ok "MCP 工具清单五件" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
+# ---- 预览图 / 留言墙 / RSS 断言 ----
+PVP=$(python3 -c "import base64;png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');print('data:image/png;base64,'+base64.b64encode(png*200).decode())")
+R=$(curl -s -X POST "$BASE/api/workbenches?key=$KEY" -H 'Content-Type: application/json' --data-raw "{\"title\":\"预览测试\",\"content\":\"<html>p</html>\",\"preview\":\"$PVP\"}")
+WPID=$(echo "$R" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])" 2>/dev/null)
+curl -s -o /dev/null -w '%{http_code}' "$BASE/api/workbenches/$WPID/preview" | grep -q 200 && ok "预览图上传并可取（200）" || bad "预览图可取"
+curl -s -X POST "$BASE/api/board" -H 'Content-Type: application/json' --data-raw '{"name":"探针","text":"留言断言"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "留言发布成功（免 key）" || bad "留言发布"
+curl -s -X POST "$BASE/api/board" -H 'Content-Type: application/json' --data-raw '{"name":"探针","text":"连发"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "留言限速生效（60s/条）" || bad "留言限速"
+curl -s "$BASE/feed.xml" | grep -q '<rss' && ok "RSS feed 输出" || bad "RSS feed"
+
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"
