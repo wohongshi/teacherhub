@@ -39,7 +39,7 @@ button.danger:hover{background:var(--warn-soft)}
 .wbrow a{color:var(--accent);text-decoration:none;font-weight:600;flex:1}
 .wbrow .n{color:var(--muted);font-size:11px;white-space:nowrap}
 #login{max-width:380px;margin:110px auto}
-.trend{width:100%;height:66px;background:var(--accent-soft);border-radius:10px;margin-top:10px}
+.trend{width:100%;height:88px;background:var(--accent-soft);border-radius:10px;margin-top:12px}
 @media(max-width:860px){main{grid-template-columns:1fr}}
 </style></head><body>
 <header><h1>🛠 教研工作台 · 管理面板</h1><a href="/">← 回门户</a></header>
