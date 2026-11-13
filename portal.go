@@ -237,7 +237,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   function card(w){
     var tags=(w.tags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('');
     var ch=esc((w.teacher||'?').slice(0,1));
-    var pv=w.preview?'<img class="pv" loading="lazy" src="'+esc(w.preview)+'" alt="">':'<div class="pv-ph">⚗</div>';
+    var pv=w.preview?'<img class="pv" src="'+esc(w.preview)+'" alt="">':'<div class="pv-ph">⚗</div>';
     return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><button class="fav" data-id="'+esc(w.id)+'" title="收藏（存本机浏览器）">⭐</button><div class="t">'+esc(w.title)+'</div>'+pv+
       '<div class="d">'+esc(w.desc||'')+'</div>'+
       (tags?'<div class="tags">'+tags+'</div>':'')+
@@ -359,7 +359,7 @@ func wbCardHTML(w Workbench) string {
 	fmt.Fprintf(&b, `<a class="wb" href="/w/%s" data-tags="%s" data-views="%d" data-created="%d"><button class="fav" data-id="%s" title="收藏（存本机浏览器）">⭐</button><div class="t">%s</div>`,
 		w.ID, html.EscapeString(strings.Join(w.Tags, ",")), w.Views, w.CreatedAt, w.ID, html.EscapeString(w.Title))
 	if w.HasPreview {
-		fmt.Fprintf(&b, `<img class="pv" loading="lazy" src="/api/workbenches/%s/preview" alt="">`, w.ID)
+		fmt.Fprintf(&b, `<img class="pv" src="/api/workbenches/%s/preview" alt="">`, w.ID)
 	} else {
 		b.WriteString(`<div class="pv-ph">⚗</div>`)
 	}
