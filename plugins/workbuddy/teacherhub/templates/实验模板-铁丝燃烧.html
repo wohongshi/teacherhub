@@ -65,6 +65,10 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
 .danger h2{color:var(--warn)}
 .danger p{font-size:12.5px;line-height:1.9;color:#7c3a26}
 .foot{text-align:center;color:#a2937e;font-size:11.5px;padding:20px 16px 30px;line-height:1.9}
+.kbd-hint{margin-top:9px;font-size:11px;color:#a2937e;text-align:center}
+body.focus .aside{display:none}
+body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
+body.focus .top .sub,body.focus .foot{display:none}
 @media(max-width:920px){.wrap{grid-template-columns:1fr}}
 </style>
 </head>
@@ -84,12 +88,15 @@ input[type=range]{width:100%;accent-color:var(--theme);height:26px}
         <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
         <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
         <button id="spd" class="ghost">速度 ×1</button>
+        <button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
+        <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
         <div class="clock"><span id="clock">0.0 s</span></div>
       </div>
       <div class="scrub-row">
         <input type="range" id="scrub" min="0" max="2000" value="0">
         <div class="ticks" id="ticks"></div>
       </div>
+      <div class="kbd-hint">快捷键：空格 播放/暂停 · ← → 逐帧 · R 重置 · S 截图 · F 投屏</div>
       <div class="dict" id="dict"></div>
       <div class="phase-line"><span class="phase-tag" id="phase">准备：打磨铁丝</span><span id="phaseHint" style="color:#7d6f5c;font-size:12.5px">点「开始」，看火柴引燃到火星四射的全过程</span></div>
     </div>
@@ -464,6 +471,31 @@ $("spd").onclick = () => {
   $("spd").textContent = "速度 ×" + S.speed;
 };
 $("scrub").oninput = e => { pause(); setT(Number(e.target.value) / 2000 * MODULE.duration); render(); };
+function shot(){
+  const a = document.createElement('a');
+  a.download = MODULE.title + '-' + S.t.toFixed(1) + 's.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+function focusMode(){
+  document.body.classList.toggle('focus');
+  if (document.body.classList.contains('focus')){
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function(){});
+  } else if (document.fullscreenElement && document.exitFullscreen){
+    document.exitFullscreen().catch(function(){});
+  }
+}
+$("shot").onclick = shot;
+$("focus").onclick = focusMode;
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
+  if (e.key === ' '){ e.preventDefault(); S.playing ? pause() : play(); }
+  else if (e.key === 'ArrowLeft'){ e.preventDefault(); pause(); setT(S.t - 1 / 30); render(); }
+  else if (e.key === 'ArrowRight'){ e.preventDefault(); pause(); setT(S.t + 1 / 30); render(); }
+  else if (e.key === 'r' || e.key === 'R'){ $("reset").click(); }
+  else if (e.key === 's' || e.key === 'S'){ shot(); }
+  else if (e.key === 'f' || e.key === 'F'){ focusMode(); }
+});
 
 /* ---- 启动 ---- */
 buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();

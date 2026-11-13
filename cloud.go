@@ -37,6 +37,7 @@ type Workbench struct {
 	Teacher   string   `json:"teacher,omitempty"`
 	Size      int64    `json:"size"`
 	Downloads int      `json:"downloads"`
+	Views     int      `json:"views"`
 	CreatedAt int64    `json:"created_at"`
 }
 
@@ -310,6 +311,50 @@ func cmdServe(args []string) {
 	mux.HandleFunc("/api/workbenches/", func(w http.ResponseWriter, r *http.Request) {
 		api(w, r, func(w http.ResponseWriter, r *http.Request) {
 			id := strings.TrimPrefix(r.URL.Path, "/api/workbenches/")
+			if r.Method == http.MethodPut { // 更新产物内容（覆盖式升级，写操作须 key）
+				var in struct {
+					Title   string   `json:"title"`
+					Desc    string   `json:"desc"`
+					Tags    []string `json:"tags"`
+					Content string   `json:"content"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "请求体解析失败"})
+					return
+				}
+				st.mu.Lock()
+				found := false
+				for i := range st.data.Workbenches {
+					if st.data.Workbenches[i].ID == id {
+						if in.Title != "" {
+							st.data.Workbenches[i].Title = strings.TrimSpace(in.Title)
+						}
+						if in.Desc != "" {
+							st.data.Workbenches[i].Desc = strings.TrimSpace(in.Desc)
+						}
+						if in.Tags != nil {
+							st.data.Workbenches[i].Tags = in.Tags
+						}
+						if in.Content != "" {
+							if err := os.WriteFile(filepath.Join(st.dir, "artifacts", id+".html"), []byte(in.Content), 0o644); err == nil {
+								st.data.Workbenches[i].Size = int64(len(in.Content))
+							}
+						}
+						found = true
+						break
+					}
+				}
+				if found {
+					_ = st.save()
+				}
+				st.mu.Unlock()
+				if !found {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "产物不存在"})
+					return
+				}
+				writeJSON(w, 200, map[string]any{"ok": true, "id": id})
+				return
+			}
 			if strings.HasSuffix(id, "/file") {
 				id = strings.TrimSuffix(id, "/file")
 				st.mu.Lock()
@@ -359,6 +404,17 @@ func cmdServe(args []string) {
 			http.NotFound(w, r)
 			return
 		}
+		if !raw { // 查看页打开即计一次热度（raw 原文不算）
+			st.mu.Lock()
+			for i := range st.data.Workbenches {
+				if st.data.Workbenches[i].ID == id {
+					st.data.Workbenches[i].Views++
+					_ = st.save()
+					break
+				}
+			}
+			st.mu.Unlock()
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if raw {
 			http.ServeFile(w, r, filepath.Join(st.dir, "artifacts", id+".html"))
@@ -404,7 +460,7 @@ func wbView(w Workbench, r *http.Request) map[string]any {
 	return map[string]any{
 		"id": w.ID, "title": w.Title, "desc": w.Desc, "tags": w.Tags,
 		"keywords": w.Keywords, "teacher": w.Teacher, "size": w.Size,
-		"downloads": w.Downloads, "created_at": w.CreatedAt,
+		"downloads": w.Downloads, "views": w.Views, "created_at": w.CreatedAt,
 		"link":      workbenchLink(r, w.ID),
 	}
 }

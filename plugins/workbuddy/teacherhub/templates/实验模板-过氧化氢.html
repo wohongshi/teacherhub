@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>过氧化氢分解制氧气 · 演示工作台</title>
+<style>
+:root{
+  --bg:#e9f0ea; --panel:#fff; --ink:#1e2c22; --muted:#6b7d6f;
+  --theme:#2e7d4f; --theme2:#54ad75; --accent-soft:#e2f2e7;
+  --warn:#b3261e; --warn-soft:#fbe4e0; --ok:#2e7d54;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+.top{background:linear-gradient(135deg,#1d5233,#2e7d4f);color:#fff;padding:18px 22px}
+.top .crumb{font-size:12px;opacity:.72;margin-bottom:6px}
+.top h1{font-size:23px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.eq-badge{font-size:12.5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 14px;font-family:Georgia,serif}
+.top .sub{font-size:13px;opacity:.82;margin-top:7px}
+.wrap{max-width:1280px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:minmax(0,1.9fr) minmax(290px,1fr);gap:16px;align-items:start}
+.card{background:var(--panel);border:1px solid #d5e0d7;border-radius:16px;padding:16px 18px;box-shadow:0 2px 10px rgba(30,60,40,.05)}
+.stage-wrap{position:relative}
+canvas#stage{width:100%;height:auto;display:block;border-radius:12px;background:#dde8df}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid #c6d4c9;background:#fff;color:var(--ink);border-radius:11px;min-height:42px;min-width:42px;padding:0 16px;font-size:14px;cursor:pointer;font-family:inherit}
+button:hover{border-color:var(--theme2);background:var(--accent-soft)}
+button.primary{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:600}
+button.primary:hover{background:#256a42}
+button.ghost{min-width:42px;padding:0 11px}
+.clock{font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;margin-left:auto;background:var(--accent-soft);color:var(--theme);border-radius:10px;padding:8px 14px}
+.scrub-row{margin-top:10px;position:relative}
+input[type=range]{width:100%;accent-color:var(--theme);height:26px}
+.ticks{position:relative;height:16px;margin-top:2px}
+.tick{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--theme);cursor:pointer;white-space:nowrap}
+.tick::before{content:"";display:block;width:1px;height:5px;background:var(--theme2);margin:0 auto 1px}
+.kbd-hint{margin-top:9px;font-size:11px;color:#8aa0a4;text-align:center}
+body.focus .aside{display:none}
+body.focus .wrap{grid-template-columns:1fr;max-width:1100px}
+body.focus .top .sub,body.focus .foot{display:none}
+.dict{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border:1px solid #cddacd;border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted);background:#f4f8f5;cursor:default;transition:all .2s}
+.chip.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(46,125,79,.35)}
+.chip b{margin-right:4px}
+.phase-line{margin-top:11px;display:flex;align-items:center;gap:10px;font-size:14px}
+.phase-tag{background:var(--theme);color:#fff;border-radius:9px;padding:6px 13px;font-weight:700;font-size:13px}
+.aside{display:flex;flex-direction:column;gap:14px}
+.aside h2{font-size:15px;color:var(--theme);margin-bottom:11px;display:flex;align-items:center;gap:7px}
+.param{margin-bottom:13px}
+.param .lab{font-size:13px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.param .lab .v{color:var(--theme);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-height:38px;min-width:38px;padding:0 8px;font-size:13px;border-radius:10px}
+.seg button.on{background:var(--theme);border-color:var(--theme);color:#fff;font-weight:700}
+.switch{position:relative;width:52px;height:29px;border-radius:999px;background:#c6d2c8;cursor:pointer;transition:.18s;border:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;transition:.18s}
+.switch.on{background:var(--theme)}
+.switch.on::after{left:26px}
+.presets button{width:100%;text-align:left;min-height:auto;padding:11px 13px;margin-bottom:8px;display:block}
+.presets .pt{font-size:13.5px;font-weight:700;display:block}
+.presets .pd{font-size:12px;color:var(--muted);margin-top:3px;display:block;line-height:1.5}
+.readouts{display:flex;flex-direction:column;gap:8px}
+.ro{display:flex;justify-content:space-between;align-items:center;background:#f4f8f5;border-radius:11px;padding:10px 13px;font-size:13px}
+.ro .rv{font-weight:800;font-size:14.5px;color:var(--theme);font-variant-numeric:tabular-nums}
+.ro.warn{background:var(--warn-soft)}
+.ro.warn .rv{color:var(--warn)}
+.theory{font-size:13px;line-height:1.95;color:#3c4a3f}
+.theory .eq{background:var(--accent-soft);border-radius:11px;padding:12px 14px;text-align:center;font-family:Georgia,serif;font-size:15.5px;color:#1c4a2e;margin-bottom:11px;font-weight:600}
+.danger{background:var(--warn-soft);border:1px solid #f0c4b7;border-radius:14px;padding:14px 16px}
+.danger h2{color:var(--warn)}
+.danger p{font-size:12.5px;line-height:1.9;color:#7c3a26}
+.foot{text-align:center;color:#8aa0a4;font-size:11.5px;padding:20px 16px 30px;line-height:1.9}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="crumb">虚拟实验 · 化学 · 单实验模块</div>
+  <h1>过氧化氢分解制氧气 <span class="eq-badge">2H₂O₂ —MnO₂催化→ 2H₂O + O₂↑</span></h1>
+  <div class="sub">参数可调 · 预设对比 · 逐帧回放 · 确定性模拟（同样输入永远同样输出，方便反复讲解）</div>
+</header>
+<main class="wrap">
+  <section>
+    <div class="card stage-wrap">
+      <canvas id="stage" width="960" height="560"></canvas>
+      <div class="ctrl">
+        <button id="reset">重置</button>
+        <button id="play" class="primary">▶ 开始</button>
+        <button id="prev" class="ghost" title="上一帧">⏮ 帧</button>
+        <button id="next" class="ghost" title="下一帧">帧 ⏭</button>
+        <button id="spd" class="ghost">速度 ×1</button>
+        <button id="shot" class="ghost" title="保存当前画面为 PNG（S）">📷 截图</button>
+        <button id="focus" class="ghost" title="投屏模式：隐藏侧栏放大画布（F）">⛶ 投屏</button>
+        <div class="clock"><span id="clock">0.0 s</span></div>
+      </div>
+      <div class="scrub-row">
+        <input type="range" id="scrub" min="0" max="2200" value="0">
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div class="kbd-hint">快捷键：空格 播放/暂停 · ← → 逐帧 · R 重置 · S 截图 · F 投屏</div>
+      <div class="dict" id="dict"></div>
+      <div class="phase-line"><span class="phase-tag" id="phase">准备：量取过氧化氢</span><span id="phaseHint" style="color:#6b7d6f;font-size:12.5px">点「开始」，看催化剂一加、气泡立起</span></div>
+    </div>
+  </section>
+  <aside class="aside">
+    <div class="card">
+      <h2>🧪 实验条件</h2>
+      <div id="params"></div>
+    </div>
+    <div class="card presets">
+      <h2>⚡ 预设场景</h2>
+      <div id="presets"></div>
+    </div>
+    <div class="card">
+      <h2>📊 实时读数</h2>
+      <div class="readouts" id="readouts"></div>
+    </div>
+    <div class="card theory" id="theory"></div>
+    <div class="danger">
+      <h2>⚠ 安全提示</h2>
+      <p>过氧化氢（双氧水）有腐蚀性，高浓度会灼伤皮肤，须戴手套护目镜操作；二氧化锰粉末不要入口鼻。真实实验由老师演示，学生不得自行加料。本工作台把「高浓度 + 大量催化剂」的剧烈场景做成可观察的模拟，替代真实冒险。</p>
+    </div>
+  </aside>
+</main>
+<footer class="foot">虚拟实验仅供教学演示，模拟数值为教学化简化，非真实测量数据。<br>确定性模拟 · 单文件 · 离线可用</footer>
+<script>
+"use strict";
+/* ==================================================================
+   实验模块：过氧化氢分解制氧气（一实验一模块）
+   规则（教学化）：速率 = f(浓度, 催化剂用量, 温度)；产量由 H₂O₂ 量决定（固定），
+   催化剂只改速率不改产量；收集满 25% 以上即可使带火星木条复燃。
+   渲染是 t 的纯函数：气泡/水位/木条火焰全部由 t 推出，任意拖动一致。
+   ================================================================== */
+const MODULE = {
+  key: "h2o2-o2",
+  title: "过氧化氢分解制氧气",
+  duration: 22,
+  params: { conc: 6, mno2: 2, temp: 25, splint: true },
+  defs: [
+    { key: "conc", label: "H₂O₂ 浓度", type: "seg", options: [
+      { v: 3, t: "3%" }, { v: 6, t: "6%" }, { v: 9, t: "9%" }, { v: 12, t: "12%" } ] },
+    { key: "mno2", label: "MnO₂ 用量", type: "seg", options: [
+      { v: 0, t: "不加" }, { v: 1, t: "少量" }, { v: 2, t: "适量" }, { v: 3, t: "大量" } ] },
+    { key: "temp", label: "水温", type: "range", min: 10, max: 60, step: 1, unit: " ℃" },
+    { key: "splint", label: "带火星木条检验", type: "toggle" },
+  ],
+  presets: [
+    { t: "无催化剂", d: "几乎不反应——对照组：催化剂的必要性", p: { conc: 6, mno2: 0, temp: 25, splint: true } },
+    { t: "标准实验", d: "6% + 适量 MnO₂：平稳气泡，木条复燃", p: { conc: 6, mno2: 2, temp: 25, splint: true } },
+    { t: "高浓度 · 大量催化剂", d: "反应剧烈、放热明显（课堂只放模拟！）", p: { conc: 12, mno2: 3, temp: 55, splint: true } },
+  ],
+  dict: [
+    { k: "气泡", d: "O₂ 从溶液中快速逸出，产生连续气泡" },
+    { k: "放热", d: "反应放热，溶液温度升高" },
+    { k: "复燃", d: "O₂ 使带火星木条复燃——氧气的检验方法" },
+    { k: "催化", d: "MnO₂ 只加快速率，不改变氧气总产量" },
+  ],
+  events: [
+    { t: 0.4, k: "催化" }, { t: 1.1, k: "气泡" }, { t: 2.0, k: "放热" }, { t: 3.6, k: "复燃" },
+  ],
+  theory:
+    '<h2>📖 原理与现象</h2>' +
+    '<div class="eq">2H<sub>2</sub>O<sub>2</sub> <span style="font-size:13px">（MnO₂ 催化）</span> → 2H<sub>2</sub>O + O<sub>2</sub>↑</div>' +
+    '<p><b>催化</b>：二氧化锰是催化剂——只改变化学反应的速率，本身的质量和化学性质在反应前后不变。<br>' +
+    '<b>气泡</b>：氧气从溶液中逸出，浓度越高、催化剂越多、温度越高，气泡越急。<br>' +
+    '<b>复燃</b>：氧气能支持燃烧，使带火星的木条复燃，这是检验氧气的标准方法。<br>' +
+    '<b>关键对比</b>：产量只由过氧化氢的量决定——加再多催化剂，氧气总量也不变，只是更快收集满。</p>',
+
+  /* ---- 教学化公式 ---- */
+  intensity(p){
+    const mno2F = [0.03, 0.45, 0.7, 0.9][p.mno2];
+    return ((p.conc - 3) / 9) * 0.55 + mno2F * 0.3 + ((p.temp - 10) / 50) * 0.25;
+  },
+  /* 收集进度 0~1：产量固定，速率由强度决定（纯函数）；无催化剂则反应极慢（对照组） */
+  collect(p, t){
+    const rate = p.mno2 > 0 ? 0.06 + this.intensity(p) * 0.34 : 0.012;
+    return 1 - Math.exp(-Math.max(0, t - 0.8) * rate);
+  },
+  tempNow(p, t){
+    return p.temp + this.intensity(p) * 14 * (1 - Math.exp(-Math.max(0, t - 1) / 3));
+  },
+  /* 木条复燃时刻：无催化剂氧气太慢无法复燃；否则收集到一定程度即可 */
+  relightT(p){
+    if (p.mno2 === 0) return Infinity; // 对照组：反应极慢，复燃不了
+    return 2.6 + (1 - this.intensity(p)) * 4.2;
+  },
+  label(p){
+    const i = this.intensity(p);
+    return i < 0.12 ? "几乎不反应" : i < 0.42 ? "缓慢释放" : i < 0.72 ? "平稳释放" : "剧烈释放";
+  },
+  activeKeys(p, t){
+    const out = [];
+    if (t >= 0.4 && t < 1.4) out.push("催化");
+    if (t >= 1.1 && this.collect(p, t) < 0.97) out.push("气泡");
+    if (t >= 2.0 && this.intensity(p) > 0.3) out.push("放热");
+    if (p.splint && t >= this.relightT(p) && this.relightT(p) < Infinity) out.push("复燃");
+    return out;
+  },
+  phase(p, t){
+    if (t < 0.4) return "准备：量取过氧化氢";
+    if (p.mno2 === 0) return "无催化剂 · 几乎不反应";
+    if (t < 1.1) return "加入 MnO₂ · 催化剂";
+    if (this.collect(p, t) >= 0.97) return "反应结束 · 氧气已集满";
+    if (p.splint && t >= this.relightT(p) && this.relightT(p) < Infinity) return "木条复燃 · 氧气验满";
+    return this.label(p) + " · 排水集气";
+  },
+  readouts(p, t){
+    const c = this.collect(p, t);
+    const rt = this.relightT(p);
+    return [
+      { l: "产氧速率", v: this.label(p) },
+      { l: "已收集", v: Math.round(c * 100) + " %" },
+      { l: "溶液温度", v: this.tempNow(p, t).toFixed(1) + " ℃" },
+      { l: "木条", v: !p.splint ? "未使用" : (rt === Infinity ? "不复燃" : (t < rt ? "带火星 · 未复燃" : "复燃！")), warn: false },
+      { l: "MnO₂", v: p.mno2 === 0 ? "未加 · 对照组" : "已加 · 催化剂", warn: p.mno2 === 0 },
+    ];
+  },
+
+  /* ---- 渲染（t 的纯函数） ---- */
+  render(g, p, t, W, H){
+    const i = this.intensity(p);
+    const col = this.collect(p, t);
+    const rt = this.relightT(p);
+
+    /* 背景 */
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#e2ebe3"); bg.addColorStop(1, "#d2dfd4");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "rgba(46,125,79,0.07)"; g.lineWidth = 1;
+    for (let x = 0; x < W; x += 40){ g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y < H; y += 40){ g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+
+    /* ===== 左：锥形瓶 ===== */
+    const cx = 320, top = 150, bot = 440;
+    /* 瓶身（三角形圆底） */
+    g.lineWidth = 5; g.strokeStyle = "rgba(120,150,130,0.85)";
+    g.beginPath();
+    g.moveTo(cx - 52, top); g.lineTo(cx - 128, bot - 26);
+    g.arcTo(cx - 128, bot + 4, cx - 88, bot + 4, 26);
+    g.lineTo(cx + 88, bot + 4); g.arcTo(cx + 128, bot + 4, cx + 128, bot - 26, 26);
+    g.lineTo(cx + 52, top);
+    g.stroke();
+    /* 液体 */
+    const liqT = 0.86 - col * 0.1;  // 液面略降（气体带走）
+    const liqY = top + (bot - top) * liqT;
+    g.beginPath();
+    g.moveTo(cx - 52 - (128 - 52) * (1 - liqT), liqY);
+    g.lineTo(cx - 128, bot - 26); g.arcTo(cx - 128, bot + 4, cx - 88, bot + 4, 26);
+    g.lineTo(cx + 88, bot + 4); g.arcTo(cx + 128, bot + 4, cx + 128, bot - 26, 26);
+    g.lineTo(cx + 52 + (128 - 52) * (1 - liqT), liqY);
+    g.closePath();
+    const lg = g.createLinearGradient(0, liqY, 0, bot);
+    lg.addColorStop(0, "rgba(140,200,165,0.55)"); lg.addColorStop(1, "rgba(95,165,125,0.7)");
+    g.fillStyle = lg; g.fill();
+    /* MnO₂ 黑粉 */
+    if (p.mno2 > 0){
+      const n = [0, 10, 20, 34][p.mno2];
+      for (let k = 0; k < n; k++){
+        const px = cx - 90 + hash(k) * 180;
+        const py = bot - 8 - hash(k + 5) * 18;
+        g.beginPath(); g.arc(px, py, 1.8 + hash(k + 2) * 2.2, 0, Math.PI * 2);
+        g.fillStyle = "rgba(40,38,34," + (0.5 + hash(k + 8) * 0.4) + ")"; g.fill();
+      }
+    }
+    /* 瓶内气泡（纯函数：气泡 b 生成于 tb） */
+    if (t > 0.8 && col < 0.97){
+      const period = Math.max(0.045, 0.3 - i * 0.26);
+      const n = Math.min(42, Math.floor(9 / period));
+      for (let b = 0; b < n; b++){
+        const tb = 0.8 + b * period;
+        const age = t - tb;
+        if (age <= 0 || age > 1.3) continue;
+        const bx = cx + (hash(b) - 0.5) * 150 + Math.sin(age * 4 + b) * 6;
+        const by = bot - 24 - age * 120;
+        const alpha = (1 - age / 1.3) * 0.8;
+        g.beginPath(); g.arc(bx, by, 2 + hash(b + 3) * 2.8, 0, Math.PI * 2);
+        g.fillStyle = "rgba(255,255,255," + alpha + ")"; g.fill();
+      }
+    }
+    /* 瓶口 + 单孔塞 + 导管 */
+    g.fillStyle = "#b7a68d"; roundRect(g, cx - 58, top - 30, 116, 34, 8); g.fill();
+    g.lineWidth = 4; g.strokeStyle = "rgba(120,150,130,0.85)";
+    g.beginPath();
+    g.moveTo(cx, top - 30); g.lineTo(cx, top - 66); g.lineTo(620, top - 66); g.lineTo(620, 300);
+    g.stroke();
+    /* 标签 */
+    g.fillStyle = "rgba(28,74,46,0.75)"; g.font = "700 15px sans-serif";
+    g.fillText("锥形瓶：H₂O₂ + MnO₂", cx - 118, 500);
+    g.font = "12px sans-serif"; g.fillStyle = "rgba(28,74,46,0.5)";
+    g.fillText("浓度 " + p.conc + "% · 水温 " + p.temp + "℃", cx - 118, 522);
+
+    /* ===== 右：排水集气瓶 ===== */
+    const jx = 700, jTop = 200, jBot = 470;
+    /* 水槽 */
+    g.fillStyle = "rgba(110,170,205,0.35)";
+    roundRect(g, jx - 130, 380, 280, 96, 16); g.fill();
+    /* 集气瓶（倒立） */
+    g.lineWidth = 5; g.strokeStyle = "rgba(120,150,130,0.85)";
+    roundRect(g, jx - 84, jTop, 168, 250, 22); g.stroke();
+    /* 瓶内：气体（上）+ 水（下），收集越多水位越低 */
+    const waterY = jTop + 30 + (1 - col) * 190;
+    g.fillStyle = "rgba(110,170,205,0.5)";
+    roundRect(g, jx - 78, waterY, 156, jTop + 244 - waterY, 14); g.fill();
+    /* 气体标记 */
+    if (col > 0.02){
+      g.fillStyle = "rgba(255,255,255,0.5)";
+      roundRect(g, jx - 78, jTop + 8, 156, waterY - jTop - 12, 14); g.fill();
+      g.fillStyle = "rgba(28,74,46,0.7)"; g.font = "700 14px sans-serif";
+      g.fillText("O₂ " + Math.round(col * 100) + "%", jx - 34, jTop + 42);
+    }
+    /* 导管入水 */
+    g.lineWidth = 4; g.strokeStyle = "rgba(120,150,130,0.85)";
+    g.beginPath(); g.moveTo(620, 300); g.lineTo(620, 430); g.lineTo(jx - 20, 430); g.stroke();
+    /* 收集气泡（瓶口冒泡） */
+    if (t > 1.1 && col < 0.97){
+      for (let b = 0; b < 10; b++){
+        const tb = 1.1 + b * Math.max(0.12, 0.5 - i * 0.4);
+        const age = t - tb;
+        if (age <= 0 || age > 1.1) continue;
+        g.beginPath();
+        g.arc(jx - 20 + Math.sin(age * 4 + b) * 10, 430 - age * 60, 2.6 + hash(b) * 2, 0, Math.PI * 2);
+        g.fillStyle = "rgba(255,255,255," + ((1 - age / 1.1) * 0.8) + ")"; g.fill();
+      }
+    }
+    /* 带火星木条 */
+    if (p.splint && t >= 2.2){
+      const inJar = t >= rt && rt < Infinity;
+      const sy = inJar ? jTop + 6 : jTop - 76;
+      g.save();
+      g.translate(jx + 2, sy);
+      g.rotate(-0.22);
+      const mg = g.createLinearGradient(-4, 0, 4, 0);
+      mg.addColorStop(0, "#d9b072"); mg.addColorStop(1, "#b98d52");
+      g.fillStyle = mg; roundRect(g, -4, -64, 8, 78, 4); g.fill();
+      /* 带火星头部 */
+      g.beginPath(); g.arc(0, -66, 7, 0, Math.PI * 2);
+      g.fillStyle = "rgba(90,60,40,0.9)"; g.fill();
+      g.beginPath(); g.arc(0, -66, 3.2, 0, Math.PI * 2);
+      g.fillStyle = "rgba(255,140,50," + (0.7 + 0.3 * Math.sin(t * 17)) + ")"; g.fill();
+      /* 复燃火焰 */
+      if (inJar){
+        const fl = 0.75 + 0.25 * Math.sin(t * 21) * Math.sin(t * 10 + 1.7);
+        const fg = g.createRadialGradient(0, -78, 2, 0, -78, 30 * fl + 12);
+        fg.addColorStop(0, "rgba(255,235,170,0.95)"); fg.addColorStop(0.6, "rgba(240,160,60,0.85)"); fg.addColorStop(1, "rgba(240,120,40,0)");
+        g.fillStyle = fg;
+        g.beginPath(); g.ellipse(0, -80, 11 * fl + 5, 26 * fl + 10, 0, 0, Math.PI * 2); g.fill();
+      }
+      g.restore();
+      g.fillStyle = inJar ? "rgba(210,90,30,0.9)" : "rgba(28,74,46,0.6)";
+      g.font = "700 13px sans-serif";
+      g.fillText(inJar ? "复燃！O₂ 验满" : "带火星木条", jx + 18, sy - 40);
+    }
+
+    /* 放热辉光（溶液温度高时瓶内微亮） */
+    if (this.tempNow(p, t) > p.temp + 4){
+      const heat = clamp((this.tempNow(p, t) - p.temp) / 14, 0, 1);
+      const hg = g.createRadialGradient(cx, 320, 20, cx, 320, 190);
+      hg.addColorStop(0, "rgba(240,150,60," + (0.16 * heat) + ")");
+      hg.addColorStop(1, "rgba(240,150,60,0)");
+      g.fillStyle = hg; g.fillRect(120, 130, 400, 340);
+    }
+
+    /* 图注 */
+    g.fillStyle = "rgba(28,74,46,0.66)"; g.font = "600 15px sans-serif";
+    g.fillText("锥形瓶 + 导管 + 排水集气瓶（示意）", 170, 548);
+  },
+};
+
+/* ================= 通用框架 ================= */
+function hash(n){ const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function roundRect(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+/* ---- 状态与控制 ---- */
+const S = { t: 0, playing: false, speed: 1 };
+const $ = (id) => document.getElementById(id);
+const cv = $("stage"), ctx = cv.getContext("2d");
+
+function setT(t){
+  S.t = clamp(t, 0, MODULE.duration);
+  $("scrub").value = Math.round(S.t / MODULE.duration * 2200);
+  $("clock").textContent = S.t.toFixed(1) + " s";
+}
+function render(){
+  MODULE.render(ctx, MODULE.params, S.t, cv.width, cv.height);
+  const act = MODULE.activeKeys(MODULE.params, S.t);
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", act.includes(c.dataset.k)));
+  $("phase").textContent = MODULE.phase(MODULE.params, S.t);
+  const rows = MODULE.readouts(MODULE.params, S.t);
+  $("readouts").innerHTML = rows.map(r =>
+    '<div class="ro' + (r.warn ? " warn" : "") + '"><span>' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join("");
+}
+function frame(ts){
+  if (S.playing){
+    if (S.last) S.t += (ts - S.last) / 1000 * S.speed;
+    S.last = ts;
+    if (S.t >= MODULE.duration){ S.t = MODULE.duration; S.playing = false; $("play").textContent = "▶ 开始"; S.last = 0; }
+    setT(S.t);
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+function play(){
+  if (S.t >= MODULE.duration) setT(0);
+  S.playing = true; S.last = 0;
+  $("play").textContent = "⏸ 暂停";
+  $("phaseHint").textContent = "观察现象字典随时间点亮";
+}
+function pause(){ S.playing = false; S.last = 0; $("play").textContent = "▶ 开始"; }
+
+/* ---- 构建 UI ---- */
+function buildParams(){
+  $("params").innerHTML = MODULE.defs.map(d => {
+    if (d.type === "seg"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<div class="seg" id="seg-' + d.key + '">' + d.options.map(o =>
+          '<button data-v="' + o.v + '">' + o.t + '</button>').join("") + '</div></div>';
+    }
+    if (d.type === "range"){
+      return '<div class="param"><div class="lab"><span>' + d.label + '</span><span class="v" id="v-' + d.key + '"></span></div>' +
+        '<input type="range" id="rg-' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="' + (d.step || 1) + '"></div>';
+    }
+    return '<div class="param"><div class="lab"><span>' + d.label + '</span>' +
+      '<button class="switch" id="tg-' + d.key + '"></button></div></div>';
+  }).join("");
+  MODULE.defs.forEach(d => {
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b => b.onclick = () => {
+        const raw = b.dataset.v;
+        MODULE.params[d.key] = isNaN(Number(raw)) ? raw : Number(raw); syncParams(); render();
+      });
+    } else if (d.type === "range"){
+      $("rg-" + d.key).oninput = e => { MODULE.params[d.key] = Number(e.target.value); syncParams(); render(); };
+    } else {
+      $("tg-" + d.key).onclick = () => { MODULE.params[d.key] = !MODULE.params[d.key]; syncParams(); render(); };
+    }
+  });
+}
+function syncParams(){
+  MODULE.defs.forEach(d => {
+    const v = MODULE.params[d.key];
+    if (d.type === "seg"){
+      $("seg-" + d.key).querySelectorAll("button").forEach(b =>
+        b.classList.toggle("on", String(b.dataset.v) === String(v)));
+      const opt = d.options.find(o => String(o.v) === String(v));
+      $("v-" + d.key).textContent = opt ? opt.t : "";
+    } else if (d.type === "range"){
+      $("rg-" + d.key).value = v;
+      $("v-" + d.key).textContent = v + (d.unit || "");
+    } else {
+      $("tg-" + d.key).classList.toggle("on", !!v);
+    }
+  });
+}
+function buildPresets(){
+  $("presets").innerHTML = MODULE.presets.map((p, idx) =>
+    '<button data-i="' + idx + '"><span class="pt">' + p.t + '</span><span class="pd">' + p.d + '</span></button>').join("");
+  $("presets").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const p = MODULE.presets[Number(b.dataset.i)];
+    Object.assign(MODULE.params, p.p);
+    syncParams(); setT(0); play(); render();
+  });
+}
+function buildDict(){
+  $("dict").innerHTML = MODULE.dict.map(d =>
+    '<div class="chip" data-k="' + d.k + '" title="' + d.d + '"><b>' + d.k + '</b>' + d.d + '</div>').join("");
+}
+function buildTicks(){
+  $("ticks").innerHTML = MODULE.events.map(e =>
+    '<div class="tick" style="left:' + (e.t / MODULE.duration * 100) + '%" data-t="' + e.t + '">' + e.k + '</div>').join("");
+  $("ticks").querySelectorAll(".tick").forEach(tk => tk.onclick = () => { setT(Number(tk.dataset.t)); render(); });
+}
+
+/* ---- 事件绑定 ---- */
+$("play").onclick = () => S.playing ? pause() : play();
+$("reset").onclick = () => { pause(); setT(0); render(); $("phaseHint").textContent = "点「开始」，看催化剂一加、气泡立起"; };
+$("prev").onclick = () => { pause(); setT(S.t - 1 / 30); render(); };
+$("next").onclick = () => { pause(); setT(S.t + 1 / 30); render(); };
+$("spd").onclick = () => {
+  S.speed = S.speed === 1 ? 2 : S.speed === 2 ? 0.5 : 1;
+  $("spd").textContent = "速度 ×" + S.speed;
+};
+$("scrub").oninput = e => { pause(); setT(Number(e.target.value) / 2200 * MODULE.duration); render(); };
+function shot(){
+  const a = document.createElement('a');
+  a.download = MODULE.title + '-' + S.t.toFixed(1) + 's.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+function focusMode(){
+  document.body.classList.toggle('focus');
+  if (document.body.classList.contains('focus')){
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function(){});
+  } else if (document.fullscreenElement && document.exitFullscreen){
+    document.exitFullscreen().catch(function(){});
+  }
+}
+$("shot").onclick = shot;
+$("focus").onclick = focusMode;
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
+  if (e.key === ' '){ e.preventDefault(); S.playing ? pause() : play(); }
+  else if (e.key === 'ArrowLeft'){ e.preventDefault(); pause(); setT(S.t - 1 / 30); render(); }
+  else if (e.key === 'ArrowRight'){ e.preventDefault(); pause(); setT(S.t + 1 / 30); render(); }
+  else if (e.key === 'r' || e.key === 'R'){ $("reset").click(); }
+  else if (e.key === 's' || e.key === 'S'){ shot(); }
+  else if (e.key === 'f' || e.key === 'F'){ focusMode(); }
+});
+
+/* ---- 启动 ---- */
+buildParams(); buildPresets(); buildDict(); buildTicks(); syncParams();
+$("theory").innerHTML = MODULE.theory;
+setT(0); render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

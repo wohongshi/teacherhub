@@ -97,6 +97,17 @@ echo "$R" | grep -q "钠与水实验工作台内容" && ok "产物下载字节�
 R=$(curl -s "$BASE/stats")
 echo "$R" | grep -q "张老师" && echo "$R" | grep -q "钠与水反应实验工作台" && ok "门户页渲染（免 key，贡献+产物）" || bad "门户异常"
 
+# ---- 功能增强断言：热度计数 / PUT 更新 / 门户筛选 ----
+V0=$(curl -s "$BASE/w/wb_t1" -o /dev/null -w '%{http_code}' >/dev/null; curl -s "$BASE/api/workbenches" | python3 -c "import json,sys;d=json.load(sys.stdin);print([w['views'] for w in d['workbenches'] if w['id']=='wb_t1'][0])" 2>/dev/null)
+curl -s "$BASE/w/wb_t1" -o /dev/null
+V1=$(curl -s "$BASE/api/workbenches" | python3 -c "import json,sys;d=json.load(sys.stdin);print([w['views'] for w in d['workbenches'] if w['id']=='wb_t1'][0])" 2>/dev/null)
+[ -n "$V1" ] && [ "$V1" -gt "$V0" ] && ok "查看页热度计数 +1（$V0→$V1）" || bad "查看页热度计数 +1（$V0→$V1）"
+curl -s -X PUT "$BASE/api/workbenches/wb_t1" -H 'Content-Type: application/json' -H "X-Access-Key: $KEY" \
+  --data-raw '{"desc":"PUT 更新测试","content":"<html><body>updated</body></html>"}' | jassert ok "PUT 更新产物须 key 且成功"
+curl -s "$BASE/api/workbenches/wb_t1/file" | grep -q 'updated' && ok "PUT 后内容已替换" || bad "PUT 后内容已替换"
+curl -s -X PUT "$BASE/api/workbenches/wb_t1" -H 'Content-Type: application/json' --data-raw '{"desc":"x"}' | jerr key "PUT 无 key 被拒"
+curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" || bad "门户含筛选工具条"
+
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

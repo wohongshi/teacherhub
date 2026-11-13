@@ -90,6 +90,14 @@ main{padding:22px}
 .cols{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:18px;align-items:start}
 h2{font-size:16px;color:var(--accent);margin:4px 2px 12px;display:flex;align-items:center;gap:8px}
 h2 .count{font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 2px 12px}
+.fchips{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+.fchip:hover{border-color:#9fc4ca;color:var(--accent)}
+.fchip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.sbtns{margin-left:auto;display:flex;gap:6px}
+.sbtn{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:9px;padding:5px 13px;font-size:12px;cursor:pointer;font-family:inherit}
+.sbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
 .wb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
 .wb{display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 17px;text-decoration:none;color:var(--ink);box-shadow:0 2px 8px rgba(34,40,46,.05);transition:all .15s}
 .wb:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(34,40,46,.10);border-color:#c9d9dc}
@@ -132,7 +140,26 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 </div></header>
 <main><div class="wrap"><div class="cols">
   <section>
-    <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span></h2>
+    <h2>工作台产物库 <span class="count" id="wb-count">` + fmt.Sprint(len(wbs)) + `</span></h2>`)
+	// 标签筛选 + 排序工具条
+	tagSet := map[string]bool{}
+	for _, w2 := range wbs {
+		for _, t := range w2.Tags {
+			if t != "" {
+				tagSet[t] = true
+			}
+		}
+	}
+	tagList := make([]string, 0, len(tagSet))
+	for t := range tagSet {
+		tagList = append(tagList, t)
+	}
+	sort.Strings(tagList)
+	b.WriteString(`<div class="toolbar"><div class="fchips" id="tagfilter"><button class="fchip on" data-tag="">全部</button>`)
+	for _, t := range tagList {
+		fmt.Fprintf(&b, `<button class="fchip" data-tag="%s">%s</button>`, html.EscapeString(t), html.EscapeString(t))
+	}
+	b.WriteString(`</div><div class="sbtns"><button class="sbtn on" data-sort="new">最新</button><button class="sbtn" data-sort="hot">最热</button></div></div>
     <div class="wb-grid" id="grid">`)
 	if len(wbs) == 0 {
 		b.WriteString(`<div class="empty">还没有产物——在 WorkBuddy 里说「做个 XX 实验工作台」，生成后自动上架</div>`)
@@ -177,11 +204,38 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   function card(w){
     var tags=(w.tags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('');
     var ch=esc((w.teacher||'?').slice(0,1));
-    return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'"><div class="t">'+esc(w.title)+'</div>'+
+    return '<a class="wb" href="/w/'+encodeURIComponent(w.id)+'" data-tags="'+esc((w.tags||[]).join(','))+'" data-views="'+(w.views||0)+'" data-created="'+(w.created_at||0)+'"><div class="t">'+esc(w.title)+'</div>'+
       '<div class="d">'+esc(w.desc||'')+'</div>'+
       (tags?'<div class="tags">'+tags+'</div>':'')+
-      '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'</div></a>';
+      '<div class="meta"><span class="avatar" style="background:#15616d">'+ch+'</span>'+esc(w.teacher||'—')+'<span style="margin-left:auto">👁 '+(w.views||0)+'</span></div></a>';
   }
+  var curTag='',curSort='new';
+  function applyFilter(){
+    var cards=[].slice.call(grid.querySelectorAll('.wb'));
+    cards.forEach(function(c){
+      var tags=(c.getAttribute('data-tags')||'').split(',');
+      c.style.display=(!curTag||tags.indexOf(curTag)>=0)?'':'none';
+    });
+    cards.sort(function(a,b){
+      return curSort==='hot'
+        ?(+b.getAttribute('data-views'))-(+a.getAttribute('data-views'))
+        :(+b.getAttribute('data-created'))-(+a.getAttribute('data-created'));
+    });
+    cards.forEach(function(c){grid.appendChild(c)});
+    cnt.textContent=cards.filter(function(c){return c.style.display!=='none'}).length;
+  }
+  var tf=document.getElementById('tagfilter');
+  if(tf)tf.addEventListener('click',function(e){
+    var b=e.target.closest('.fchip');if(!b)return;
+    tf.querySelectorAll('.fchip').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');curTag=b.getAttribute('data-tag')||'';applyFilter();
+  });
+  var sb=document.querySelector('.sbtns');
+  if(sb)sb.addEventListener('click',function(e){
+    var b=e.target.closest('.sbtn');if(!b)return;
+    sb.querySelectorAll('.sbtn').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');curSort=b.getAttribute('data-sort')||'new';applyFilter();
+  });
   async function search(){
     var v=q.value.trim();
     if(!v){location.reload();return}
@@ -205,7 +259,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 // wbCardHTML 产物卡片。
 func wbCardHTML(w Workbench) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, `<a class="wb" href="/w/%s"><div class="t">%s</div>`, w.ID, html.EscapeString(w.Title))
+	fmt.Fprintf(&b, `<a class="wb" href="/w/%s" data-tags="%s" data-views="%d" data-created="%d"><div class="t">%s</div>`,
+		w.ID, html.EscapeString(strings.Join(w.Tags, ",")), w.Views, w.CreatedAt, html.EscapeString(w.Title))
 	if w.Desc != "" {
 		fmt.Fprintf(&b, `<div class="d">%s</div>`, html.EscapeString(w.Desc))
 	} else {
@@ -222,8 +277,8 @@ func wbCardHTML(w Workbench) string {
 	if who == "" {
 		who = "—"
 	}
-	fmt.Fprintf(&b, `<div class="meta"><span class="avatar" style="background:%s">%s</span>%s<span style="margin-left:auto">%s</span></div></a>`,
-		avatarColor(who), avatarChar(who), html.EscapeString(who), time.Unix(w.CreatedAt, 0).Format("01-02"))
+	fmt.Fprintf(&b, `<div class="meta"><span class="avatar" style="background:%s">%s</span>%s<span style="margin-left:auto">👁 %d · %s</span></div></a>`,
+		avatarColor(who), avatarChar(who), html.EscapeString(who), w.Views, time.Unix(w.CreatedAt, 0).Format("01-02"))
 	return b.String()
 }
 
