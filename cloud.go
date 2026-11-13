@@ -487,9 +487,18 @@ func cmdServe(args []string) {
 				writeJSON(w, 400, map[string]any{"ok": false, "error": "留言太长（200 字内）"})
 				return
 			}
-			ip := r.RemoteAddr
-			if i := strings.LastIndex(ip, ":"); i > 0 {
-				ip = ip[:i]
+			ip := r.Header.Get("CF-Connecting-IP")
+			if ip == "" {
+				ip = r.Header.Get("X-Forwarded-For")
+				if i := strings.Index(ip, ","); i > 0 {
+					ip = strings.TrimSpace(ip[:i])
+				}
+			}
+			if ip == "" { // 直连（局域网/探针）
+				ip = r.RemoteAddr
+				if i := strings.LastIndex(ip, ":"); i > 0 {
+					ip = ip[:i]
+				}
 			}
 			now := time.Now().Unix()
 			st.mu.Lock()
