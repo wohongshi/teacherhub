@@ -97,6 +97,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:22px}
 .stat{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-m);padding:20px 20px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow-card)}
 .stat::after{content:"";position:absolute;right:-26px;top:-26px;width:74px;height:74px;border-radius:50%;background:#EDF4EA}
+.stat .elem-tag{position:absolute;right:14px;top:12px;font-size:11px;font-weight:700;color:#A6C2AB;letter-spacing:.5px;z-index:1;font-style:italic}
 .stat .sname{font-size:12.5px;color:var(--ink-500)}
 .stat .sval{font-size:26px;font-weight:700;color:var(--ink-900);margin:7px 0 5px;letter-spacing:.5px}
 .stat .sval small{font-size:13px;font-weight:400;color:var(--ink-300);margin-left:3px}
@@ -242,7 +243,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-logo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2F6B45" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M12 13c-4.5 0-7-2.8-7-7 4.5 0 7 2.5 7 7Z"/><path d="M12 16c3.6 0 5.8-2.2 5.8-5.6-3.6 0-5.8 2-5.8 5.6Z"/></svg>
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#2F6B45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4"/><path d="M11 3v5.2L5.6 17.4A2 2 0 0 0 7.3 20.5h9.4a2 2 0 0 0 1.7-3.1L13 8.2V3"/><path d="M8.2 14.5h7.6"/><path d="M15.5 4.5c2.2 0 3.5 1.2 3.5 3.2-2.1 0-3.5-1.2-3.5-3.2Z"/></svg>
       </div>
       <div>
         <div class="brand-name">化学学科园地</div>
@@ -285,7 +286,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="nav-title">教研运行</div>
         <div class="nav-item" data-view="board">
           <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
-          本周展板
+          实验与安全
         </div>
         <div class="nav-item" data-view="data">
           <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
@@ -325,9 +326,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="top-right">
         <div class="search-box">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-          <input id="globalSearch" placeholder="搜课标 / 真题 / 资源">
+          <input id="globalSearch" placeholder="搜课标/真题/资源">
         </div>
-        <button class="btn-demo" id="demoBtn">演示数据</button>
+        <button class="btn-demo" id="demoBtn">使用说明</button>
       </div>
     </header>
 
@@ -338,12 +339,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="hero">
         <div class="hero-text">
           <h1>让每一节课，<br>都像一次好反应</h1>
-          <p>这学期我们把四件事做扎实：课标落到章节、真题进到单元、实验资源留在组里、成绩看得出问题。<br>一群人，一条心，一年下来就是一套属于我们自己的东西。</p>
+          <p>这学期我们把四件事做扎实：课标落到章节、真题进到单元、实验留在组里、成绩看得出问题。<br>一群人，一条心，一年下来就是一套属于我们化学组自己的东西。</p>
           <div class="hero-tags">
-            <div class="htag">本学期目标 <b>28 份</b>资源</div>
-            <div class="htag">已积累 <b id="htagAcc">—</b> 份</div>
-            <div class="htag">在研赛事 <b>11 项</b></div>
-            <div class="htag"><a href="#" data-view="grow">成员名单可随时更新 ↗</a></div>
+            <div class="htag">课标条目 <b>15 条</b></div>
+            <div class="htag">真题归档 <b>74 题</b></div>
+            <div class="htag">校本资源 <b id="htagAcc">0</b> 份</div>
+            <div class="htag"><a href="#" data-view="about">建设方案四件事 ↗</a></div>
           </div>
         </div>
         <div class="hero-art">
@@ -355,6 +356,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
             <circle cx="66" cy="30" r="6" fill="#8FC79B"/>
             <circle cx="66" cy="30" r="11" stroke="#C9E1C6" stroke-width="1.5" fill="none" opacity=".7"/>
             <circle cx="272" cy="128" r="7" fill="#F0D9A8"/>
+            <text x="192" y="34" font-size="12.5" fill="#7FB58C" font-weight="700" opacity=".62" font-style="italic">Na</text>
+            <text x="278" y="36" font-size="11.5" fill="#C9A96A" opacity=".6" font-style="italic">O₂</text>
+            <text x="280" y="116" font-size="11.5" fill="#B08A4A" opacity=".6" font-style="italic">H₂O</text>
+            <text x="182" y="112" font-size="11.5" fill="#9CC6A6" opacity=".6" font-style="italic">Fe</text>
+            <circle cx="232" cy="22" r="2.2" fill="#8FC79B" opacity=".55"/>
+            <circle cx="234" cy="130" r="1.8" fill="#E5A93F" opacity=".42"/>
             <path d="M120 132 Q126 96 150 62" stroke="#5FA06C" stroke-width="2.5" stroke-linecap="round" fill="none"/>
             <path d="M128 104c-13 0-20-7-20-18 12 0 20 6.5 20 18Z" fill="#A7D2AE"/>
             <path d="M136 84c11 0 17-5.5 17-14-10.5 0-17 5.5-17 14Z" fill="#A7D2AE"/>
@@ -382,11 +389,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
       <!-- 统计卡 -->
       <div class="stats">
-        <div class="stat"><div class="sname">课标条目</div><div class="sval">30<small>条</small></div><div class="snote">四级映射已建立</div></div>
-        <div class="stat"><div class="sname">高考真题</div><div class="sval">74<small>题</small></div><div class="snote">2021—2026 六年</div></div>
-        <div class="stat"><div class="sname">校本资源</div><div class="sval" id="statRes">—<small>份</small></div><div class="snote">每份都带使用批注</div></div>
-        <div class="stat"><div class="sname">在研赛事</div><div class="sval">7<small>项</small></div><div class="snote">含 2 项省级</div></div>
-        <div class="stat"><div class="sname">最近考试均分</div><div class="sval empty">— 待上传</div><div class="snote">上传成绩后自动生成</div></div>
+        <div class="stat"><span class="elem-tag">Na</span><div class="sname">课标条目</div><div class="sval">15<small>条</small></div><div class="snote">五模块四级映射</div></div>
+        <div class="stat"><span class="elem-tag">H₂O</span><div class="sname">高考真题</div><div class="sval">74<small>题</small></div><div class="snote">2021—2026 六年归档</div></div>
+        <div class="stat"><span class="elem-tag">Fe</span><div class="sname">校本资源</div><div class="sval" id="statRes">0<small>份</small></div><div class="snote">上传第一份 →</div></div>
+        <div class="stat"><span class="elem-tag">O₂</span><div class="sname">实验模块</div><div class="sval" id="statLab">0<small>个</small></div><div class="snote">AI 生成一个 →</div></div>
+        <div class="stat"><span class="elem-tag">C</span><div class="sname">最近考试均分</div><div class="sval empty">— 待上传</div><div class="snote">上传成绩后自动生成</div></div>
       </div>
 
       <!-- 日历 + 最近上传/待办 -->
@@ -403,16 +410,17 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
             <div id="recentUp"></div>
           </div>
           <div class="card">
-            <div class="card-head"><div><div class="card-title">本周待办</div><div class="card-sub">一起把这几件事推完</div></div></div>
-            <div class="todo">11-05 前完成月考成绩导入与报告（系统可自动生成）</div>
-            <div class="todo">烃的衍生物单元资源包补齐 2 份（陈老师）</div>
-            <div class="todo">省级精品课第 4 轮磨课，需组内 3 人听课</div>
-            <div class="todo">核对新增课标条目 3 条（学期复核）</div>
+            <div class="card-head"><div><div class="card-title">学期任务线</div><div class="card-sub">化学组每学期固定要做的事</div></div></div>
+            <div class="todo">开学两周内完成教材分析与分工（四个主备人）</div>
+            <div class="todo">每单元备后 3 天内交单元资源包（含实验清单）</div>
+            <div class="todo">期中期末考后一周内完成逐题失分分析</div>
+            <div class="todo">学期末核对课标条目与教材章节的映射关系</div>
+            <div class="todo">危化品台账学期两盘点（期中、期末）</div>
           </div>
         </div>
       </div>
 
-      <div class="motto"><b>独行快，众行远</b>　——　把一份资源留在这里，下一位上课的人就少走一段路</div>
+      <div class="motto"><b>独行快，众行远</b>　——　把一份资源留在这里，下一位上课的人就少走一段路<br><span style="letter-spacing:2px;font-size:11px">🧪 反应需要碰撞，教研需要同行 🧪</span></div>
     </section>
 
     <!-- ===== 实验工作台 ===== -->
@@ -420,6 +428,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="mod-head">
         <h2>🧪 实验工作台</h2>
         <p>课堂演示实验模拟器：一实验一模块，参数可调、可回看、可投屏。链接发给同事，打开即用。</p>
+        <p style="margin-top:4px;color:var(--ink-300)">还没有实验模块？右下角「AI 生成」一个，或找教研组长上传——钠与水、铁丝燃烧、过氧化氢、凸透镜四个模板随时可生成。</p>
       </div>
       <div class="lab-toolbar">
         <div class="lab-search">
@@ -434,24 +443,24 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       </div>
       <div class="wb-grid" id="wbGrid"></div>
       <div class="empty-state" id="labEmpty" style="display:none">
-        <div class="big">📭</div>
-        <div style="font-size:13px">没搜到，试试这些热门标签：</div>
+        <div class="big">⚗️</div>
+        <div style="font-size:13px">这次没搜到沉淀，换个关键词再反应一次：</div>
         <div id="labReco" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px"></div>
       </div>
     </section>
 
     <!-- ===== 课标地图 ===== -->
     <section class="view" id="v-kb">
-      <div class="mod-head"><h2>课标地图<span class="demo-chip">演示数据</span></h2><p>课标条目 → 教材章节 → 真题 → 校本资源，四级映射。学期复核时逐条对账。</p></div>
+      <div class="mod-head"><h2>课标地图</h2><p>课标条目 → 教材章节 → 真题 → 校本资源，四级映射。映射进度从备课组认领开始。</p></div>
       <div class="card" style="padding:18px 22px">
         <table class="tbl">
-          <thead><tr><th>模块</th><th>课标条目</th><th>教材章节</th><th>已映射真题</th><th>配套资源</th><th>状态</th></tr></thead>
+          <thead><tr><th>模块</th><th>课标条目</th><th>教材章节</th><th>已映射真题</th><th>配套资源</th><th>认领状态</th></tr></thead>
           <tbody>
-            <tr><td>化学实验基础</td><td>实验安全与操作 · 物质分离提纯 · 溶液配制</td><td>必修一 第1章</td><td>12 题</td><td>3 份</td><td><span class="td-tag">已建立</span></td></tr>
-            <tr><td>物质结构与性质</td><td>原子结构 · 元素周期律 · 化学键</td><td>必修一 第2章</td><td>15 题</td><td>4 份</td><td><span class="td-tag">已建立</span></td></tr>
-            <tr><td>化学反应与能量</td><td>离子反应 · 氧化还原 · 反应热 · 原电池</td><td>必修二 第1章</td><td>18 题</td><td>5 份</td><td><span class="td-tag">已建立</span></td></tr>
-            <tr><td>有机化合物</td><td>烃 · 烃的衍生物 · 生物大分子</td><td>必修二 第3章</td><td>14 题</td><td>3 份</td><td><span class="td-tag y">复核中</span></td></tr>
-            <tr><td>化学反应原理</td><td>速率与平衡 · 电化学 · 电解质溶液</td><td>选择性必修1</td><td>15 题</td><td>4 份</td><td><span class="td-tag">已建立</span></td></tr>
+            <tr><td>化学实验基础</td><td>实验安全与操作 · 物质的量与溶液配制 · 物质分离提纯（蒸馏/萃取/层析）</td><td>必修一 第1章</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
+            <tr><td>物质结构与元素周期律</td><td>原子结构与元素周期表 · 元素周期律 · 化学键（离子键/共价键）</td><td>必修一 第2章</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
+            <tr><td>化学反应与能量</td><td>离子反应 · 氧化还原反应 · 化学反应与能量变化 · 原电池原理</td><td>必修二 第1章</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
+            <tr><td>有机化合物</td><td>烃与卤代烃 · 烃的衍生物（醇/醛/羧酸/酯） · 有机高分子与生物大分子</td><td>必修二 第3章</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
+            <tr><td>化学反应原理</td><td>化学反应速率与化学平衡 · 电化学（原电池/电解池） · 水溶液中的离子反应与平衡</td><td>选择性必修1</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -459,7 +468,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
     <!-- ===== 真题库 ===== -->
     <section class="view" id="v-exam">
-      <div class="mod-head"><h2>真题库<span class="demo-chip">演示数据</span></h2><p>2021—2026 六年高考化学真题按课标条目归档，进到单元。</p></div>
+      <div class="mod-head"><h2>真题库<span class="demo-chip">卷型结构</span></h2><p>2021—2026 六年高考化学真题按课标条目归档，进到单元。归档从备课组认领开始。</p></div>
       <div class="card" style="padding:18px 22px">
         <table class="tbl">
           <thead><tr><th>年份</th><th>选择题</th><th>反应原理</th><th>工业流程</th><th>实验探究</th><th>有机推断</th><th>合计</th></tr></thead>
@@ -498,16 +507,20 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         </div>
         <div class="col-r">
           <div class="card">
-            <div class="card-head"><div><div class="card-title">在研赛事<span class="demo-chip">演示数据</span></div></div></div>
-            <div class="todo">省级精品课录制（张老师）· 12-03 前交片</div>
-            <div class="todo">市级实验说课比赛（陈老师）· 区级已出线</div>
-            <div class="todo">青年教师公开课（赵老师）· 11-19 组内听评</div>
-            <div class="todo">校本作业设计评比 · 全组参与</div>
+            <div class="card-head"><div><div class="card-title">参赛与荣誉</div></div></div>
+            <div class="empty-state" style="padding:18px 0">
+              <div class="big" style="font-size:30px">🏆</div>
+              <div style="font-size:12.5px">第一个花苞还在酝酿</div>
+              <div style="font-size:11.5px;margin-top:4px">组内参赛获奖后登记，会长在成长林的花苞上</div>
+            </div>
           </div>
           <div class="card">
             <div class="card-head"><div><div class="card-title">成员名单</div></div></div>
-            <div class="todo">张老师 · 陈老师 · 李老师 · 王老师 · 赵老师 · 教研组长</div>
-            <div class="todo">名单可随时更新，找教研组长登记即可</div>
+            <div class="empty-state" style="padding:18px 0">
+              <div class="big" style="font-size:30px">🌱</div>
+              <div style="font-size:12.5px">名单从第一份贡献开始生长</div>
+              <div style="font-size:11.5px;margin-top:4px">上传资源时署上姓名，就进了名单</div>
+            </div>
           </div>
         </div>
       </div>
@@ -515,14 +528,14 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
     <!-- ===== 本周展板 ===== -->
     <section class="view" id="v-board">
-      <div class="mod-head"><h2>本周展板<span class="demo-chip">演示数据</span></h2><p>每周轮换的教研展板：组内近况、亮点与提醒。</p></div>
+      <div class="mod-head"><h2>实验与安全</h2><p>实验安全、危化品管理与操作规范，常设专栏。上实验课前来翻一翻。</p></div>
       <div class="board-grid">
-        <div class="board-card"><h4>🔥 月考质量分析</h4><p>高三第二次月考成绩已导入，11-05 分析会用平台报告逐题看失分点，重点看工业流程题的规范表述。</p></div>
-        <div class="board-card"><h4>🌱 新人第一课</h4><p>赵老师下周开课《原电池》，欢迎周三前把听课意见发群里，帮他磨一遍引入。</p></div>
-        <div class="board-card"><h4>📦 资源日预告</h4><p>11-26 月度资源日，每人至少上传 2 份带批注的资源，备课组长当天审核入库。</p></div>
-        <div class="board-card"><h4>⚗️ 实验安全提醒</h4><p>金属钠取用必须镊子 + 滤纸吸煤油，废钠放回原瓶。演示实验前 5 分钟再取药品。</p></div>
-        <div class="board-card"><h4>💡 本周金句</h4><p>「把一份资源留在这里，下一位上课的人就少走一段路。」——写在实验准备室门口的话。</p></div>
-        <div class="board-card"><h4>✅ 上周完成</h4><p>免疫调节…错了，烃的衍生物单元集体备课已完成；三份微生物实验资源已入资源库（见实验工作台）。</p></div>
+        <div class="board-card"><h4>⚗️ 实验安全守则</h4><p>金属钠取用必须镊子 + 滤纸吸煤油，废钠放回原瓶；浓硫酸稀释「酸入水」，沿器壁慢慢搅。演示实验前 5 分钟再取药品。</p></div>
+        <div class="board-card"><h4>🧪 危化品管理</h4><p>双人双锁、领用登记、定期盘点；易制毒易制爆试剂按教育局台账要求单独存放，一学期一核对。</p></div>
+        <div class="board-card"><h4>♻️ 废液回收</h4><p>酸碱废液分类收集桶，重金属废液单独存放，绝不直排下水；学期末统一交有资质单位处理。</p></div>
+        <div class="board-card"><h4>🔥 实验会考准备</h4><p>必做实验清单逐项过：配制一定物质量浓度溶液、粗盐提纯、氨的喷泉、乙酸乙酯制备。每项配标准操作视频。</p></div>
+        <div class="board-card"><h4>💡 教研金句</h4><p>「把一份资源留在这里，下一位上课的人就少走一段路。」——写在实验准备室门口的话。</p></div>
+        <div class="board-card"><h4>📋 操作规范</h4><p>气密性检查先行、加热先预热、闻气味扇闻法；操作考前两周开放实验室，学生自主练习一轮。</p></div>
       </div>
     </section>
 
@@ -551,11 +564,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <table class="tbl">
           <thead><tr><th>文件</th><th>要点</th><th>周期</th><th>状态</th></tr></thead>
           <tbody>
-            <tr><td>学期教研计划</td><td>四件事：课标落到章节、真题进到单元、资源留在组里、成绩看得出问题</td><td>学期</td><td><span class="td-tag">执行中</span></td></tr>
-            <tr><td>集体备课制度</td><td>双周一次，主备人轮值，备后 3 天内上传单元资源包</td><td>双周</td><td><span class="td-tag">执行中</span></td></tr>
-            <tr><td>资源入库规范</td><td>每份资源必须带使用批注（用了哪个班、效果如何）</td><td>长期</td><td><span class="td-tag">执行中</span></td></tr>
-            <tr><td>实验安全守则</td><td>危化品双人双锁、演示实验前试做、废液分类回收</td><td>长期</td><td><span class="td-tag">执行中</span></td></tr>
-            <tr><td>青年教师培养</td><td>每人每学期 1 节公开课 + 3 次听课，师傅一对一带教</td><td>学期</td><td><span class="td-tag y">进行中</span></td></tr>
+            <tr><td>学期教研计划</td><td>四件事：课标落到章节、真题进到单元、实验留在组里、成绩看得出问题</td><td>学期</td><td><span class="td-tag">常设</span></td></tr>
+            <tr><td>集体备课制度</td><td>双周一次，主备人轮值；备后 3 天内上传单元资源包，主备人对单元实验清单负责</td><td>双周</td><td><span class="td-tag">常设</span></td></tr>
+            <tr><td>实验安全守则</td><td>危化品双人双锁、演示实验前必须试做、废液分类回收、实验登记本随课记</td><td>长期</td><td><span class="td-tag">常设</span></td></tr>
+            <tr><td>资源入库规范</td><td>每份资源带使用批注（用了哪个班、效果如何）；实验模块必须标注适用课时</td><td>长期</td><td><span class="td-tag">常设</span></td></tr>
+            <tr><td>实验会考准备制度</td><td>必做实验逐项过清单，操作考前两周实验室开放，评分标准组内统一</td><td>学期</td><td><span class="td-tag">常设</span></td></tr>
+            <tr><td>青年教师培养</td><td>每人每学期 1 节公开课 + 3 次听课，师傅一对一带教，实验基本功专项过关</td><td>学期</td><td><span class="td-tag">常设</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -628,18 +642,15 @@ function fmtTs(ts){if(!ts)return"";let d;const n=Number(ts);if(Number.isFinite(n
 function toast(msg){const t=document.createElement("div");t.textContent=msg;t.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#2F6B45;color:#fff;font-size:13px;padding:10px 22px;border-radius:999px;z-index:200;box-shadow:0 6px 20px rgba(47,107,69,.3)";document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
 
 /* ============ 演示数据（标「演示数据」处使用） ============ */
-const DEMO_CAL=[
- {d:"11-05",t:"高三第二次月考质量分析会",s:"成绩已导入，会上用平台报告逐题分析"},
- {d:"11-12",t:"高二备课组：烃的衍生物单元集体备课",s:"主备人：陈老师；需带单元资源包"},
- {d:"11-19",t:"青年教师公开课（赵老师）",s:"课题：原电池；组内听评课"},
- {d:"11-26",t:"月度资源日",s:"每人至少上传 2 份，备课组长审核"},
- {d:"12-03",t:"省级精品课录制（张老师）",s:"课题：钠与水；需提前调试录播教室"},
- {d:"12-17",t:"学期课标复核",s:"核对课标条目库与教材章节的对应关系"}
+const CAL_TEMPLATE=[
+ {d:"开学 · 第 1—2 周",t:"学期教研计划与教材分析",s:"通读全册，定四件事分工：课标映射、真题归档、实验资源、成绩分析"},
+ {d:"第 3—5 周",t:"必修模块集体备课",s:"按主备人轮值；每单元备后 3 天内交单元资源包"},
+ {d:"第 6—7 周",t:"实验教学专题",s:"演示实验试做、危化品台账核对、实验会考准备"},
+ {d:"期中 · 第 8—9 周",t:"复习研讨与质量分析",s:"逐题看失分点，重点工业流程与实验探究题"},
+ {d:"第 10—13 周",t:"选择性必修集体备课",s:"反应原理/物质结构/有机三模块轮备"},
+ {d:"期末 · 第 16—18 周",t:"期末复盘与课标复核",s:"核对课标条目与教材章节对应，更新下学期计划"}
 ];
-const DEMO_MEMBERS=[
- {name:"张老师",res:4,comp:2},{name:"陈老师",res:4,comp:2},{name:"李老师",res:3,comp:2},
- {name:"王老师",res:2,comp:2},{name:"赵老师",res:2,comp:2},{name:"教研组长",res:0,comp:0}
-];
+// 清空数据：无演示成员，成长林由真实贡献驱动
 
 /* ============ 植物 SVG（成长林） ============ */
 function plantSVG(leafPairs,hasBud,h){
@@ -666,7 +677,7 @@ function plantSVG(leafPairs,hasBud,h){
 }
 
 /* ============ 视图切换 ============ */
-const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",res:"资源库",grow:"成长空间",board:"本周展板",data:"数据看板",plan:"计划与制度",score:"成绩分析",about:"建设方案"};
+const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",res:"资源库",grow:"成长空间",board:"实验与安全",data:"数据看板",plan:"计划与制度",score:"成绩分析",about:"建设方案"};
 function go(view){
   $$(".view").forEach(v=>v.classList.remove("on"));
   const el=$("#v-"+view); if(!el)return;
@@ -697,7 +708,7 @@ $("#globalSearch").addEventListener("keydown",e=>{
 
 /* ============ 演示数据按钮 ============ */
 $("#demoBtn").addEventListener("click",()=>{
-  toast("标「演示数据」的板块是示意内容，真实数据板块随使用自动生长");
+  toast("课标条目与真题为学科内容计数；资源、实验、成绩随使用真实积累");
   go("overview");
 });
 
@@ -722,31 +733,42 @@ function levenshtein(a,b){const m=a.length,n=b.length,d=Array.from({length:m+1},
 /* —— 成长林 —— */
 function renderForest(){
   const byT=teacherMap();
-  const real=Object.entries(byT).map(([name,v])=>({name,res:v.count||0,comp:0}));
-  // 合并演示名单：同名优先真实数据，演示补足 6 株
-  const names=[...new Set([...real.map(r=>r.name),...DEMO_MEMBERS.map(m=>m.name)])];
-  const merged=names.map(n=>{
-    const r=real.find(x=>x.name===n),d=DEMO_MEMBERS.find(x=>x.name===n);
-    return {name:n,res:r?Math.max(r.res,1):(d?d.res:0),comp:d?d.comp:0,dim:!r&&(!d||d.res===0)};
-  }).sort((a,b)=>b.res-a.res);
+  const merged=Object.entries(byT).map(([name,v])=>({name,res:v.count||0,comp:0}))
+    .sort((a,b)=>b.res-a.res);
+  if(!merged.length){
+    // 空态：一颗等待萌发的种子（化学园地）
+    $("#forest").innerHTML=`<div class="empty-state" style="width:100%;padding:26px 0 18px">
+      <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+        <ellipse cx="60" cy="104" rx="34" ry="7" fill="#C9DEC6" opacity=".5"/>
+        <path d="M60 100 Q62 88 60 78" stroke="#4E9A63" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M60 84c-9 0-14-4.5-14-12 8.5 0 14 4.2 14 12Z" fill="#8FC79B"/>
+        <circle cx="60" cy="70" r="3" fill="#E5A93F" opacity=".9"/>
+        <circle cx="60" cy="62" r="2" fill="#E5A93F" opacity=".45"/>
+      </svg>
+      <div style="font-size:13px;color:var(--ink-500);margin-top:8px">第一片叶子还没长出来</div>
+      <div style="font-size:12px;color:var(--ink-300);margin-top:4px">上传第一份资源，它就是成长林的第一片叶子</div>
+    </div>`;
+  }else{
   $("#forest").innerHTML=merged.slice(0,7).map(m=>{
     const pairs=Math.max(1,Math.min(7,m.res)),h=m.res>0?(92+pairs*13):72;
-    return `<div class="plant ${m.dim?"dim":""}">
+    return `<div class="plant">
       ${plantSVG(pairs,m.comp>0,h)}
       <div class="pname">${esc(m.name)}</div>
-      <div class="pnum">${m.res>0?`<b>${m.res} 份</b>`:"待上传"}${m.comp>0?` · ${m.comp} 赛`:""}</div>
+      <div class="pnum"><b>${m.res} 份</b>${m.comp>0?` · ${m.comp} 赛`:""}</div>
     </div>`;
   }).join("");
+  }
   const total=merged.reduce((s,m)=>s+m.res,0);
   $("#goalNow").textContent=total;
   $("#htagAcc").textContent=total;
   $("#statRes").innerHTML=`${total}<small>份</small>`;
+  $("#statLab").innerHTML=`${WBS.length}<small>个</small>`;
   $("#goalFill").style.width=Math.min(100,total/28*100)+"%";
 }
 
 /* —— 教研日历 —— */
 function renderCal(){
-  $("#calendar").innerHTML=DEMO_CAL.map(c=>
+  $("#calendar").innerHTML=CAL_TEMPLATE.map(c=>
     `<div class="tl-item"><div class="tl-date">${c.d}</div><div class="tl-title">${esc(c.t)}</div><div class="tl-desc">${esc(c.s)}</div></div>`
   ).join("");
 }
@@ -764,7 +786,7 @@ function renderRecent(){
     if(rows.length>=5)return;
     rows.push(`<div class="up-item"><div class="up-tag exp">实验</div><div style="flex:1;min-width:0"><div class="up-title"><a href="/w/${esc(w.id)}" target="_blank">${esc(w.title)}</a></div><div class="up-meta">${esc(w.teacher||"教研组")} · ${fmtTs(w.created_at)}</div></div></div>`);
   });
-  $("#recentUp").innerHTML=rows.slice(0,5).join("")||`<div class="empty-state" style="padding:22px 0">还没有上传记录</div>`;
+  $("#recentUp").innerHTML=rows.slice(0,5).join("")||`<div class="empty-state" style="padding:22px 0"><div style="font-size:12.5px">还没有上传记录</div><div style="font-size:11.5px;margin-top:4px">第一份资源上传后出现在这里</div></div>`;
   $("#upCount").textContent=`本月 ${Object.values(teacherMap()).reduce((s,t)=>s+t.count,0)} / 28`;
 }
 
@@ -857,7 +879,7 @@ function renderRes(){
   (CONTRIBS||[]).forEach(c=>{
     rows.push(`<tr><td>${esc(c.title||c.text||"教研资料")}</td><td><span class="td-tag b">${esc((c.subject||c.tag||"资料").slice(0,4))}</span></td><td>${esc(c.teacher||"教研组")}</td><td>${fmtTs(c.at)}</td></tr>`);
   });
-  tb.innerHTML=rows.join("")||`<tr><td colspan="4" style="text-align:center;color:var(--ink-300);padding:30px">暂无资源，右下角 AI 生成或找教研组长上传</td></tr>`;
+  tb.innerHTML=rows.join("")||`<tr><td colspan="4" style="text-align:center;padding:30px"><div class="big" style="font-size:30px">🧫</div><div style="font-size:12.5px;color:var(--ink-500)">资源库还是纯净物——右下角 AI 生成一份，或找教研组长上传</div></td></tr>`;
 }
 
 /* —— 成长空间贡献榜 —— */
@@ -865,9 +887,10 @@ function renderGrow(){
   const byT=teacherMap();
   const arr=Object.entries(byT).map(([name,v])=>({name,n:v.count||0})).sort((a,b)=>b.n-a.n);
   const colors=["#E5A93F","#A8B2A9","#C98A5B","#4E9A63","#4E9A63","#4E9A63"];
+  if(!arr.length){$("#growRank").innerHTML=`<div class="empty-state" style="padding:22px 0"><div class="big" style="font-size:30px">🌿</div><div style="font-size:12.5px">贡献榜在等第一行名字</div><div style="font-size:11.5px;margin-top:4px">署名上传第一份资源，就从这里开始排</div></div>`;return}
   $("#growRank").innerHTML=arr.map((r,i)=>
     `<div class="rank-row"><div class="rank-badge" style="background:${colors[i]||"#C9DEC6"}">${i+1}</div><div class="rank-name">${esc(r.name)}</div><div class="rank-num"><b>${r.n}</b> 份资源</div></div>`
-  ).join("")||`<div class="empty-state" style="padding:22px 0">贡献记录生成中</div>`;
+  ).join("")||`<div class="empty-state" style="padding:22px 0"><div style="font-size:12.5px">贡献榜在等第一行名字</div></div>`;
 }
 
 /* —— 数据看板 —— */
@@ -887,13 +910,13 @@ function renderData(){
   if(pts.length>1){
     const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
     $("#dataSpark").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px"><path d="${path}" stroke="#4E9A63" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="${path} L${W} ${H} L0 ${H}Z" fill="#8FC79B" opacity=".16"/>${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="#2F6B45"><title>${esc(p[3]||"")}: ${p[2]}</title></circle>`).join("")}</svg>`;
-  }else{$("#dataSpark").innerHTML=`<div class="empty-state" style="padding:20px 0">数据积累中（需至少 2 天）</div>`}
+  }else{$("#dataSpark").innerHTML=`<div class="empty-state" style="padding:20px 0">数据还在慢慢反应（至少积累 2 天）</div>`}
   renderGrow();
   const byT=teacherMap();
   $("#dataTeachers").innerHTML=Object.entries(byT).sort((a,b)=>b[1].count-a[1].count).map(([n,v])=>{
     const c=v.count||0;
     return `<div class="rank-row"><div class="rank-name">${esc(n)}</div><div style="flex:1;margin:0 14px"><div class="bar" style="height:8px"><i style="width:${Math.min(100,c/28*100)}%"></i></div></div><div class="rank-num"><b>${c}</b> 份</div></div>`;
-  }).join("")||`<div class="empty-state" style="padding:20px 0">贡献记录生成中</div>`;
+  }).join("")||`<div class="empty-state" style="padding:20px 0"><div style="font-size:12.5px">第一份贡献出现后自动统计</div></div>`;
 }
 
 /* ============ 启动 ============ */
