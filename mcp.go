@@ -220,6 +220,11 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 			reply(mcpErr("缺 title/content"))
 			return
 		}
+		desc0, _ := args["desc"].(string)
+		if len([]rune(title)) > 200 || len([]rune(desc0)) > 500 || len(content) > 5_000_000 {
+			reply(mcpErr("字段过长（title≤200字/desc≤500字/content≤5MB）"))
+			return
+		}
 		desc, _ := args["desc"].(string)
 		teacher, _ := args["teacher"].(string)
 		strs := func(k string) []string {

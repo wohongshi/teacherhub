@@ -365,6 +365,10 @@ func cmdServe(args []string) {
 					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 title/content"})
 					return
 				}
+				if len([]rune(in.Title)) > 200 || len([]rune(in.Desc)) > 500 || len(in.Content) > 5_000_000 {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "字段过长（title≤200字/desc≤500字/content≤5MB）"})
+					return
+				}
 				wb := Workbench{
 					ID: "wb_" + randToken()[:12], Title: strings.TrimSpace(in.Title),
 					Desc: strings.TrimSpace(in.Desc), Tags: in.Tags, Keywords: in.Keywords,
@@ -460,11 +464,13 @@ func cmdServe(args []string) {
 					_ = st.save()
 				}
 				st.mu.Unlock()
-				if found {
-					_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".html"))
-					_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".preview"))
+				if !found {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "产物不存在"})
+					return
 				}
-				writeJSON(w, 200, map[string]any{"ok": found})
+				_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".html"))
+				_ = os.Remove(filepath.Join(st.dir, "artifacts", id+".preview"))
+				writeJSON(w, 200, map[string]any{"ok": true})
 				return
 			}
 			if r.Method == http.MethodPost && strings.HasSuffix(id, "/hidden") { // 下架/上架（写操作须 key）
@@ -543,6 +549,19 @@ func cmdServe(args []string) {
 			}
 			if strings.HasSuffix(id, "/history") { // 版本历史列表（免 key）
 				id = strings.TrimSuffix(id, "/history")
+				st.mu.Lock()
+				exists := false
+				for _, w2 := range st.data.Workbenches {
+					if w2.ID == id {
+						exists = true
+						break
+					}
+				}
+				st.mu.Unlock()
+				if !exists {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "产物不存在"})
+					return
+				}
 				type hv struct {
 					TS   int64 `json:"ts"`
 					Size int64 `json:"size"`
