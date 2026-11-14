@@ -192,6 +192,24 @@ curl -s -X POST "$BASE/api/scores" -H 'Content-Type: application/json' --data-ra
 curl -s -X POST "$BASE/api/kb/claim?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"module":"化学实验基础","by":"张老师"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "课标认领（key）" || bad "课标认领"
 curl -s "$BASE/api/kb" | python3 -c "import json,sys;assert json.load(sys.stdin)['claims'].get('化学实验基础',{}).get('by')=='张老师'" 2>/dev/null && ok "认领持久化可查（免 key）" || bad "认领查询"
 curl -s -X DELETE "$BASE/api/scores/$SX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s -X DELETE "$BASE/api/scores/sx_nope" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 404 && ok "成绩删除（200/404）" || bad "成绩删除"
+
+# ---- 管理后台断言（日志/认领清除/贡献删除/key 轮换）----
+curl -s "$BASE/api/admin/logs" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "操作日志无 key 拒" || bad "日志鉴权"
+curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+ops=[l['op'] for l in d['logs']]
+assert '成绩录入' in ops and '课标认领' in ops and '成绩删除' in ops, ops" 2>/dev/null && ok "操作日志埋点完整（录入/认领/删除）" || bad "日志埋点"
+CG=$(curl -s -X POST "$BASE/api/contrib?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"teacher":"日志测试","text":"临时"}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+[ -n "$CG" ] && curl -s -X DELETE "$BASE/api/contrib/$CG" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && ok "贡献删除（key）" || bad "贡献删除"
+curl -s -X DELETE "$BASE/api/kb/claim" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{"module":"化学实验基础"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && curl -s "$BASE/api/kb" | python3 -c "import json,sys;assert not json.load(sys.stdin)['claims']" 2>/dev/null && ok "课标认领清除" || bad "认领清除"
+NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
+[ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
+curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"
+[ -n "$NK" ] && curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $NK" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+assert d['logs'][0]['op']=='key 轮换', d['logs'][:1]" 2>/dev/null && ok "新 key 生效且轮换留痕" || bad "新 key"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

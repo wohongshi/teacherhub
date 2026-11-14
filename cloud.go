@@ -60,6 +60,13 @@ type ScoreExam struct {
 	Scores []float64 `json:"scores"`
 }
 
+// LogEntry 管理操作日志。
+type LogEntry struct {
+	At     int64  `json:"at"`
+	Op     string `json:"op"`
+	Detail string `json:"detail"`
+}
+
 // KBClaim 课标模块认领（谁认领了哪个模块的映射）。
 type KBClaim struct {
 	By string `json:"by"`
@@ -136,6 +143,7 @@ type cloudStore struct {
 		DailyViews  map[string]int     `json:"daily_views,omitempty"`
 		Scores      []ScoreExam        `json:"scores,omitempty"`
 		KBClaims    map[string]KBClaim `json:"kb_claims,omitempty"`
+		Logs        []LogEntry         `json:"logs,omitempty"`
 	}
 	boardLast  map[string]int64 // IP → 上次留言时间（内存限速）
 	boardLikes map[string]bool  // ip|msgID → 已赞
@@ -173,6 +181,14 @@ func openStore(dir, key string) (*cloudStore, error) {
 func (s *cloudStore) save() error {
 	b, _ := json.MarshalIndent(&s.data, "", "  ")
 	return os.WriteFile(filepath.Join(s.dir, "store.json"), b, 0o600)
+}
+
+// log 记录管理操作日志（须在 st.mu 锁内调用，随外层 save 落盘；滚动 500 条）。
+func (s *cloudStore) log(op, detail string) {
+	s.data.Logs = append(s.data.Logs, LogEntry{At: time.Now().Unix(), Op: op, Detail: detail})
+	if len(s.data.Logs) > 500 {
+		s.data.Logs = s.data.Logs[len(s.data.Logs)-500:]
+	}
 }
 
 func randToken() string {
@@ -325,6 +341,7 @@ func cmdServe(args []string) {
 				c.At = time.Now().Unix()
 				st.mu.Lock()
 				st.data.Contribs = append(st.data.Contribs, c)
+				st.log("贡献上报", c.Teacher+"："+c.Text)
 				// 只留最近 2000 条
 				if len(st.data.Contribs) > 2000 {
 					st.data.Contribs = st.data.Contribs[len(st.data.Contribs)-2000:]
@@ -450,6 +467,7 @@ func cmdServe(args []string) {
 				}
 				st.mu.Lock()
 				st.data.Workbenches = append(st.data.Workbenches, wb)
+				st.log("产物创建", wb.Title)
 				_ = st.save()
 				st.mu.Unlock()
 				writeJSON(w, 200, map[string]any{"ok": true, "id": wb.ID, "link": workbenchLink(r, wb.ID)})
@@ -522,6 +540,7 @@ func cmdServe(args []string) {
 				for i := range st.data.Workbenches {
 					if st.data.Workbenches[i].ID == id {
 						st.data.Workbenches = append(st.data.Workbenches[:i], st.data.Workbenches[i+1:]...)
+						st.log("产物删除", id)
 						found = true
 						break
 					}
@@ -553,6 +572,7 @@ func cmdServe(args []string) {
 				for i := range st.data.Workbenches {
 					if st.data.Workbenches[i].ID == id {
 						st.data.Workbenches[i].Hidden = in.Hidden
+						st.log("产物上下架", id+" hidden="+fmt.Sprintf("%v", in.Hidden))
 						found = true
 						break
 					}
@@ -798,6 +818,7 @@ func cmdServe(args []string) {
 				e := ScoreExam{ID: "sx_" + randToken()[:12], Name: in.Name, At: time.Now().Unix(), Scores: in.Scores}
 				st.mu.Lock()
 				st.data.Scores = append(st.data.Scores, e)
+				st.log("成绩录入", fmt.Sprintf("%s（%d 人）", e.Name, len(e.Scores)))
 				_ = st.save()
 				st.mu.Unlock()
 				writeJSON(w, 200, map[string]any{"ok": true, "id": e.ID})
@@ -848,6 +869,7 @@ func cmdServe(args []string) {
 				}
 				if found {
 					st.data.Scores = ns
+					st.log("成绩删除", id)
 					_ = st.save()
 				}
 				st.mu.Unlock()
@@ -873,6 +895,22 @@ func cmdServe(args []string) {
 	})
 	mux.HandleFunc("/api/kb/claim", func(w http.ResponseWriter, r *http.Request) {
 		api(w, r, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodDelete { // 清除认领
+				var in struct {
+					Module string `json:"module"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Module == "" {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 module"})
+					return
+				}
+				st.mu.Lock()
+				delete(st.data.KBClaims, in.Module)
+				st.log("清除认领", in.Module)
+				_ = st.save()
+				st.mu.Unlock()
+				writeJSON(w, 200, map[string]any{"ok": true})
+				return
+			}
 			if r.Method != http.MethodPost {
 				writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
 				return
@@ -894,6 +932,7 @@ func cmdServe(args []string) {
 				st.data.KBClaims = map[string]KBClaim{}
 			}
 			st.data.KBClaims[in.Module] = KBClaim{By: in.By, At: time.Now().Unix()}
+			st.log("课标认领", in.Module+" ← "+in.By)
 			_ = st.save()
 			st.mu.Unlock()
 			writeJSON(w, 200, map[string]any{"ok": true})
@@ -926,6 +965,7 @@ func cmdServe(args []string) {
 				}
 			}
 			st.data.Board = kept
+			st.log("留言删除", in.ID)
 			_ = st.save()
 			st.mu.Unlock()
 			writeJSON(w, 200, map[string]any{"ok": true})
@@ -1009,6 +1049,7 @@ func cmdServe(args []string) {
 			}
 			st.mu.Lock()
 			st.data.Notice = strings.TrimSpace(in.Text)
+			st.log("公告更新", "公告内容已更新（"+fmt.Sprintf("%d", len(in.Text))+" 字）")
 			_ = st.save()
 			st.mu.Unlock()
 			writeJSON(w, 200, map[string]any{"ok": true})
@@ -1109,6 +1150,77 @@ func cmdServe(args []string) {
 	}
 	mux.HandleFunc("/api/admin/backups/", backHandler)
 	mux.HandleFunc("/api/admin/backups", backHandler)
+
+	// 操作日志（管理 key）
+	mux.HandleFunc("/api/admin/logs", func(w http.ResponseWriter, r *http.Request) {
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if got != st.data.Key {
+			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
+			return
+		}
+		st.mu.Lock()
+		logs := make([]LogEntry, len(st.data.Logs))
+		copy(logs, st.data.Logs)
+		st.mu.Unlock()
+		for i, j := 0, len(logs)-1; i < j; i, j = i+1, j-1 { // 倒序（新在前）
+			logs[i], logs[j] = logs[j], logs[i]
+		}
+		writeJSON(w, 200, map[string]any{"ok": true, "logs": logs})
+	})
+	// key 轮换（管理 key，旧 key 立即作废）
+	mux.HandleFunc("/api/admin/rotate-key", func(w http.ResponseWriter, r *http.Request) {
+		api(w, r, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+				return
+			}
+			nk := randToken()
+			st.mu.Lock()
+			st.data.Key = nk
+			st.log("key 轮换", "旧 key 已作废，新 key 生效")
+			_ = st.save()
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true, "key": nk})
+		})
+	})
+	// 贡献记录删除（管理 key）
+	mux.HandleFunc("/api/contrib/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/api/contrib/")
+		if id == "" || strings.Contains(id, "/") {
+			writeJSON(w, 404, map[string]any{"ok": false, "error": "not found"})
+			return
+		}
+		api(w, r, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodDelete {
+				writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+				return
+			}
+			st.mu.Lock()
+			found := false
+			nc := st.data.Contribs[:0]
+			for _, c := range st.data.Contribs {
+				if c.ID == id {
+					found = true
+					continue
+				}
+				nc = append(nc, c)
+			}
+			if found {
+				st.data.Contribs = nc
+				st.log("贡献删除", id)
+				_ = st.save()
+			}
+			st.mu.Unlock()
+			if !found {
+				writeJSON(w, 404, map[string]any{"ok": false, "error": "记录不存在"})
+				return
+			}
+			writeJSON(w, 200, map[string]any{"ok": true})
+		})
+	})
 
 	// 迷你 QR 编码器（查看页扫码用）
 	mux.HandleFunc("/qr.js", handleQRJS)
