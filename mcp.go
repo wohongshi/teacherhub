@@ -9,9 +9,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -52,6 +55,9 @@ var mcpTools = []mcpTool{
 	{Name: "rate_workbench", Description: "给产物评分 1-5 星（免 key，每 IP 每产物限一评）。返回最新均分。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"stars":{"type":"integer","description":"1-5 星"}},"required":["id","stars"]}`)},
 	{Name: "list_backups", Description: "列出自动备份快照（需要统一访问 key）。返回名称/大小/时间。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
 	{Name: "list_files", Description: "列出校本资源共享文件（免 key）。返回文件名/大小/上传人/下载数；q 参数按文件名模糊检索。", InputSchema: json.RawMessage(`{"type":"object","properties":{"q":{"type":"string","description":"可选：文件名关键词"}}}`)},
+	{Name: "record_score", Description: "录入一次考试成绩（写操作，需要统一访问 key）。scores 为分数数组（0-150）；questions 可选逐题统计（name/max/avg）。", InputSchema: json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"考试名"},"scores":{"type":"array","items":{"type":"number"},"description":"分数数组"},"questions":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"max":{"type":"number"},"avg":{"type":"number"}}},"description":"可选：逐题统计"}},"required":["name","scores"]}`)},
+	{Name: "get_scores", Description: "列出考试统计（免 key，不含原始分）。返回人数/均分/极值/及格率。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
+	{Name: "get_score_detail", Description: "考试详情（免 key）：分数段分布 + 逐题失分排行（得分率升序）。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"考试 id"}},"required":["id"]}`)},
 }
 
 // mcpText 成功结果包装成 MCP content[] 文本。
@@ -334,6 +340,96 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 			return
 		}
 		reply(mcpText(map[string]any{"ok": true, "already": already, "rate": rate}))
+	case "record_score":
+		if !keyOK() {
+			reply(mcpErr("写操作需要统一访问 key（X-Access-Key 头或 ?key=）"))
+			return
+		}
+		name, _ := args["name"].(string)
+		raw, _ := args["scores"].([]any)
+		name = strings.TrimSpace(name)
+		if name == "" || len(raw) == 0 {
+			reply(mcpErr("缺 name/scores"))
+			return
+		}
+		if len([]rune(name)) > 50 || len(raw) > 500 {
+			reply(mcpErr("name≤50字/scores≤500个"))
+			return
+		}
+		vals := make([]float64, 0, len(raw))
+		for _, v := range raw {
+			fv, ok := v.(float64)
+			if !ok || fv < 0 || fv > 150 {
+				reply(mcpErr("分数须在 0-150"))
+				return
+			}
+			vals = append(vals, fv)
+		}
+		var qs []QuestionStat
+		if rawQ, ok := args["questions"].([]any); ok {
+			if len(rawQ) > 50 {
+				reply(mcpErr("questions ≤50 题"))
+				return
+			}
+			for _, it := range rawQ {
+				m, _ := it.(map[string]any)
+				qn, _ := m["name"].(string)
+				qx, _ := m["max"].(float64)
+				qa, _ := m["avg"].(float64)
+				qn = strings.TrimSpace(qn)
+				if qn == "" || len([]rune(qn)) > 20 || qx <= 0 || qx > 200 || qa < 0 || qa > qx {
+					reply(mcpErr("questions 格式不对（name≤20字, 0≤avg≤max≤200）"))
+					return
+				}
+				qs = append(qs, QuestionStat{Name: qn, Max: qx, Avg: qa})
+			}
+		}
+		e := ScoreExam{ID: "sx_" + randToken()[:12], Name: name, At: time.Now().Unix(), Scores: vals, Questions: qs}
+		st.mu.Lock()
+		st.data.Scores = append(st.data.Scores, e)
+		st.log("成绩录入", fmt.Sprintf("%s（%d 人）", e.Name, len(e.Scores)))
+		_ = st.save()
+		st.mu.Unlock()
+		reply(mcpText(map[string]any{"ok": true, "id": e.ID}))
+	case "get_scores":
+		st.mu.Lock()
+		exams := make([]map[string]any, 0, len(st.data.Scores))
+		for _, e := range st.data.Scores {
+			exams = append(exams, scoreSummary(e))
+		}
+		st.mu.Unlock()
+		reply(mcpText(map[string]any{"ok": true, "exams": exams}))
+	case "get_score_detail":
+		id, _ := args["id"].(string)
+		st.mu.Lock()
+		var out map[string]any
+		for i := range st.data.Scores {
+			if st.data.Scores[i].ID == id {
+				e := st.data.Scores[i]
+				out = scoreSummary(e)
+				out["segments"] = scoreSegments(e.Scores)
+				if len(e.Questions) > 0 {
+					qs := make([]map[string]any, 0, len(e.Questions))
+					for _, q := range e.Questions {
+						rate := 0.0
+						if q.Max > 0 {
+							rate = q.Avg / q.Max * 100
+						}
+						qs = append(qs, map[string]any{"name": q.Name, "max": q.Max, "avg": q.Avg, "rate": math.Round(rate*10) / 10})
+					}
+					sort.Slice(qs, func(a, b int) bool { return qs[a]["rate"].(float64) < qs[b]["rate"].(float64) })
+					out["questions"] = qs
+				}
+				break
+			}
+		}
+		st.mu.Unlock()
+		if out == nil {
+			reply(mcpErr("考试不存在"))
+			return
+		}
+		out["ok"] = true
+		reply(mcpText(out))
 	case "list_files":
 		q, _ := args["q"].(string)
 		q = strings.ToLower(strings.TrimSpace(q))

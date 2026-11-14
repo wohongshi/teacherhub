@@ -223,6 +223,8 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
           <div><label class="lb">考试名 *</label><input class="f" id="sxName" placeholder="如 高三月考一"></div>
           <div><label class="lb">分数列表 *（空格/逗号/换行分隔）</label><input class="f" id="sxScores" placeholder="88 92 76 45 100"></div>
         </div>
+        <label class="lb">题目数据（可选 · 逐题失分分析）</label>
+        <input class="f" id="sxQs" placeholder="格式 题号:满分:均分，分号分隔，如 1:12:9.5; 2:10:6.2; 3:8:3.1">
         <div class="row" style="margin-top:12px">
           <button class="btn primary" id="sxAdd">录入</button>
           <span style="font-size:11.5px;color:var(--ink-300)">分数 0—150，最多 500 个</span>
@@ -493,7 +495,7 @@ function renderSx(){
     var list=d.exams||[];
     $('#sxEmpty').style.display=list.length?'none':'block';
     $('#sxTable').querySelector('tbody').innerHTML=list.slice().reverse().map(function(e){
-      return '<tr><td><b>'+esc(e.name)+'</b></td><td>'+e.count+' 人</td><td>'+e.avg+'</td><td>'+e.max+'</td><td>'+e.min+'</td><td>'+e.pass_rate+'%</td><td>'+fmtTs(e.at)+'</td><td><button class="btn danger sm" data-delsx="'+esc(e.id)+'">删除</button></td></tr>';
+      return '<tr><td><b>'+esc(e.name)+'</b></td><td>'+e.count+' 人</td><td>'+e.avg+'</td><td>'+e.max+'</td><td>'+e.min+'</td><td>'+e.pass_rate+'%</td><td>'+fmtTs(e.at)+'</td><td class="row" style="gap:6px"><a class="btn line sm" href="/api/scores/csv/'+esc(e.id)+'?key='+encodeURIComponent(key())+'">CSV</a><button class="btn danger sm" data-delsx="'+esc(e.id)+'">删除</button></td></tr>';
     }).join('');
   });
 }
@@ -503,8 +505,23 @@ $('#sxAdd').addEventListener('click',function(){
   var arr=txt.split(/[\s,，;；]+/).filter(Boolean).map(Number);
   if(!arr.length||arr.some(function(v){return !isFinite(v)||v<0||v>150})){toast('分数须为 0-150 数字');return}
   if(arr.length>500){toast('最多 500 个');return}
-  jsend('POST','/api/scores',{name:name,scores:arr}).then(function(d){
-    if(d.ok){toast('已录入 '+arr.length+' 个分数');$('#sxName').value='';$('#sxScores').value='';renderSx();renderLogs()}
+  var qs=[];
+  var qtxt=($('#sxQs').value||'').trim();
+  if(qtxt){
+    var bad=false;
+    qtxt.split(/[;；]+/).forEach(function(part){
+      var t=part.trim();if(!t)return;
+      var p=t.split(':');
+      if(p.length!==3||!p[0].trim()){bad=true;return}
+      var mx=Number(p[1]),av=Number(p[2]);
+      if(!isFinite(mx)||!isFinite(av)||mx<=0||av<0||av>mx){bad=true;return}
+      qs.push({name:p[0].trim(),max:mx,avg:av});
+    });
+    if(bad){toast('题目格式不对（题号:满分:均分）');return}
+    if(qs.length>50){toast('题目最多 50 题');return}
+  }
+  jsend('POST','/api/scores',{name:name,scores:arr,questions:qs}).then(function(d){
+    if(d.ok){toast('已录入 '+arr.length+' 个分数'+(qs.length?'（含 '+qs.length+' 题统计）':''));$('#sxName').value='';$('#sxScores').value='';$('#sxQs').value='';renderSx();renderLogs()}
     else{toast(d.error||'失败')}
   });
 });

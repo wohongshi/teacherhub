@@ -57,10 +57,11 @@ type Workbench struct {
 
 // ScoreExam 一次考试成绩（原始分数组，仅进统计不公开原分）。
 type ScoreExam struct {
-	ID     string    `json:"id"`
-	Name   string    `json:"name"`
-	At     int64     `json:"at"`
-	Scores []float64 `json:"scores"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	At        int64          `json:"at"`
+	Scores    []float64      `json:"scores"`
+	Questions []QuestionStat `json:"questions,omitempty"`
 }
 
 // FileRec 校本资源文件元数据（磁盘名用 id，展示名净化后存元数据）。
@@ -105,6 +106,13 @@ type LogEntry struct {
 type KBClaim struct {
 	By string `json:"by"`
 	At int64  `json:"at"`
+}
+
+// QuestionStat 单题统计（得分率 = Avg/Max，用于失分排行）。
+type QuestionStat struct {
+	Name string  `json:"name"`
+	Max  float64 `json:"max"`
+	Avg  float64 `json:"avg"`
 }
 
 // scoreSummary 成绩统计视图（不含原始分）。
@@ -902,8 +910,13 @@ func cmdServe(args []string) {
 		case http.MethodPost: // 录入（key）
 			api(w, r, func(w http.ResponseWriter, r *http.Request) {
 				var in struct {
-					Name   string    `json:"name"`
-					Scores []float64 `json:"scores"`
+					Name      string    `json:"name"`
+					Scores    []float64 `json:"scores"`
+					Questions []struct {
+						Name string  `json:"name"`
+						Max  float64 `json:"max"`
+						Avg  float64 `json:"avg"`
+					} `json:"questions"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Name == "" || len(in.Scores) == 0 {
 					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 name/scores"})
@@ -919,7 +932,20 @@ func cmdServe(args []string) {
 						return
 					}
 				}
-				e := ScoreExam{ID: "sx_" + randToken()[:12], Name: in.Name, At: time.Now().Unix(), Scores: in.Scores}
+				var qs []QuestionStat
+				if len(in.Questions) > 50 {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "questions ≤50 题"})
+					return
+				}
+				for _, q := range in.Questions {
+					q.Name = strings.TrimSpace(q.Name)
+					if q.Name == "" || len([]rune(q.Name)) > 20 || q.Max <= 0 || q.Max > 200 || q.Avg < 0 || q.Avg > q.Max {
+						writeJSON(w, 400, map[string]any{"ok": false, "error": "questions 格式不对（name≤20字, 0≤avg≤max≤200）"})
+						return
+					}
+					qs = append(qs, QuestionStat{Name: q.Name, Max: q.Max, Avg: q.Avg})
+				}
+				e := ScoreExam{ID: "sx_" + randToken()[:12], Name: in.Name, At: time.Now().Unix(), Scores: in.Scores, Questions: qs}
 				st.mu.Lock()
 				st.data.Scores = append(st.data.Scores, e)
 				st.log("成绩录入", fmt.Sprintf("%s（%d 人）", e.Name, len(e.Scores)))
@@ -951,6 +977,18 @@ func cmdServe(args []string) {
 			if found != nil {
 				out = scoreSummary(*found)
 				out["segments"] = scoreSegments(found.Scores)
+				if len(found.Questions) > 0 {
+					qs := make([]map[string]any, 0, len(found.Questions))
+					for _, q := range found.Questions {
+						rate := 0.0
+						if q.Max > 0 {
+							rate = math.Round(q.Avg/q.Max*1000) / 10
+						}
+						qs = append(qs, map[string]any{"name": q.Name, "max": q.Max, "avg": q.Avg, "rate": rate})
+					}
+					sort.Slice(qs, func(i, j int) bool { return qs[i]["rate"].(float64) < qs[j]["rate"].(float64) })
+					out["questions"] = qs
+				}
 			}
 			st.mu.Unlock()
 			if found == nil {
@@ -987,6 +1025,54 @@ func cmdServe(args []string) {
 			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
 		}
 	})
+	// 成绩 CSV 导出（管理 key：含原始分，仅管理用途）
+	mux.HandleFunc("/api/scores/csv/", func(w http.ResponseWriter, r *http.Request) {
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if got != st.data.Key {
+			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
+			return
+		}
+		id := strings.TrimPrefix(r.URL.Path, "/api/scores/csv/")
+		st.mu.Lock()
+		var found *ScoreExam
+		for i := range st.data.Scores {
+			if st.data.Scores[i].ID == id {
+				found = &st.data.Scores[i]
+				break
+			}
+		}
+		var buf strings.Builder
+		fname := ""
+		if found != nil {
+			fname = found.Name
+			buf.WriteString("\xEF\xBB\xBF") // BOM 中文兼容
+			buf.WriteString("成绩,人数,均分,最高,最低,及格率\r\n")
+			su := scoreSummary(*found)
+			buf.WriteString(fmt.Sprintf("%s,%d,%v,%v,%v,%v%%\r\n\r\n", found.Name, su["count"], su["avg"], su["max"], su["min"], su["pass_rate"]))
+			buf.WriteString("序号,分数\r\n")
+			for i, v := range found.Scores {
+				buf.WriteString(fmt.Sprintf("%d,%g\r\n", i+1, v))
+			}
+			if len(found.Questions) > 0 {
+				buf.WriteString("\r\n题号,满分,平均分,得分率\r\n")
+				for _, q := range found.Questions {
+					buf.WriteString(fmt.Sprintf("%s,%g,%g,%.1f%%\r\n", q.Name, q.Max, q.Avg, q.Avg/q.Max*100))
+				}
+			}
+		}
+		st.mu.Unlock()
+		if found == nil {
+			writeJSON(w, 404, map[string]any{"ok": false, "error": "考试不存在"})
+			return
+		}
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": fname + ".csv"}))
+		_, _ = w.Write([]byte(buf.String()))
+	})
+
 	// 课标认领：读免 key、写留 key
 	mux.HandleFunc("/api/kb", func(w http.ResponseWriter, r *http.Request) {
 		st.mu.Lock()

@@ -718,7 +718,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       </div>
       <div class="cols">
         <div class="col-l"><div class="card"><div class="card-head"><div><div class="card-title">教师贡献分布</div><div class="card-sub">资源份数</div></div></div><div id="dataTeachers"></div></div></div>
-        <div class="col-r"><div class="card"><div class="card-head"><div><div class="card-title">说明</div></div></div>
+        <div class="col-r">
+          <div class="card"><div class="card-head"><div><div class="card-title">热门资源</div><div class="card-sub">下载与浏览排行</div></div></div><div id="dataHot"></div></div>
+          <div class="card"><div class="card-head"><div><div class="card-title">说明</div></div></div>
           <div class="todo">浏览/下载/今日访问为真实统计</div>
           <div class="todo">成绩类数据待上传后自动生成分析</div>
           <div class="todo">统计每天零点归档，趋势随使用自然生长</div>
@@ -752,6 +754,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="card section">
         <div class="card-head"><div><div class="card-title">分数段分布</div><div class="card-sub" id="scoreBarsSub">10 分一档</div></div></div>
         <div id="scoreBars"></div>
+      </div>
+      <div class="card section" id="qCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">题目失分排行</div><div class="card-sub">得分率越低失分越重 · 点击题号看教学建议</div></div></div>
+        <div class="tbl-wrap"><table class="tbl" id="qTable">
+          <thead><tr><th>题号</th><th>满分</th><th>均分</th><th>得分率</th><th style="min-width:180px">失分程度</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
       </div>
       <div class="cols">
         <div class="col-l">
@@ -1230,6 +1239,17 @@ function renderScore(){
   // 分数段柱状图
   if(cur&&cur.id){
     jget("/api/scores/"+cur.id).then(d=>{
+      // 题目失分排行
+      const qs=d.questions||[];
+      if(qs.length){
+        $("#qCard").style.display="block";
+        $("#qTable").querySelector("tbody").innerHTML=qs.map(q=>{
+          const r=q.rate,sev=r<50?"r":(r<70?"y":"g");
+          return `<tr><td><b>${esc(q.name)}</b></td><td>${q.max}</td><td>${q.avg}</td>
+            <td><span class="tag ${sev}">${r}%</span></td>
+            <td><div class="bar" style="height:9px"><i style="width:${r}%;background:${r<50?'#C2453F':(r<70?'#E5A93F':'#4E9A63')}"></i></div></td></tr>`;
+        }).join("");
+      }else{$("#qCard").style.display="none"}
       const segs=d.segments||[];
       const mx=Math.max(1,...segs.map(s2=>s2.n));
       const W=680,H=170,bw=Math.min(52,(W-40)/segs.length-8);
@@ -1329,6 +1349,15 @@ function renderData(){
     $("#dataSpark").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px"><path d="${path}" stroke="#4E9A63" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="${path} L${W} ${H} L0 ${H}Z" fill="#8FC79B" opacity=".16"/>${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="#2F6B45"><title>${esc(p[3]||"")}: ${p[2]}</title></circle>`).join("")}</svg>`;
   }else{$("#dataSpark").innerHTML=`<div class="empty-state" style="padding:20px 0">数据还在慢慢反应（至少积累 2 天）</div>`}
   renderGrow();
+  // 热门资源
+  const hotFiles=[...FILES].sort((a,b)=>(b.downloads||0)-(a.downloads||0)).filter(x=>(x.downloads||0)>0).slice(0,5);
+  const hotWbs=[...WBS].filter(w=>!w.hidden).sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,5);
+  const hotBox=$("#dataHot");
+  if(hotBox){
+    hotBox.innerHTML=(hotFiles.length?`<div style="font-size:12px;font-weight:600;color:var(--ink-900);margin:2px 0 8px">🔥 热门下载</div>`+hotFiles.map((x,i)=>`<div class="rank-row"><div class="rank-badge" style="background:${i===0?'#E5A93F':'#A8B2A9'}">${i+1}</div><div class="rank-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</div><div class="rank-num"><b>${x.downloads}</b> 次</div></div>`).join(""):"")
+      +(hotWbs.length?`<div style="font-size:12px;font-weight:600;color:var(--ink-900);margin:14px 0 8px">👁 热门实验</div>`+hotWbs.map((w,i)=>`<div class="rank-row"><div class="rank-badge" style="background:${i===0?'#E5A93F':'#A8B2A9'}">${i+1}</div><div class="rank-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="/w/${encodeURIComponent(w.id)}">${esc(w.title)}</a></div><div class="rank-num"><b>${w.views||0}</b> 次</div></div>`).join(""):"")
+      ||`<div class="empty-state" style="padding:16px 0"><div style="font-size:12.5px">数据积累中——有人下载/浏览后这里会出现排行</div></div>`;
+  }
   const byT=teacherMap();
   $("#dataTeachers").innerHTML=Object.entries(byT).sort((a,b)=>b[1].count-a[1].count).map(([n,v])=>{
     const c=v.count||0;

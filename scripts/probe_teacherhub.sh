@@ -110,7 +110,7 @@ curl -s "$BASE/" | grep -q 'class="lab-toolbar"' && curl -s "$BASE/" | grep -q '
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==14 and {'rate_workbench','list_backups','list_files'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十四件（含评分/备份/文件）" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==17 and {'record_score','get_scores','get_score_detail','list_files'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十七件（含成绩/文件）" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -251,6 +251,23 @@ curl -s -X POST "$BASE/api/admin/backup" -H "X-Access-Key: $KEY" -H 'Content-Typ
 curl -s -X POST "$BASE/api/admin/backup" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' >/dev/null
 BN2=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;bs=json.load(sys.stdin)['backups'];print(len(bs),len({b['name'] for b in bs}))" 2>/dev/null)
 [ "$BN2" = "$((BN1+2)) $((BN1+2))" ] && ok "连续备份不撞名（纳秒唯一）" || bad "备份撞名（$BN1 → $BN2）"
+# ---- 成绩失分/CSV/MCP 成绩工具断言 ----
+QSX=$(curl -s -X POST "$BASE/api/scores?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"name":"失分测试","scores":[88,45],"questions":[{"name":"1","max":12,"avg":9.5},{"name":"2","max":10,"avg":6.2},{"name":"3","max":8,"avg":3.1}]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+[ -n "$QSX" ] && ok "逐题统计录入（key）" || bad "逐题录入"
+curl -s "$BASE/api/scores/$QSX" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+qs=d.get('questions',[])
+assert [q['rate'] for q in qs]==[38.8,62.0,79.2], qs" 2>/dev/null && ok "失分排行（升序+rate 精确 38.8/62/79.2）" || bad "失分排行"
+curl -s -X POST "$BASE/api/scores?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"name":"x","scores":[50],"questions":[{"name":"1","max":5,"avg":9}]}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "questions 越界拒绝（avg>max）" || bad "questions 边界"
+curl -s "$BASE/api/scores/csv/$QSX" -o /dev/null -w '%{http_code}' | grep -q 401 && curl -s -H "X-Access-Key: $KEY" "$BASE/api/scores/csv/$QSX" | grep -q '得分率' && ok "CSV 导出（401/含逐题段）" || bad "CSV"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_score_detail","arguments":{"id":"'$QSX'"}}}' | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+r=json.loads(d['result']['content'][0]['text'])
+assert r.get('ok')==True and [q['rate'] for q in r['questions']]==[38.8,62.0,79.2], r" 2>/dev/null && ok "MCP get_score_detail（失分排行）" || bad "MCP 详情"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"x","scores":[50]}}}' | python3 -c "import json,sys;assert json.load(sys.stdin)['result'].get('isError')==True" 2>/dev/null && curl -s -X POST "$BASE/mcp?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"MCP录","scores":[70]}}}' | python3 -c "import json,sys;import json as j;r=j.loads(json.load(sys.stdin)['result']['content'][0]['text']);assert r.get('ok')==True" 2>/dev/null && ok "MCP record_score（无 key 拒/带 key 成）" || bad "MCP record"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":10,"method":"tools/list"}' | python3 -c "import json,sys;ns={t['name'] for t in json.load(sys.stdin)['result']['tools']};assert len(ns)==17 and {'record_score','get_scores','get_score_detail'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十七件（含成绩三件）" || bad "MCP 清单"
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"
