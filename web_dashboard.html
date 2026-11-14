@@ -628,6 +628,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <div style="font-size:13px;color:var(--ink-700)">把文件拖到这里，或 <label for="upFile" style="color:var(--green-700);font-weight:600;cursor:pointer">点击选择</label></div>
           <div style="font-size:11px;color:var(--ink-300);margin-top:4px">支持课件 / 试卷 / 学案 / 图片 / 压缩包等</div>
           <input type="file" id="upFile" style="display:none">
+          <input type="file" id="upCam" accept="image/*" capture="environment" style="display:none">
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn-line" id="camBtn" style="height:42px">📷 拍照上传</button>
+          <span style="font-size:11.5px;color:var(--ink-300);align-self:center">手机拍试卷/板书/实验现象，直接传</span>
         </div>
         <div class="row" style="margin-top:12px">
           <input class="f" id="upTeacher" placeholder="你的署名（可选）" style="flex:1;min-width:160px;height:42px">
@@ -1145,6 +1150,15 @@ upDrop.addEventListener("drop",e=>{
   const fs=e.dataTransfer&&e.dataTransfer.files;
   if(fs&&fs.length){upFile.files=fs;$("#upStatus").textContent="已选： "+fs[0].name+"（"+fmtSize(fs[0].size)+"）"}
 });
+$("#camBtn").addEventListener("click",()=>{$("#upCam").click()});
+$("#upCam").addEventListener("change",()=>{
+  const fs=$("#upCam").files;
+  if(fs&&fs.length){
+    const dt=new DataTransfer();dt.items.add(fs[0]);
+    $("#upFile").files=dt.files;
+    $("#upStatus").textContent="已拍照： "+fs[0].name+"（"+fmtSize(fs[0].size)+"）";
+  }
+});
 $("#upGo").addEventListener("click",()=>{
   const file=upFile.files[0];
   if(!file){$("#upStatus").textContent="先选一个文件";return}
@@ -1300,7 +1314,7 @@ $("#kbSubmit").addEventListener("click",async()=>{
 function renderData(){
   const t=(STATS&&STATS.totals)||{};
   const minis=[
-    ["总浏览",t.views||0],["总下载",t.downloads||0],["今日访问",t.today_views||0],["留言",t.board_msgs||0]
+    ["总浏览",t.views||0],["总下载",t.downloads||0],["今日访问",t.today_views||0],["留言",t.board_msgs||0],["共享文件",FILES.length]
   ];
   $("#dataMinis").innerHTML=minis.map(([l,n])=>`<div class="mini"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
   const daily=dailyArr();

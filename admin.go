@@ -301,6 +301,10 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
       <p class="sub">自动快照与全量导出。</p>
       <div class="card">
         <h3>自动备份快照（每 24h 轮转 7 份）</h3>
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn primary" id="backupNow">⚡ 立即备份</button>
+          <span style="font-size:11.5px;color:var(--ink-300)">含数据 + 产物 + 共享文件</span>
+        </div>
         <div id="backupList"></div>
       </div>
       <div class="card">
@@ -581,6 +585,14 @@ function renderBackups(){
     }).join('');
   });
 }
+
+$('#backupNow').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='备份中…';
+  jsend('POST','/api/admin/backup').then(function(d){
+    btn.disabled=false;btn.textContent='⚡ 立即备份';
+    if(d.ok){toast('快照已生成');renderBackups();renderLogs()}else{toast(d.error||'备份失败')}
+  });
+});
 
 /* ===== 操作日志 ===== */
 function renderLogs(){

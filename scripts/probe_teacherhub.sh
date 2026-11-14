@@ -230,6 +230,17 @@ import json,sys
 d=json.load(sys.stdin)
 r=json.loads(d['result']['content'][0]['text'])
 assert r.get('ok')==True and isinstance(r.get('files'),list), r" 2>/dev/null && ok "MCP list_files（免 key）" || bad "MCP list_files"
+# ---- 优化轮续断言（manifest/feed 文件事件/手动备份）----
+curl -s "$BASE/manifest.webmanifest" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+assert d['name']=='化学学科园地' and d['theme_color']=='#2F6B45', d" 2>/dev/null && ok "PWA manifest 化学园地化" || bad "manifest"
+curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=feed验证.txt" -F "teacher=探针" >/dev/null
+curl -s "$BASE/feed.xml" | grep -q '共享文件：feed验证.txt' && curl -s "$BASE/feed.xml" | grep -q '化学学科园地' && ok "RSS 含文件事件（园地标题）" || bad "RSS 文件事件"
+curl -s -X POST "$BASE/api/admin/backup" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+assert d.get('ok')==True and len(d.get('backups',[]))>=2, d" 2>/dev/null && curl -s -X POST "$BASE/api/admin/backup" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "手动备份（key 门 + 快照生成）" || bad "手动备份"
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"

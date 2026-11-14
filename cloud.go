@@ -273,47 +273,49 @@ func withGzip(next http.Handler) http.Handler {
 	})
 }
 
-// autoBackup 启动时与每 24h 自动快照（zip：store.json + artifacts + files，轮转留 7 份）。
-func autoBackup(st *cloudStore) {
-	do := func() {
-		bdir := filepath.Join(st.dir, "backups")
-		_ = os.MkdirAll(bdir, 0o755)
-		f, err := os.Create(filepath.Join(bdir, fmt.Sprintf("backup-%d.zip", time.Now().Unix())))
-		if err != nil {
-			return
-		}
-		zw := zip.NewWriter(f)
-		add := func(n, p string) {
-			if b, err := os.ReadFile(p); err == nil {
-				if fw, err := zw.Create(n); err == nil {
-					_, _ = fw.Write(b)
-				}
-			}
-		}
-		add("store.json", filepath.Join(st.dir, "store.json"))
-		for _, sub := range []string{"artifacts", "files"} { // files：校本资源文件一并入包
-			_ = filepath.WalkDir(filepath.Join(st.dir, sub), func(path string, d fs.DirEntry, err error) error {
-				if err != nil || d.IsDir() {
-					return nil
-				}
-				rel, _ := filepath.Rel(st.dir, path)
-				add(filepath.ToSlash(rel), path)
-				return nil
-			})
-		}
-		_ = zw.Close()
-		_ = f.Close()
-		if entries, err := os.ReadDir(bdir); err == nil && len(entries) > 7 {
-			sort.Slice(entries, func(a, b int) bool { return entries[a].Name() < entries[b].Name() })
-			for _, e := range entries[:len(entries)-7] {
-				_ = os.Remove(filepath.Join(bdir, e.Name()))
+// doBackup 立即生成一份快照 zip（store.json + artifacts + files，轮转留 7 份）。
+func doBackup(st *cloudStore) {
+	bdir := filepath.Join(st.dir, "backups")
+	_ = os.MkdirAll(bdir, 0o755)
+	f, err := os.Create(filepath.Join(bdir, fmt.Sprintf("backup-%d.zip", time.Now().Unix())))
+	if err != nil {
+		return
+	}
+	zw := zip.NewWriter(f)
+	add := func(n, p string) {
+		if b, err := os.ReadFile(p); err == nil {
+			if fw, err := zw.Create(n); err == nil {
+				_, _ = fw.Write(b)
 			}
 		}
 	}
-	do()
+	add("store.json", filepath.Join(st.dir, "store.json"))
+	for _, sub := range []string{"artifacts", "files"} { // files：校本资源文件一并入包
+		_ = filepath.WalkDir(filepath.Join(st.dir, sub), func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			rel, _ := filepath.Rel(st.dir, path)
+			add(filepath.ToSlash(rel), path)
+			return nil
+		})
+	}
+	_ = zw.Close()
+	_ = f.Close()
+	if entries, err := os.ReadDir(bdir); err == nil && len(entries) > 7 {
+		sort.Slice(entries, func(a, b int) bool { return entries[a].Name() < entries[b].Name() })
+		for _, e := range entries[:len(entries)-7] {
+			_ = os.Remove(filepath.Join(bdir, e.Name()))
+		}
+	}
+}
+
+// autoBackup 启动时与每 24h 自动快照。
+func autoBackup(st *cloudStore) {
+	doBackup(st)
 	go func() {
 		for range time.Tick(24 * time.Hour) {
-			do()
+			doBackup(st)
 		}
 	}()
 }
@@ -1194,9 +1196,20 @@ func cmdServe(args []string) {
 		}
 		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
 		var b strings.Builder
-		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>教研工作台 · 新产物</title><link>` + base + `/</link><description>教研工作台产物库更新订阅</description>`)
+		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>化学学科园地 · 动态</title><link>` + base + `/</link><description>产物与共享文件更新订阅</description>`)
 		for _, wb := range list {
 			b.WriteString(`<item><title>` + html.EscapeString(wb.Title) + `</title><link>` + base + `/w/` + wb.ID + `</link><pubDate>` + time.Unix(wb.CreatedAt, 0).Format(time.RFC1123Z) + `</pubDate><description>` + html.EscapeString(wb.Desc) + `</description></item>`)
+		}
+		st.mu.Lock()
+		files := make([]FileRec, len(st.data.Files))
+		copy(files, st.data.Files)
+		st.mu.Unlock()
+		sort.Slice(files, func(i, j int) bool { return files[i].At > files[j].At })
+		if len(files) > 20 {
+			files = files[:20]
+		}
+		for _, fl := range files {
+			b.WriteString(`<item><title>共享文件：` + html.EscapeString(fl.Name) + `</title><link>` + base + `/api/files/` + fl.ID + `</link><pubDate>` + time.Unix(fl.At, 0).Format(time.RFC1123Z) + `</pubDate><description>` + html.EscapeString(fl.Teacher) + ` 上传（点击下载）</description></item>`)
 		}
 		b.WriteString(`</channel></rss>`)
 		_, _ = w.Write([]byte(b.String()))
@@ -1228,6 +1241,22 @@ func cmdServe(args []string) {
 	}
 	mux.HandleFunc("/api/admin/backups/", backHandler)
 	mux.HandleFunc("/api/admin/backups", backHandler)
+
+	// 立即备份（管理 key）
+	mux.HandleFunc("/api/admin/backup", func(w http.ResponseWriter, r *http.Request) {
+		api(w, r, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+				return
+			}
+			doBackup(st)
+			st.mu.Lock()
+			st.log("手动备份", "生成快照 zip")
+			_ = st.save()
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true, "backups": listBackups(st)})
+		})
+	})
 
 	// 操作日志（管理 key）
 	mux.HandleFunc("/api/admin/logs", func(w http.ResponseWriter, r *http.Request) {
@@ -1452,12 +1481,12 @@ func cmdServe(args []string) {
 	// PWA：manifest + sw + 图标（手机可"添加到主屏幕"）
 	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/manifest+json; charset=utf-8")
-		_, _ = w.Write([]byte(`{"name":"教研工作台","short_name":"教研台","start_url":"/","display":"standalone","theme_color":"#15616d","background_color":"#f4f2ec","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}`))
+		_, _ = w.Write([]byte(`{"name":"化学学科园地","short_name":"学科园地","description":"化学教研组的课标、真题、实验与资源共享园地","start_url":"/","display":"standalone","theme_color":"#2F6B45","background_color":"#F7F9F6","icons":[{"src":"/icon.svg?v=2","sizes":"any","type":"image/svg+xml","purpose":"any"}]}`))
 	})
 	mux.HandleFunc("/icon.svg", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/svg+xml")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="22" fill="#15616d"/><path d="M24 30c8-4 16-4 24 0v40c-8-4-16-4-24 0V30z" fill="#fff"/><path d="M72 30c-8-4-16-4-24 0v40c8-4 16-4 24 0V30z" fill="#bfe0e4"/><circle cx="48" cy="22" r="5" fill="#e8a33d"/></svg>`))
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="22" fill="#E3F0E4"/><rect x="3" y="3" width="90" height="90" rx="19" fill="none" stroke="#2F6B45" stroke-width="3"/><path d="M39 20h18M43 20v20L30 66a8 8 0 0 0 7 12h22a8 8 0 0 0 7-12L53 40V20" stroke="#2F6B45" stroke-width="5.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 58h28" stroke="#2F6B45" stroke-width="4.5" stroke-linecap="round"/><path d="M64 44c7-1 11-6 12-13-7 .5-11.5 5-12 13z" fill="#4E9A63"/><circle cx="48" cy="13" r="3.5" fill="#E5A93F"/></svg>`))
 	})
 	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
