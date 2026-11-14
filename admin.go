@@ -190,6 +190,14 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <div class="empty" id="wbEmpty" style="display:none">还没有产物——用下面的表单或让 AI 生成</div>
       </div>
       <div class="card">
+        <h3>资源文件</h3>
+        <div class="tbl-wrap"><table class="tbl" id="fileTable">
+          <thead><tr><th>文件名</th><th>大小</th><th>上传人</th><th>下载</th><th>时间</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <div class="empty" id="fileEmpty" style="display:none">暂无共享文件</div>
+      </div>
+      <div class="card">
         <h3>新建产物</h3>
         <div class="form-grid">
           <div><label class="lb">标题 *</label><input class="f" id="nwTitle" placeholder="如 钠与水反应实验工作台"></div>
@@ -457,6 +465,24 @@ $('#nwCreate').addEventListener('click',function(){
   });
 });
 
+/* ===== 资源文件管理 ===== */
+function renderFilesAdmin(){
+  jget('/api/files').then(function(d){
+    var list=d.files||[];
+    $('#fileEmpty').style.display=list.length?'none':'block';
+    $('#fileTable').querySelector('tbody').innerHTML=list.map(function(x){
+      var sz=x.size<1048576?((x.size||0)/1024).toFixed(1)+' KB':((x.size||0)/1048576).toFixed(2)+' MB';
+      return '<tr><td><a href="/api/files/'+encodeURIComponent(x.id)+'">'+esc(x.name)+'</a></td><td>'+sz+'</td><td>'+esc(x.teacher||'匿名')+'</td><td>'+(x.downloads||0)+'</td><td>'+fmtTs(x.at)+'</td><td><button class="btn danger sm" data-delfile="'+esc(x.id)+'">删除</button></td></tr>';
+    }).join('');
+  });
+}
+$('#fileTable').addEventListener('click',function(e){
+  var b=e.target.closest('[data-delfile]');
+  if(!b)return;
+  if(!confirm('删除这个文件？'))return;
+  jsend('DELETE','/api/files/'+b.dataset.delfile).then(function(d){if(d.ok){toast('已删除');renderFilesAdmin();renderLogs()}else{toast(d.error||'失败')}});
+});
+
 /* ===== 成绩管理 ===== */
 function renderSx(){
   jget('/api/scores').then(function(d){
@@ -569,7 +595,7 @@ function renderLogs(){
 
 /* ===== 启动 ===== */
 function boot(){
-  renderHome();renderWb();renderSx();renderKb();renderSocial();renderBackups();renderLogs();
+  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();
 }
 </script>
 </body>

@@ -12,9 +12,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"io/fs"
 	"log"
 	"math"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -58,6 +60,37 @@ type ScoreExam struct {
 	Name   string    `json:"name"`
 	At     int64     `json:"at"`
 	Scores []float64 `json:"scores"`
+}
+
+// FileRec 校本资源文件元数据（磁盘名用 id，展示名净化后存元数据）。
+type FileRec struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Size      int64  `json:"size"`
+	Teacher   string `json:"teacher"`
+	At        int64  `json:"at"`
+	Downloads int    `json:"downloads"`
+}
+
+// sanitizeFileName 文件名净化：拦路径分隔符与控制字符（点号是合法字符不拦）。
+func sanitizeFileName(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "\\", "_")
+	s = strings.ReplaceAll(s, "/", "_")
+	s = strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, s)
+	s = strings.TrimSpace(s)
+	if s == "" || s == "." || s == ".." {
+		s = "file"
+	}
+	if rs := []rune(s); len(rs) > 120 {
+		s = string(rs[:120])
+	}
+	return s
 }
 
 // LogEntry 管理操作日志。
@@ -144,16 +177,21 @@ type cloudStore struct {
 		Scores      []ScoreExam        `json:"scores,omitempty"`
 		KBClaims    map[string]KBClaim `json:"kb_claims,omitempty"`
 		Logs        []LogEntry         `json:"logs,omitempty"`
+		Files       []FileRec          `json:"files,omitempty"`
 	}
-	boardLast  map[string]int64 // IP → 上次留言时间（内存限速）
-	boardLikes map[string]bool  // ip|msgID → 已赞
+	boardLast  map[string]int64   // IP → 上次留言时间（内存限速）
+	boardLikes map[string]bool    // ip|msgID → 已赞
+	fileQuota  map[string][]int64 // IP → 上传时间戳列表（每小时 10 个限速）
 }
 
 func openStore(dir, key string) (*cloudStore, error) {
+	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o755); err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(filepath.Join(dir, "artifacts"), 0o755); err != nil {
 		return nil, err
 	}
-	s := &cloudStore{dir: dir, boardLast: map[string]int64{}, boardLikes: map[string]bool{}}
+	s := &cloudStore{dir: dir, boardLast: map[string]int64{}, boardLikes: map[string]bool{}, fileQuota: map[string][]int64{}}
 	b, err := os.ReadFile(filepath.Join(dir, "store.json"))
 	if err == nil {
 		_ = json.Unmarshal(b, &s.data)
@@ -1186,6 +1224,152 @@ func cmdServe(args []string) {
 			writeJSON(w, 200, map[string]any{"ok": true, "key": nk})
 		})
 	})
+	// 校本资源文件：列表免 key、上传免 key 限速、下载免 key、删除留 key
+	mux.HandleFunc("/api/files", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet: // 列表（倒序）
+			st.mu.Lock()
+			files := make([]FileRec, len(st.data.Files))
+			copy(files, st.data.Files)
+			st.mu.Unlock()
+			for i, j := 0, len(files)-1; i < j; i, j = i+1, j-1 {
+				files[i], files[j] = files[j], files[i]
+			}
+			writeJSON(w, 200, map[string]any{"ok": true, "files": files})
+		case http.MethodPost: // 上传（免 key，署名 + 限速 + 大小限制）
+			ip := clientIP(r)
+			now := time.Now().Unix()
+			st.mu.Lock()
+			if st.fileQuota == nil {
+				st.fileQuota = map[string][]int64{}
+			}
+			q := append(st.fileQuota[ip], now)
+			kept := q[:0]
+			for _, t := range q {
+				if now-t < 3600 {
+					kept = append(kept, t)
+				}
+			}
+			if len(kept) > 10 {
+				st.fileQuota[ip] = kept
+				st.mu.Unlock()
+				writeJSON(w, 429, map[string]any{"ok": false, "error": "上传太频繁（每小时 10 个）"})
+				return
+			}
+			st.fileQuota[ip] = kept
+			if len(st.fileQuota) > 20000 {
+				st.fileQuota = map[string][]int64{ip: kept}
+			}
+			st.mu.Unlock()
+
+			r.Body = http.MaxBytesReader(w, r.Body, 50<<20) // 单文件 ≤50MB
+			if err := r.ParseMultipartForm(50 << 20); err != nil {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "文件过大或格式不对（≤50MB）"})
+				return
+			}
+			fh, hdr, err := r.FormFile("file")
+			if err != nil {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 file 字段"})
+				return
+			}
+			defer fh.Close()
+			teacher := strings.TrimSpace(r.FormValue("teacher"))
+			if teacher == "" {
+				teacher = "匿名"
+			}
+			if len([]rune(teacher)) > 20 {
+				teacher = string([]rune(teacher)[:20])
+			}
+			name := sanitizeFileName(hdr.Filename)
+			id := "fx_" + randToken()[:12]
+			dst, err := os.Create(filepath.Join(st.dir, "files", id))
+			if err != nil {
+				writeJSON(w, 500, map[string]any{"ok": false, "error": "存储失败"})
+				return
+			}
+			n, err := io.Copy(dst, fh)
+			dst.Close()
+			if err != nil {
+				_ = os.Remove(filepath.Join(st.dir, "files", id))
+				writeJSON(w, 500, map[string]any{"ok": false, "error": "写入失败"})
+				return
+			}
+			rec := FileRec{ID: id, Name: name, Size: n, Teacher: teacher, At: now}
+			st.mu.Lock()
+			st.data.Files = append(st.data.Files, rec)
+			st.log("文件上传", name+"（"+teacher+"）")
+			_ = st.save()
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true, "id": id, "name": name, "size": n})
+		default:
+			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+		}
+	})
+	mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/api/files/")
+		if id == "" || strings.Contains(id, "/") {
+			writeJSON(w, 404, map[string]any{"ok": false, "error": "not found"})
+			return
+		}
+		switch r.Method {
+		case http.MethodGet: // 下载（免 key；attachment + nosniff 防内容嗅探渲染）
+			st.mu.Lock()
+			var rec *FileRec
+			for i := range st.data.Files {
+				if st.data.Files[i].ID == id {
+					rec = &st.data.Files[i]
+					break
+				}
+			}
+			if rec != nil {
+				rec.Downloads++
+				_ = st.save()
+			}
+			var fname string
+			if rec != nil {
+				fname = rec.Name
+			}
+			st.mu.Unlock()
+			if rec == nil {
+				writeJSON(w, 404, map[string]any{"ok": false, "error": "文件不存在"})
+				return
+			}
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": fname}))
+			http.ServeFile(w, r, filepath.Join(st.dir, "files", id))
+		case http.MethodDelete: // 删除（管理 key）
+			api(w, r, func(w http.ResponseWriter, r *http.Request) {
+				st.mu.Lock()
+				found := false
+				nf := st.data.Files[:0]
+				var fname string
+				for _, fl := range st.data.Files {
+					if fl.ID == id {
+						found = true
+						fname = fl.Name
+						continue
+					}
+					nf = append(nf, fl)
+				}
+				if found {
+					st.data.Files = nf
+					st.log("文件删除", fname)
+					_ = st.save()
+				}
+				st.mu.Unlock()
+				if !found {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "文件不存在"})
+					return
+				}
+				_ = os.Remove(filepath.Join(st.dir, "files", id))
+				writeJSON(w, 200, map[string]any{"ok": true})
+			})
+		default:
+			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+		}
+	})
+
 	// 贡献记录删除（管理 key）
 	mux.HandleFunc("/api/contrib/", func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/api/contrib/")

@@ -203,6 +203,21 @@ assert '成绩录入' in ops and '课标认领' in ops and '成绩删除' in ops
 CG=$(curl -s -X POST "$BASE/api/contrib?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"teacher":"日志测试","text":"临时"}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
 [ -n "$CG" ] && curl -s -X DELETE "$BASE/api/contrib/$CG" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && ok "贡献删除（key）" || bad "贡献删除"
 curl -s -X DELETE "$BASE/api/kb/claim" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{"module":"化学实验基础"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && curl -s "$BASE/api/kb" | python3 -c "import json,sys;assert not json.load(sys.stdin)['claims']" 2>/dev/null && ok "课标认领清除" || bad "认领清除"
+# ---- 校本资源文件断言（上传/下载/净化/删除）----
+printf '文件内容TEST123' > /tmp/th-up.docx
+FX=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=化学 讲义.v2.docx" -F "teacher=张老师" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and d['name']=='化学 讲义.v2.docx',d;print(d['id'])" 2>/dev/null)
+[ -n "$FX" ] && ok "文件上传（中文名+点号保留）" || bad "文件上传"
+curl -s "$BASE/api/files" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+fs=[f for f in d['files'] if f['name']=='化学 讲义.v2.docx']
+assert fs and fs[0]['teacher']=='张老师' and fs[0]['size']==19, fs" 2>/dev/null && ok "文件列表（免 key，元数据正确）" || bad "文件列表"
+curl -s -D /tmp/th-fh "$BASE/api/files/$FX" -o /tmp/th-fd.bin
+cmp -s /tmp/th-up.docx /tmp/th-fd.bin && grep -qi 'content-disposition: attachment' /tmp/th-fh && grep -qi 'x-content-type-options: nosniff' /tmp/th-fh && ok "文件下载（字节一致+attachment+nosniff）" || bad "文件下载"
+EV=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=../../evil.html" -F "teacher=测试" | python3 -c "import json,sys;d=json.load(sys.stdin);assert '/' not in d['name'] and '\\\\' not in d['name'],d;print(d['id'])" 2>/dev/null)
+[ -n "$EV" ] && ok "穿越文件名净化（无路径分隔符）" || bad "文件名净化"
+curl -s -X DELETE "$BASE/api/files/$FX" -o /dev/null -w '%{http_code}' | grep -q 401 && curl -s -X DELETE "$BASE/api/files/$FX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s -X DELETE "$BASE/api/files/$FX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 404 && ok "文件删除（401/200/404）" || bad "文件删除"
+[ -n "$EV" ] && curl -s -X DELETE "$BASE/api/files/$EV" -H "X-Access-Key: $KEY" -o /dev/null
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"
