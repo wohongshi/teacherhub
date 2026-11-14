@@ -212,6 +212,32 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .ai-panel p{font-size:12px;color:var(--ink-500);line-height:1.85}
 .ai-panel .mcp-url{margin:12px 0;background:var(--green-50);border:1px dashed var(--green-200);border-radius:9px;padding:9px 12px;font-size:11.5px;color:var(--green-900);word-break:break-all;font-family:ui-monospace,Consolas,monospace}
 .ai-panel .btn-primary{width:100%}
+/* ===== 元素方块导航（周期表第一行 = 10 个模块） ===== */
+.elem-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;max-width:560px}
+.elem-tile{aspect-ratio:1;border:1.5px solid var(--green-200);border-radius:13px;background:#fff;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .16s;min-height:64px}
+.elem-tile:hover{border-color:var(--green-600);background:var(--green-50);transform:translateY(-2px)}
+.elem-tile.on{background:var(--green-100);border-color:var(--green-600)}
+.elem-tile .no{position:absolute;left:9px;top:6px;font-size:10px;color:var(--ink-300);font-weight:600}
+.elem-tile .sym{font-size:27px;font-weight:700;color:var(--green-900);font-style:italic;line-height:1.1}
+.elem-tile .en{font-size:9px;color:var(--ink-300);letter-spacing:.5px}
+.elem-tile .cn{font-size:10.5px;color:var(--ink-700);margin-top:3px;font-weight:600;text-align:center;line-height:1.3;padding:0 4px}
+/* ===== 表格横滚容器（手机防溢出） ===== */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius-m)}
+.tbl-wrap .tbl{min-width:560px}
+/* ===== 移动搜索 overlay ===== */
+.msearch{position:fixed;inset:0;background:rgba(31,42,34,.35);z-index:90;display:none;align-items:flex-start;justify-content:center;padding:70px 16px}
+.msearch.on{display:flex}
+.msearch-oxed{width:100%;max-width:480px;background:#fff;border-radius:var(--radius-l);padding:18px;box-shadow:0 16px 48px rgba(31,42,34,.22)}
+.msearch-box input{width:100%;height:48px;border:1.5px solid var(--green-400);border-radius:12px;padding:0 16px;font-size:15px;outline:none}
+.msearch-box .tip{font-size:11.5px;color:var(--ink-300);margin-top:10px;text-align:center}
+/* ===== 移动底栏（元素风） ===== */
+.mbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px))}
+.mbar-in{display:flex}
+.mbar-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0;min-height:48px;cursor:pointer;border-radius:12px}
+.mbar-item .es{font-size:15px;font-weight:700;font-style:italic;color:var(--ink-300);line-height:1}
+.mbar-item .lb{font-size:10px;color:var(--ink-300)}
+.mbar-item.on .es,.mbar-item.on .lb{color:var(--green-900)}
+.mbar-item.on{background:var(--green-50)}
 /* ===== 移动端 ===== */
 .menu-btn{display:none;width:38px;height:38px;border-radius:10px;align-items:center;justify-content:center}
 .menu-btn svg{width:20px;height:20px;stroke:var(--ink-700);fill:none;stroke-width:2}
@@ -231,10 +257,25 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   .stats{grid-template-columns:repeat(2,1fr)}
   .wb-grid,.board-grid{grid-template-columns:1fr}
   .forest{overflow-x:auto;justify-content:flex-start;padding:10px 56px 10px 4px}
-  .fab-ai{bottom:20px;right:16px;padding:0;width:44px;justify-content:center}
+  .fab-ai{bottom:calc(78px + env(safe-area-inset-bottom,0px));right:16px;padding:0;width:46px;height:46px;justify-content:center}
   .fab-ai .fab-txt{display:none}
-  .ai-panel{right:12px;left:12px;width:auto;bottom:132px}
+  .ai-panel{right:12px;left:12px;width:auto;bottom:calc(140px + env(safe-area-inset-bottom,0px))}
+  .mbar{display:block}
+  .view{padding:18px 16px calc(96px + env(safe-area-inset-bottom,0px))}
+  .elem-grid{grid-template-columns:repeat(5,1fr);gap:9px;max-width:none}
+  .elem-tile .sym{font-size:22px}
+  .elem-tile .cn{font-size:9.5px}
+  .btn-ghost{height:44px;padding:0 18px}
+  .chip{height:44px;padding:0 16px}
+  .btn-demo{height:44px;padding:0 18px}
+  .msearch-btn{width:44px;height:44px}
+  .menu-btn{width:44px;height:44px}
+  .search-box{display:none}
+  .msearch-btn{display:flex!important}
+  .topbar{gap:6px}
 }
+.msearch-btn{display:none;width:40px;height:40px;border-radius:11px;align-items:center;justify-content:center;border:1px solid var(--line);background:#fff}
+.msearch-btn svg{width:17px;height:17px;stroke:var(--ink-500);fill:none;stroke-width:2}
 </style>
 </head>
 <body>
@@ -324,6 +365,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="top-title"><span id="topTitle">总览</span><span class="term">2026—2027 学年 第一学期</span></div>
       </div>
       <div class="top-right">
+        <button class="msearch-btn" id="msearchBtn" aria-label="搜索"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
         <div class="search-box">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
           <input id="globalSearch" placeholder="搜课标/真题/资源">
@@ -369,6 +411,14 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
             <rect x="100" y="130" width="44" height="4" rx="2" fill="#C9DEC6"/>
           </svg>
         </div>
+      </div>
+
+      <!-- 元素方块导航：周期表第一行 = 十个模块 -->
+      <div class="section">
+        <div class="card-head" style="margin:26px 2px 12px">
+          <div><div class="card-title">元素速达</div><div class="card-sub">周期表第一行，十个模块各占一格</div></div>
+        </div>
+        <div class="elem-grid" id="elemGrid"></div>
       </div>
 
       <!-- 成长林 -->
@@ -453,7 +503,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
     <section class="view" id="v-kb">
       <div class="mod-head"><h2>课标地图</h2><p>课标条目 → 教材章节 → 真题 → 校本资源，四级映射。映射进度从备课组认领开始。</p></div>
       <div class="card" style="padding:18px 22px">
-        <table class="tbl">
+        <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>模块</th><th>课标条目</th><th>教材章节</th><th>已映射真题</th><th>配套资源</th><th>认领状态</th></tr></thead>
           <tbody>
             <tr><td>化学实验基础</td><td>实验安全与操作 · 物质的量与溶液配制 · 物质分离提纯（蒸馏/萃取/层析）</td><td>必修一 第1章</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
@@ -462,7 +512,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
             <tr><td>有机化合物</td><td>烃与卤代烃 · 烃的衍生物（醇/醛/羧酸/酯） · 有机高分子与生物大分子</td><td>必修二 第3章</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
             <tr><td>化学反应原理</td><td>化学反应速率与化学平衡 · 电化学（原电池/电解池） · 水溶液中的离子反应与平衡</td><td>选择性必修1</td><td>—</td><td>—</td><td><span class="td-tag y">待认领</span></td></tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -470,7 +520,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
     <section class="view" id="v-exam">
       <div class="mod-head"><h2>真题库<span class="demo-chip">卷型结构</span></h2><p>2021—2026 六年高考化学真题按课标条目归档，进到单元。归档从备课组认领开始。</p></div>
       <div class="card" style="padding:18px 22px">
-        <table class="tbl">
+        <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>年份</th><th>选择题</th><th>反应原理</th><th>工业流程</th><th>实验探究</th><th>有机推断</th><th>合计</th></tr></thead>
           <tbody>
             <tr><td>2026</td><td>7</td><td>2</td><td>1</td><td>1</td><td>1</td><td><b>12</b></td></tr>
@@ -480,7 +530,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
             <tr><td>2022</td><td>7</td><td>2</td><td>1</td><td>1</td><td>0</td><td><b>13</b></td></tr>
             <tr><td>2021</td><td>7</td><td>2</td><td>1</td><td>1</td><td>0</td><td><b>13</b></td></tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -488,10 +538,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
     <section class="view" id="v-res">
       <div class="mod-head"><h2>资源库</h2><p>组内共享的校本资源与教研素材，每份都带使用批注。数据实时来自贡献记录。</p></div>
       <div class="card" style="padding:18px 22px">
-        <table class="tbl" id="resTable">
+        <div class="tbl-wrap"><table class="tbl" id="resTable">
           <thead><tr><th>资源</th><th>类型</th><th>贡献人</th><th>时间</th></tr></thead>
           <tbody></tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -561,7 +611,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
     <section class="view" id="v-plan">
       <div class="mod-head"><h2>计划与制度<span class="demo-chip">演示数据</span></h2><p>学期教研计划与组内制度，执行情况在「本周展板」轮播。</p></div>
       <div class="card" style="padding:18px 22px">
-        <table class="tbl">
+        <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>文件</th><th>要点</th><th>周期</th><th>状态</th></tr></thead>
           <tbody>
             <tr><td>学期教研计划</td><td>四件事：课标落到章节、真题进到单元、实验留在组里、成绩看得出问题</td><td>学期</td><td><span class="td-tag">常设</span></td></tr>
@@ -571,7 +621,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
             <tr><td>实验会考准备制度</td><td>必做实验逐项过清单，操作考前两周实验室开放，评分标准组内统一</td><td>学期</td><td><span class="td-tag">常设</span></td></tr>
             <tr><td>青年教师培养</td><td>每人每学期 1 节公开课 + 3 次听课，师傅一对一带教，实验基本功专项过关</td><td>学期</td><td><span class="td-tag">常设</span></td></tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -618,6 +668,23 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   </div>
 </div>
 
+<!-- ===== 移动底栏（元素风） ===== -->
+<nav class="mbar"><div class="mbar-in">
+  <div class="mbar-item on" data-view="overview"><span class="es">He</span><span class="lb">总览</span></div>
+  <div class="mbar-item" data-view="lab"><span class="es">Na</span><span class="lb">实验</span></div>
+  <div class="mbar-item" data-view="res"><span class="es">O</span><span class="lb">资源</span></div>
+  <div class="mbar-item" data-view="data"><span class="es">Si</span><span class="lb">数据</span></div>
+  <div class="mbar-item" id="mbarMore"><span class="es">☰</span><span class="lb">更多</span></div>
+</div></nav>
+
+<!-- ===== 移动搜索 overlay ===== -->
+<div class="msearch" id="msearch">
+  <div class="msearch-box">
+    <input id="msearchInput" placeholder="搜课标 / 真题 / 资源 / 实验…">
+    <div class="tip">回车检索 · 点空白处关闭</div>
+  </div>
+</div>
+
 <!-- ===== AI 浮动按钮 ===== -->
 <button class="fab-ai" id="fabAI">
   <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12Z"/><path d="M9 11h6"/><path d="M12 8v6" stroke-opacity=".0"/><circle cx="9.5" cy="12" r=".2"/></svg>
@@ -640,6 +707,29 @@ function dailyArr(){const d=(STATS&&STATS.totals&&STATS.totals.daily)||{};return
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function fmtTs(ts){if(!ts)return"";let d;const n=Number(ts);if(Number.isFinite(n)&&n>1e8){d=new Date(n*1000)}else{d=new Date(String(ts).endsWith("Z")?String(ts):String(ts).replace(" ","T")+"Z")}if(isNaN(d.getTime()))return"";const p=x=>String(x).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}
 function toast(msg){const t=document.createElement("div");t.textContent=msg;t.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#2F6B45;color:#fff;font-size:13px;padding:10px 22px;border-radius:999px;z-index:200;box-shadow:0 6px 20px rgba(47,107,69,.3)";document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+
+/* ============ 元素速达（周期表第一行 + Na，按导航顺序） ============ */
+const ELEMS=[
+ {no:1,sym:"H",en:"Hydrogen",cn:"实验工作台",v:"lab"},
+ {no:2,sym:"He",en:"Helium",cn:"课标地图",v:"kb"},
+ {no:3,sym:"Li",en:"Lithium",cn:"真题库",v:"exam"},
+ {no:4,sym:"Be",en:"Beryllium",cn:"资源库",v:"res"},
+ {no:5,sym:"B",en:"Boron",cn:"成长空间",v:"grow"},
+ {no:6,sym:"C",en:"Carbon",cn:"实验与安全",v:"board"},
+ {no:7,sym:"N",en:"Nitrogen",cn:"数据看板",v:"data"},
+ {no:8,sym:"O",en:"Oxygen",cn:"计划与制度",v:"plan"},
+ {no:9,sym:"F",en:"Fluorine",cn:"成绩分析",v:"score"},
+ {no:10,sym:"Ne",en:"Neon",cn:"建设方案",v:"about"}
+];
+function renderElemGrid(){
+  $("#elemGrid").innerHTML=ELEMS.map(e=>
+    `<div class="elem-tile" data-view="${e.v}" title="${esc(e.cn)}">
+      <span class="no">${e.no}</span>
+      <span class="sym">${e.sym}</span>
+      <span class="en">${e.en}</span>
+      <span class="cn">${esc(e.cn)}</span>
+    </div>`).join("");
+}
 
 /* ============ 演示数据（标「演示数据」处使用） ============ */
 const CAL_TEMPLATE=[
@@ -683,6 +773,8 @@ function go(view){
   const el=$("#v-"+view); if(!el)return;
   el.classList.add("on");
   $$(".nav-item").forEach(n=>n.classList.toggle("on",n.dataset.view===view));
+  $$(".elem-tile").forEach(n=>n.classList.toggle("on",n.dataset.view===view));
+  $$(".mbar-item").forEach(n=>n.classList.toggle("on",n.dataset.view===view));
   $("#topTitle").textContent=TITLES[view]||"总览";
   $("#sidebar").classList.remove("open");
   window.scrollTo(0,0);
@@ -693,6 +785,21 @@ document.addEventListener("click",e=>{
   if(nav){e.preventDefault();go(nav.dataset.view);}
 });
 $("#menuBtn").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
+$("#mbarMore").addEventListener("click",()=>$("#sidebar").classList.add("open"));
+$("#msearchBtn").addEventListener("click",()=>{
+  $("#msearch").classList.add("on");
+  setTimeout(()=>$("#msearchInput").focus(),60);
+});
+$("#msearch").addEventListener("click",e=>{
+  if(e.target.id==="msearch"||!e.target.closest(".msearch-box"))$("#msearch").classList.remove("on");
+});
+$("#msearchInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    const q=e.target.value.trim();
+    $("#msearch").classList.remove("on");
+    go("lab");$("#labQ").value=q;renderWbs();
+  }
+});
 document.addEventListener("click",e=>{
   const sb=$("#sidebar");
   if(sb.classList.contains("open")&&!e.target.closest("#sidebar")&&!e.target.closest("#menuBtn"))sb.classList.remove("open");
@@ -931,7 +1038,7 @@ function renderData(){
     STATS=st;
     CONTRIBS=(cv.contribs||cv.list||[]).slice().reverse();
   }catch(e){console.warn("data load:",e)}
-  renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();
   // 公告
   try{
     const n=await jget("/api/notice");
