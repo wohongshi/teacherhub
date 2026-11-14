@@ -241,6 +241,16 @@ curl -s -X POST "$BASE/api/admin/backup" -H "X-Access-Key: $KEY" -H 'Content-Typ
 import json,sys
 d=json.load(sys.stdin)
 assert d.get('ok')==True and len(d.get('backups',[]))>=2, d" 2>/dev/null && curl -s -X POST "$BASE/api/admin/backup" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "手动备份（key 门 + 快照生成）" || bad "手动备份"
+# ---- debug 轮断言（gzip 语义 + 备份唯一名）----
+curl -s -o /dev/null -D /tmp/th-gz0 -H 'Accept-Encoding: gzip;q=0' "$BASE/"
+grep -qi 'content-encoding' /tmp/th-gz0 && bad "gzip q=0 误压" || ok "gzip q=0 拒绝压缩（语义正确）"
+curl -s -o /dev/null -D /tmp/th-gzx -H 'Accept-Encoding: xgzip' "$BASE/"
+grep -qi 'content-encoding' /tmp/th-gzx && bad "xgzip 误压" || ok "gzip token 精确匹配（xgzip 不压）"
+BN1=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;print(len(json.load(sys.stdin)['backups']))")
+curl -s -X POST "$BASE/api/admin/backup" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' >/dev/null
+curl -s -X POST "$BASE/api/admin/backup" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' >/dev/null
+BN2=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;bs=json.load(sys.stdin)['backups'];print(len(bs),len({b['name'] for b in bs}))" 2>/dev/null)
+[ "$BN2" = "$((BN1+2)) $((BN1+2))" ] && ok "连续备份不撞名（纳秒唯一）" || bad "备份撞名（$BN1 → $BN2）"
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"

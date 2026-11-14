@@ -256,11 +256,35 @@ func wantGzip(p string) bool {
 	return true
 }
 
+// acceptsGzip 解析 Accept-Encoding：token 精确匹配且 q>0 才算支持（gzip;q=0 表示拒绝）。
+func acceptsGzip(ae string) bool {
+	for _, part := range strings.Split(ae, ",") {
+		part = strings.TrimSpace(part)
+		name := part
+		q := 1.0
+		if i := strings.Index(part, ";"); i >= 0 {
+			name = strings.TrimSpace(part[:i])
+			for _, p := range strings.Split(part[i+1:], ";") {
+				p = strings.TrimSpace(p)
+				if strings.HasPrefix(p, "q=") {
+					if v, err := strconv.ParseFloat(strings.TrimPrefix(p, "q="), 64); err == nil {
+						q = v
+					}
+				}
+			}
+		}
+		if (name == "gzip" || name == "*") && q > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // withGzip 对响应做 gzip（浏览器带 Accept-Encoding 时）。
 func withGzip(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead ||
-			!strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") ||
+			!acceptsGzip(r.Header.Get("Accept-Encoding")) ||
 			!wantGzip(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
@@ -277,7 +301,7 @@ func withGzip(next http.Handler) http.Handler {
 func doBackup(st *cloudStore) {
 	bdir := filepath.Join(st.dir, "backups")
 	_ = os.MkdirAll(bdir, 0o755)
-	f, err := os.Create(filepath.Join(bdir, fmt.Sprintf("backup-%d.zip", time.Now().Unix())))
+	f, err := os.Create(filepath.Join(bdir, fmt.Sprintf("backup-%019d-%s.zip", time.Now().UnixNano(), randToken()[:4])))
 	if err != nil {
 		return
 	}
