@@ -66,7 +66,7 @@ printf '<html><body>钠与水实验工作台内容</body></html>' > /tmp/th-a.ht
 R=$(curl -s -X POST "$BASE/api/workbenches?key=$KEY" -H 'Content-Type: application/json' --data-raw "{\"title\":\"钠与水反应实验工作台\",\"desc\":\"浮熔游响红\",\"tags\":[\"化学\",\"实验\"],\"keywords\":[\"钠\",\"水\",\"反应\"],\"teacher\":\"张老师\",\"content\":\"$(cat /tmp/th-a.html)\"}")
 WBID=$(echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['id'])" 2>/dev/null)
 LINK=$(echo "$R" | python3 -c "import json,sys;print(json.load(sys.stdin)['link'])" 2>/dev/null)
-[ -n "$WBID" ] && echo "$LINK" | grep -q "/w/$WBID" && ! echo "$LINK" | grep -q "key=" && ok "推送产物 + 下发链接格式（免 key）" || bad "推送异常: $R"
+[ -n "$WBID" ] && [[ "$LINK" == *"/w/$WBID"* ]] && ! [[ "$LINK" == *"key="* ]] && ok "推送产物 + 下发链接格式（免 key）" || bad "推送异常: $R"
 R=$(curl -s -G "$BASE/api/workbenches/search?key=$KEY" --data-urlencode "q=钠与水 反应")
 echo "$R" | python3 -c "
 import json,sys
@@ -89,13 +89,13 @@ assert len(m)>=2 and m[0]['score']>=m[-1]['score'], m" 2>/dev/null \
 
 echo "== 下发链接 + 门户（浏览全免 key） =="
 R=$(curl -s "$LINK")
-echo "$R" | grep -q "/w/$WBID/raw" && echo "$R" | grep -q "钠与水反应实验工作台" && ok "查看页顶栏包装（免 key）" || bad "查看页异常: ${R:0:80}"
+[[ "$R" == *"/w/$WBID/raw"* ]] && [[ "$R" == *"钠与水反应实验工作台"* ]] && ok "查看页顶栏包装（免 key）" || bad "查看页异常: ${R:0:80}"
 R=$(curl -s "$BASE/w/$WBID/raw")
-echo "$R" | grep -q "钠与水实验工作台内容" && ok "原文直看（免 key）" || bad "原文异常"
+[[ "$R" == *"钠与水实验工作台内容"* ]] && ok "原文直看（免 key）" || bad "原文异常"
 R=$(curl -s "$BASE/api/workbenches/$WBID/file")
-echo "$R" | grep -q "钠与水实验工作台内容" && ok "产物下载字节一致（免 key）" || bad "下载异常"
+[[ "$R" == *"钠与水实验工作台内容"* ]] && ok "产物下载字节一致（免 key）" || bad "下载异常"
 R=$(curl -s "$BASE/stats")
-echo "$R" | grep -q "张老师" && echo "$R" | grep -q "钠与水反应实验工作台" && ok "门户页渲染（免 key，贡献+产物）" || bad "门户异常"
+[[ "$R" == *"化学学科园地"* ]] && [[ "$R" == *'id="forest"'* ]] && curl -s "$BASE/api/workbenches" | grep -q "钠与水反应实验工作台" && curl -s "$BASE/api/stats" | grep -q "张老师" && ok "门户页渲染（免 key，SPA 壳+API 数据）" || bad "门户异常"
 
 # ---- 功能增强断言：热度计数 / PUT 更新 / 门户筛选 ----
 V0=$(curl -s "$BASE/api/workbenches" | python3 -c "import json,sys;d=json.load(sys.stdin);print([w['views'] for w in d['workbenches'] if w['id']=='$WBID'][0])" 2>/dev/null)
@@ -106,7 +106,7 @@ curl -s -X PUT "$BASE/api/workbenches/$WBID" -H 'Content-Type: application/json'
   --data-raw '{"desc":"PUT 更新测试","content":"<html><body>updated</body></html>"}' | jassert 'assert d.get("id"), d' "PUT 更新产物须 key 且成功"
 curl -s "$BASE/api/workbenches/$WBID/file" | grep -q 'updated' && ok "PUT 后内容已替换" || bad "PUT 后内容已替换"
 curl -s -X PUT "$BASE/api/workbenches/$WBID" -H 'Content-Type: application/json' --data-raw '{"desc":"x"}' | jerr key "PUT 无 key 被拒"
-curl -s "$BASE/" | grep -q 'class="toolbar"' && ok "门户含筛选工具条" || bad "门户含筛选工具条"
+curl -s "$BASE/" | grep -q 'class="lab-toolbar"' && curl -s "$BASE/" | grep -q 'id="labChips"' && ok "门户含筛选工具条" || bad "门户含筛选工具条"
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"

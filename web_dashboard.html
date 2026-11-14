@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>化学学科园地 · 教研 · 备课 · 成长</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg">
+<style>
+/* ===== 设计 token（清新植物风） ===== */
+:root{
+  --green-900:#2F6B45; --green-700:#3C7D52; --green-600:#4E9A63; --green-400:#8FC79B;
+  --green-200:#C9DEC6; --green-100:#E3F0E4; --green-50:#F0F6EF;
+  --sand-100:#F7E8C8; --sand-200:#F2DFB8; --sand-700:#B08A4A; --bud:#E5A93F;
+  --ink-900:#1F2A22; --ink-700:#3E4A41; --ink-500:#7C8A7F; --ink-300:#A8B2A9;
+  --bg:#F7F9F6; --surface:#FFFFFF; --line:#EBEFE9; --line2:#EDF1EC;
+  --blue-100:#E3EDF7; --blue-700:#4A7BA7;
+  --radius-l:20px; --radius-m:14px; --radius-s:10px;
+  --shadow-card:0 1px 2px rgba(31,42,34,.04),0 4px 12px rgba(31,42,34,.03);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:var(--bg);color:var(--ink-700);font-size:14px;line-height:1.6}
+/* 主区点阵背景 */
+.main{background:var(--bg);background-image:radial-gradient(#E4EAE2 1px,transparent 1px);background-size:22px 22px}
+a{color:var(--green-900);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+/* ===== 布局：侧边栏 + 主区 ===== */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:224px;flex:none;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:20px 0 16px}
+.brand{display:flex;align-items:center;gap:10px;padding:0 18px 12px}
+.brand-logo{width:38px;height:38px;border-radius:11px;background:var(--green-100);display:flex;align-items:center;justify-content:center;flex:none}
+.brand-name{font-size:15px;font-weight:700;color:var(--ink-900);letter-spacing:.3px}
+.brand-sub{font-size:11px;color:var(--ink-300);margin-top:1px}
+.slogan{margin:8px 14px 4px;background:var(--sand-100);color:var(--sand-700);font-size:12px;font-weight:600;padding:8px 12px;border-radius:var(--radius-s);text-align:center;letter-spacing:.5px}
+.nav-group{padding:0 12px}
+.nav-title{font-size:11px;color:var(--ink-300);letter-spacing:.5px;padding:16px 10px 6px}
+.nav-item{display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;border-radius:var(--radius-s);color:#5C6A5F;font-size:13.5px;cursor:pointer;user-select:none;transition:background .15s}
+.nav-item svg{width:17px;height:17px;flex:none;stroke:#8A9690;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-item:hover{background:#F4F7F3}
+.nav-item.on{background:var(--green-100);color:var(--green-900);font-weight:600}
+.nav-item.on svg{stroke:var(--green-900)}
+.side-foot{margin-top:auto;padding:18px 18px 6px;position:relative}
+.side-foot .sprout{position:absolute;right:8px;bottom:52px;opacity:.16;pointer-events:none}
+.side-foot p{font-size:11px;color:var(--ink-300);line-height:1.9}
+/* ===== 顶栏 ===== */
+.topbar{height:64px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:30}
+.top-title{font-size:16px;font-weight:700;color:var(--ink-900)}
+.top-title .term{font-size:12px;font-weight:400;color:#8A9690;margin-left:12px}
+.top-right{display:flex;align-items:center;gap:12px}
+.search-box{position:relative;width:262px}
+.search-box input{width:100%;height:36px;border:1px solid #E3E8E1;background:var(--surface);border-radius:999px;padding:0 14px 0 36px;font-size:12px;color:var(--ink-700);outline:none;transition:border .15s,box-shadow .15s}
+.search-box input:focus{border-color:var(--green-600);box-shadow:0 0 0 3px rgba(78,154,99,.15)}
+.search-box input::placeholder{color:var(--ink-300)}
+.search-box svg{position:absolute;left:13px;top:11px;width:14px;height:14px;stroke:#A8B2A9;fill:none;stroke-width:2}
+.btn-demo{background:var(--sand-100);color:var(--sand-700);font-size:12px;font-weight:600;height:32px;padding:0 15px;border-radius:999px}
+.btn-demo:hover{background:var(--sand-200)}
+/* ===== 视图容器 ===== */
+.view{display:none;max-width:1120px;margin:0 auto;padding:28px 32px 60px}
+.card,.mod-head{scroll-margin-top:80px}
+.view.on{display:block}
+/* ===== Hero ===== */
+.hero{background:linear-gradient(135deg,#EAF3E6 0%,#F6F2E4 55%,#FBF6E9 100%);border-radius:var(--radius-l);padding:30px 34px;position:relative;overflow:hidden;display:flex;align-items:center;gap:20px}
+.hero-text{flex:1 1 55%;min-width:0;position:relative;z-index:2}
+.hero h1{font-size:25px;line-height:1.4;color:var(--ink-900);font-weight:700;letter-spacing:.5px}
+.hero p{font-size:13px;color:#4A5A4D;line-height:1.85;margin-top:10px}
+.hero-tags{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+.htag{background:#fff;border:1px solid #E5EAE2;border-radius:999px;padding:6px 13px;font-size:12px;color:var(--ink-700)}
+.htag b{color:var(--green-900);font-weight:700}
+.htag a{color:var(--green-700);font-weight:600}
+.hero-art{flex:0 0 auto;width:300px;height:150px;position:relative}
+.hero-art svg{width:100%;height:100%;display:block}
+/* ===== 卡片通用 ===== */
+.card{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-l);padding:26px 28px;box-shadow:var(--shadow-card);position:relative}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.card-title{font-size:16px;font-weight:700;color:var(--ink-900)}
+.card-sub{font-size:12px;color:var(--ink-300);margin-top:3px}
+.section{margin-top:22px}
+.section-gap{height:22px}
+/* ===== 成长林 ===== */
+.legend{font-size:11.5px;color:var(--ink-500);text-align:right;line-height:1.8}
+.btn-ghost{background:#fff;border:1px solid var(--line);border-radius:999px;height:30px;padding:0 14px;font-size:12px;font-weight:600;color:var(--ink-700)}
+.btn-ghost:hover{border-color:var(--green-400);color:var(--green-900)}
+.forest{display:flex;align-items:flex-end;justify-content:space-around;gap:8px;min-height:190px;padding:8px 4px 0}
+.plant{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:86px}
+.plant .pname{font-size:12.5px;font-weight:600;color:var(--ink-700)}
+.plant .pnum{font-size:11.5px;color:var(--ink-500)}
+.plant .pnum b{color:var(--green-900);font-size:13px}
+.plant.dim{opacity:.62}
+.plant.dim .pname{color:var(--ink-300);font-weight:500}
+.goal-bar{margin-top:18px}
+.goal-row{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-500);margin-bottom:7px}
+.goal-row b{color:var(--green-900);font-size:13px}
+.bar{height:10px;background:#E6EDE5;border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green-600),var(--green-400));border-radius:999px;transition:width .6s}
+/* ===== 统计卡 ===== */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:22px}
+.stat{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-m);padding:20px 20px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow-card)}
+.stat::after{content:"";position:absolute;right:-26px;top:-26px;width:74px;height:74px;border-radius:50%;background:#EDF4EA}
+.stat .sname{font-size:12.5px;color:var(--ink-500)}
+.stat .sval{font-size:26px;font-weight:700;color:var(--ink-900);margin:7px 0 5px;letter-spacing:.5px}
+.stat .sval small{font-size:13px;font-weight:400;color:var(--ink-300);margin-left:3px}
+.stat .snote{font-size:11.5px;color:var(--green-600)}
+.stat .sval.empty{color:var(--ink-300);font-size:20px}
+/* ===== 双栏 ===== */
+.cols{display:flex;gap:22px;margin-top:22px;align-items:flex-start}
+.col-l{flex:1 1 56%;min-width:0}
+.col-r{flex:1 1 40%;min-width:0;display:flex;flex-direction:column;gap:22px}
+/* 日历时间线 */
+.timeline{position:relative;padding-left:20px}
+.timeline::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1.5px;background:#E2E8E0}
+.tl-item{position:relative;padding:0 0 18px}
+.tl-item:last-child{padding-bottom:2px}
+.tl-item::before{content:"";position:absolute;left:-19px;top:6px;width:9px;height:9px;border-radius:50%;background:var(--green-600);border:2px solid #fff;box-shadow:0 0 0 2px var(--green-200)}
+.tl-date{font-size:11.5px;color:var(--ink-300);letter-spacing:.5px}
+.tl-title{font-size:13.5px;font-weight:600;color:var(--ink-900);margin:2px 0 3px}
+.tl-desc{font-size:12px;color:var(--ink-500);line-height:1.7}
+/* 最近上传 */
+.up-item{display:flex;gap:11px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line)}
+.up-item:first-child{padding-top:2px}
+.up-item:last-child{border-bottom:none;padding-bottom:2px}
+.up-tag{flex:none;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--blue-100);color:var(--blue-700)}
+.up-tag.exp{background:var(--green-100);color:var(--green-700)}
+.up-tag.hw{background:#F3EDFB;color:#7A5FA7}
+.up-tag.act{background:var(--sand-100);color:var(--sand-700)}
+.up-title{font-size:13px;font-weight:600;color:var(--ink-900);line-height:1.5}
+.up-title a{color:inherit}
+.up-title a:hover{color:var(--green-700)}
+.up-meta{font-size:11.5px;color:var(--ink-300);margin-top:3px}
+/* 待办 */
+.todo{display:flex;gap:10px;align-items:flex-start;padding:9px 0;font-size:12.8px;color:var(--ink-700);line-height:1.7}
+.todo::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--green-400);margin-top:8px}
+/* 页脚格言 */
+.motto{margin-top:46px;text-align:center;font-size:12.5px;color:var(--ink-300);letter-spacing:1px}
+.motto b{color:var(--ink-500);font-weight:600}
+/* ===== 模块视图通用 ===== */
+.mod-head{margin-bottom:20px}
+.mod-head h2{font-size:20px;color:var(--ink-900);font-weight:700}
+.mod-head p{font-size:12.5px;color:var(--ink-500);margin-top:5px}
+.demo-chip{display:inline-block;background:var(--sand-100);color:var(--sand-700);font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;margin-left:10px;vertical-align:2px}
+/* 实验工作台（产物库） */
+.lab-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 20px}
+.lab-search{position:relative;width:300px;max-width:100%}
+.lab-search input{width:100%;height:40px;border:1px solid var(--line);border-radius:999px;padding:0 16px 0 40px;font-size:13px;outline:none;background:#fff}
+.lab-search input:focus{border-color:var(--green-600);box-shadow:0 0 0 3px rgba(78,154,99,.13)}
+.lab-search svg{position:absolute;left:15px;top:13px;width:15px;height:15px;stroke:#A8B2A9;fill:none;stroke-width:2}
+.chip{height:34px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid var(--line);color:#5C6A5F;font-size:12.5px;font-weight:500;transition:all .15s}
+.chip:hover{border-color:var(--green-400);color:var(--green-900)}
+.chip.on{background:var(--green-100);border-color:var(--green-400);color:var(--green-900);font-weight:600}
+.wb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.wb-card{background:#fff;border:1px solid var(--line2);border-radius:var(--radius-m);overflow:hidden;box-shadow:var(--shadow-card);transition:transform .18s,box-shadow .18s;display:flex;flex-direction:column}
+.wb-card:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(31,42,34,.09)}
+.wb-prev{height:132px;background:var(--green-50);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.wb-prev img{width:100%;height:100%;object-fit:cover;display:block}
+.wb-prev .ph{font-size:30px;opacity:.5}
+.wb-new{position:absolute;left:10px;top:10px;background:#E24B4A;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.5px}
+.wb-fav{position:absolute;right:10px;top:9px;font-size:15px;cursor:pointer;line-height:1}
+.wb-body{padding:15px 16px 13px;flex:1;display:flex;flex-direction:column}
+.wb-title{font-size:14px;font-weight:700;color:var(--ink-900);line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wb-desc{font-size:12px;color:var(--ink-500);line-height:1.7;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wb-tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px}
+.wb-tag{font-size:10.5px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-100);padding:2px 8px;border-radius:999px;cursor:pointer}
+.wb-meta{margin-top:auto;padding-top:9px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-300);display:flex;gap:12px;flex-wrap:wrap}
+.wb-actions{display:flex;gap:8px;padding:0 16px 14px}
+.btn-primary{flex:1;height:36px;background:var(--green-700);color:#fff;border-radius:9px;font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px}
+.btn-primary:hover{background:var(--green-900)}
+.btn-line{height:36px;padding:0 13px;border:1px solid var(--line);border-radius:9px;font-size:12px;color:var(--ink-700);background:#fff;display:flex;align-items:center;gap:4px}
+.btn-line:hover{border-color:var(--green-400);color:var(--green-900)}
+.empty-state{text-align:center;padding:52px 0 40px;color:var(--ink-300)}
+.empty-state .big{font-size:38px;margin-bottom:10px}
+/* 表格类（课标/真题/制度） */
+.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
+.tbl th{font-size:11.5px;font-weight:600;color:var(--ink-500);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);letter-spacing:.5px;white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--line);color:var(--ink-700);line-height:1.65;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#FAFCF9}
+.td-tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:6px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-100);white-space:nowrap}
+.td-tag.b{background:var(--blue-100);color:var(--blue-700);border-color:#D4E3F1}
+.td-tag.y{background:var(--sand-100);color:var(--sand-700);border-color:#EAD9B3}
+/* 统计/数据看板 */
+.mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.mini{background:#fff;border:1px solid var(--line2);border-radius:var(--radius-m);padding:18px 20px;box-shadow:var(--shadow-card)}
+.mini .n{font-size:23px;font-weight:700;color:var(--ink-900)}
+.mini .l{font-size:11.5px;color:var(--ink-500);margin-top:3px}
+.spark-wrap{background:#fff;border:1px solid var(--line2);border-radius:var(--radius-m);padding:22px 24px;box-shadow:var(--shadow-card)}
+.rank-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.rank-row:last-child{border-bottom:none}
+.rank-badge{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex:none}
+.rank-name{font-size:13px;font-weight:600;color:var(--ink-900)}
+.rank-num{margin-left:auto;font-size:12px;color:var(--ink-500)}
+.rank-num b{color:var(--green-900)}
+/* 展板/关于 */
+.board-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.board-card{background:#fff;border:1px solid var(--line2);border-radius:var(--radius-m);padding:22px 22px 18px;box-shadow:var(--shadow-card)}
+.board-card h4{font-size:14px;color:var(--ink-900);font-weight:700;margin-bottom:8px}
+.board-card p{font-size:12px;color:var(--ink-500);line-height:1.8}
+.about-body{max-width:760px}
+.about-body h3{font-size:15px;color:var(--ink-900);margin:22px 0 8px}
+.about-body p,.about-body li{font-size:13px;color:var(--ink-700);line-height:1.95}
+.about-body ul{padding-left:20px}
+.notice-mini{background:linear-gradient(135deg,#F3F8F1,#FBF7EC);border:1px solid var(--green-100);border-radius:var(--radius-m);padding:13px 18px;display:flex;align-items:center;gap:11px;font-size:12.5px;color:var(--ink-700);margin-bottom:20px}
+.notice-mini .ic{width:30px;height:30px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+/* ===== 浮动 AI 按钮 ===== */
+.fab-ai{position:fixed;right:24px;bottom:24px;height:44px;padding:0 20px;border-radius:999px;background:#2A5C3E;color:#fff;font-size:14px;font-weight:600;letter-spacing:1px;display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(42,92,62,.28);z-index:60;transition:transform .15s,box-shadow .15s}
+.fab-ai:hover{transform:translateY(-2px);box-shadow:0 9px 26px rgba(42,92,62,.36)}
+.fab-ai:active{transform:translateY(1px)}
+.fab-ai svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:1.9}
+.ai-panel{position:fixed;right:24px;bottom:82px;width:320px;background:#fff;border:1px solid var(--line2);border-radius:var(--radius-l);box-shadow:0 12px 40px rgba(31,42,34,.16);padding:22px;z-index:61;display:none}
+.ai-panel.on{display:block}
+.ai-panel h4{font-size:14px;color:var(--ink-900);margin-bottom:8px}
+.ai-panel p{font-size:12px;color:var(--ink-500);line-height:1.85}
+.ai-panel .mcp-url{margin:12px 0;background:var(--green-50);border:1px dashed var(--green-200);border-radius:9px;padding:9px 12px;font-size:11.5px;color:var(--green-900);word-break:break-all;font-family:ui-monospace,Consolas,monospace}
+.ai-panel .btn-primary{width:100%}
+/* ===== 移动端 ===== */
+.menu-btn{display:none;width:38px;height:38px;border-radius:10px;align-items:center;justify-content:center}
+.menu-btn svg{width:20px;height:20px;stroke:var(--ink-700);fill:none;stroke-width:2}
+@media (max-width:1020px){.wb-grid,.board-grid{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:820px){
+  .sidebar{position:fixed;left:-240px;top:0;z-index:80;transition:left .22s;box-shadow:0 0 40px rgba(0,0,0,.12)}
+  .sidebar.open{left:0}
+  .menu-btn{display:flex}
+  .topbar{padding:0 16px;gap:8px}
+  .top-title .term{display:none}
+  .search-box{width:150px}
+  .view{padding:20px 20px 76px 16px}
+  .hero{flex-direction:column;align-items:flex-start;padding:24px 22px}
+  .hero-art{width:100%;height:110px}
+  .hero h1{font-size:21px}
+  .cols{flex-direction:column}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .wb-grid,.board-grid{grid-template-columns:1fr}
+  .forest{overflow-x:auto;justify-content:flex-start;padding:10px 56px 10px 4px}
+  .fab-ai{bottom:20px;right:16px;padding:0;width:44px;justify-content:center}
+  .fab-ai .fab-txt{display:none}
+  .ai-panel{right:12px;left:12px;width:auto;bottom:132px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- ============ 侧边栏 ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2F6B45" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M12 13c-4.5 0-7-2.8-7-7 4.5 0 7 2.5 7 7Z"/><path d="M12 16c3.6 0 5.8-2.2 5.8-5.6-3.6 0-5.8 2-5.8 5.6Z"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">化学学科园地</div>
+        <div class="brand-sub">教研 · 备课 · 成长</div>
+      </div>
+    </div>
+    <div class="slogan">共研一堂课，共育一群人</div>
+
+    <nav>
+      <div class="nav-group">
+        <div class="nav-item on" data-view="overview">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          总览
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-title">重点模块</div>
+        <div class="nav-item" data-view="lab">
+          <svg viewBox="0 0 24 24"><path d="M9 3h6"/><path d="M10 3v6.2L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.5 15h9"/></svg>
+          实验工作台
+        </div>
+        <div class="nav-item" data-view="kb">
+          <svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z"/><path d="M8 7h7"/><path d="M8 11h7"/></svg>
+          课标地图
+        </div>
+        <div class="nav-item" data-view="exam">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
+          真题库
+        </div>
+        <div class="nav-item" data-view="res">
+          <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+          资源库
+        </div>
+        <div class="nav-item" data-view="grow">
+          <svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/></svg>
+          成长空间
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-title">教研运行</div>
+        <div class="nav-item" data-view="board">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+          本周展板
+        </div>
+        <div class="nav-item" data-view="data">
+          <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+          数据看板
+        </div>
+        <div class="nav-item" data-view="plan">
+          <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>
+          计划与制度
+        </div>
+        <div class="nav-item" data-view="score">
+          <svg viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg>
+          成绩分析
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-title">关于</div>
+        <div class="nav-item" data-view="about">
+          <svg viewBox="0 0 24 24"><path d="M12 21V9"/><path d="M12 13c-4.5 0-7-2.8-7-7 4.5 0 7 2.5 7 7Z"/><path d="M12 16c3.6 0 5.8-2.2 5.8-5.6-3.6 0-5.8 2-5.8 5.6Z"/></svg>
+          建设方案
+        </div>
+      </div>
+    </nav>
+
+    <div class="side-foot">
+      <svg class="sprout" width="72" height="86" viewBox="0 0 72 86" fill="none"><path d="M36 82V38" stroke="#4E9A63" stroke-width="2.5" stroke-linecap="round"/><path d="M36 52c-11 0-17-6.5-17-17 11 0 17 6 17 17Z" fill="#8FC79B"/><path d="M36 60c9 0 14-5 14-13.5-9 0-14 5-14 13.5Z" fill="#8FC79B"/><path d="M36 40c7 0 11-4 11-10.5-7 0-11 4-11 10.5Z" fill="#A7D2AE"/></svg>
+      <p>校内教研内部使用<br>数据不出校园网</p>
+    </div>
+  </aside>
+
+  <!-- ============ 主区 ============ -->
+  <div class="main" style="flex:1;min-width:0">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="menu-btn" id="menuBtn" aria-label="菜单"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg></button>
+        <div class="top-title"><span id="topTitle">总览</span><span class="term">2026—2027 学年 第一学期</span></div>
+      </div>
+      <div class="top-right">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="globalSearch" placeholder="搜课标 / 真题 / 资源">
+        </div>
+        <button class="btn-demo" id="demoBtn">演示数据</button>
+      </div>
+    </header>
+
+    <!-- ===== 总览 ===== -->
+    <section class="view on" id="v-overview">
+      <div class="notice-mini" id="noticeMini" style="display:none"><div class="ic">📢</div><div id="noticeMiniText"></div></div>
+
+      <div class="hero">
+        <div class="hero-text">
+          <h1>让每一节课，<br>都像一次好反应</h1>
+          <p>这学期我们把四件事做扎实：课标落到章节、真题进到单元、实验资源留在组里、成绩看得出问题。<br>一群人，一条心，一年下来就是一套属于我们自己的东西。</p>
+          <div class="hero-tags">
+            <div class="htag">本学期目标 <b>28 份</b>资源</div>
+            <div class="htag">已积累 <b id="htagAcc">—</b> 份</div>
+            <div class="htag">在研赛事 <b>11 项</b></div>
+            <div class="htag"><a href="#" data-view="grow">成员名单可随时更新 ↗</a></div>
+          </div>
+        </div>
+        <div class="hero-art">
+          <svg width="300" height="150" viewBox="0 0 300 150" fill="none">
+            <circle cx="238" cy="72" r="86" fill="#D3E7D2" opacity=".22"/>
+            <circle cx="238" cy="72" r="62" fill="#C9E1C6" opacity=".3"/>
+            <circle cx="238" cy="72" r="38" fill="#C9E1C6" opacity=".45"/>
+            <circle cx="238" cy="72" r="18" fill="#B7D6B4" opacity=".6"/>
+            <circle cx="66" cy="30" r="6" fill="#8FC79B"/>
+            <circle cx="66" cy="30" r="11" stroke="#C9E1C6" stroke-width="1.5" fill="none" opacity=".7"/>
+            <circle cx="272" cy="128" r="7" fill="#F0D9A8"/>
+            <path d="M120 132 Q126 96 150 62" stroke="#5FA06C" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M128 104c-13 0-20-7-20-18 12 0 20 6.5 20 18Z" fill="#A7D2AE"/>
+            <path d="M136 84c11 0 17-5.5 17-14-10.5 0-17 5.5-17 14Z" fill="#A7D2AE"/>
+            <path d="M150 62c13-6 24-2 28 6-11 5-22 3-28-6Z" fill="#A7D2AE"/>
+            <rect x="100" y="130" width="44" height="4" rx="2" fill="#C9DEC6"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 成长林 -->
+      <div class="card section">
+        <div class="card-head">
+          <div><div class="card-title">教研组成长林</div><div class="card-sub">每片叶子，都是一次共享</div></div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="legend">叶片 = 资源份额　花苞 = 参与赛事</div>
+            <button class="btn-ghost" data-view="grow">名单</button>
+          </div>
+        </div>
+        <div class="forest" id="forest"></div>
+        <div class="goal-bar">
+          <div class="goal-row"><span>月度目标 28 份</span><span><b id="goalNow">—</b> / 28</span></div>
+          <div class="bar"><i id="goalFill" style="width:0"></i></div>
+        </div>
+      </div>
+
+      <!-- 统计卡 -->
+      <div class="stats">
+        <div class="stat"><div class="sname">课标条目</div><div class="sval">30<small>条</small></div><div class="snote">四级映射已建立</div></div>
+        <div class="stat"><div class="sname">高考真题</div><div class="sval">74<small>题</small></div><div class="snote">2021—2026 六年</div></div>
+        <div class="stat"><div class="sname">校本资源</div><div class="sval" id="statRes">—<small>份</small></div><div class="snote">每份都带使用批注</div></div>
+        <div class="stat"><div class="sname">在研赛事</div><div class="sval">7<small>项</small></div><div class="snote">含 2 项省级</div></div>
+        <div class="stat"><div class="sname">最近考试均分</div><div class="sval empty">— 待上传</div><div class="snote">上传成绩后自动生成</div></div>
+      </div>
+
+      <!-- 日历 + 最近上传/待办 -->
+      <div class="cols">
+        <div class="col-l">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">教研日历</div><div class="card-sub">未来 6 周</div></div></div>
+            <div class="timeline" id="calendar"></div>
+          </div>
+        </div>
+        <div class="col-r">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">最近上传</div></div><div class="card-sub" id="upCount"></div></div>
+            <div id="recentUp"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">本周待办</div><div class="card-sub">一起把这几件事推完</div></div></div>
+            <div class="todo">11-05 前完成月考成绩导入与报告（系统可自动生成）</div>
+            <div class="todo">烃的衍生物单元资源包补齐 2 份（陈老师）</div>
+            <div class="todo">省级精品课第 4 轮磨课，需组内 3 人听课</div>
+            <div class="todo">核对新增课标条目 3 条（学期复核）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="motto"><b>独行快，众行远</b>　——　把一份资源留在这里，下一位上课的人就少走一段路</div>
+    </section>
+
+    <!-- ===== 实验工作台 ===== -->
+    <section class="view" id="v-lab">
+      <div class="mod-head">
+        <h2>🧪 实验工作台</h2>
+        <p>课堂演示实验模拟器：一实验一模块，参数可调、可回看、可投屏。链接发给同事，打开即用。</p>
+      </div>
+      <div class="lab-toolbar">
+        <div class="lab-search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="labQ" placeholder="搜实验 / 课标关键词…">
+        </div>
+        <div id="labChips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex:none">
+          <button class="chip" id="sortNew">最新</button>
+          <button class="chip" id="sortHot">最热</button>
+        </div>
+      </div>
+      <div class="wb-grid" id="wbGrid"></div>
+      <div class="empty-state" id="labEmpty" style="display:none">
+        <div class="big">📭</div>
+        <div style="font-size:13px">没搜到，试试这些热门标签：</div>
+        <div id="labReco" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- ===== 课标地图 ===== -->
+    <section class="view" id="v-kb">
+      <div class="mod-head"><h2>课标地图<span class="demo-chip">演示数据</span></h2><p>课标条目 → 教材章节 → 真题 → 校本资源，四级映射。学期复核时逐条对账。</p></div>
+      <div class="card" style="padding:18px 22px">
+        <table class="tbl">
+          <thead><tr><th>模块</th><th>课标条目</th><th>教材章节</th><th>已映射真题</th><th>配套资源</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>化学实验基础</td><td>实验安全与操作 · 物质分离提纯 · 溶液配制</td><td>必修一 第1章</td><td>12 题</td><td>3 份</td><td><span class="td-tag">已建立</span></td></tr>
+            <tr><td>物质结构与性质</td><td>原子结构 · 元素周期律 · 化学键</td><td>必修一 第2章</td><td>15 题</td><td>4 份</td><td><span class="td-tag">已建立</span></td></tr>
+            <tr><td>化学反应与能量</td><td>离子反应 · 氧化还原 · 反应热 · 原电池</td><td>必修二 第1章</td><td>18 题</td><td>5 份</td><td><span class="td-tag">已建立</span></td></tr>
+            <tr><td>有机化合物</td><td>烃 · 烃的衍生物 · 生物大分子</td><td>必修二 第3章</td><td>14 题</td><td>3 份</td><td><span class="td-tag y">复核中</span></td></tr>
+            <tr><td>化学反应原理</td><td>速率与平衡 · 电化学 · 电解质溶液</td><td>选择性必修1</td><td>15 题</td><td>4 份</td><td><span class="td-tag">已建立</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== 真题库 ===== -->
+    <section class="view" id="v-exam">
+      <div class="mod-head"><h2>真题库<span class="demo-chip">演示数据</span></h2><p>2021—2026 六年高考化学真题按课标条目归档，进到单元。</p></div>
+      <div class="card" style="padding:18px 22px">
+        <table class="tbl">
+          <thead><tr><th>年份</th><th>选择题</th><th>反应原理</th><th>工业流程</th><th>实验探究</th><th>有机推断</th><th>合计</th></tr></thead>
+          <tbody>
+            <tr><td>2026</td><td>7</td><td>2</td><td>1</td><td>1</td><td>1</td><td><b>12</b></td></tr>
+            <tr><td>2025</td><td>7</td><td>2</td><td>1</td><td>1</td><td>1</td><td><b>12</b></td></tr>
+            <tr><td>2024</td><td>7</td><td>2</td><td>1</td><td>1</td><td>1</td><td><b>12</b></td></tr>
+            <tr><td>2023</td><td>7</td><td>2</td><td>1</td><td>1</td><td>1</td><td><b>12</b></td></tr>
+            <tr><td>2022</td><td>7</td><td>2</td><td>1</td><td>1</td><td>0</td><td><b>13</b></td></tr>
+            <tr><td>2021</td><td>7</td><td>2</td><td>1</td><td>1</td><td>0</td><td><b>13</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== 资源库 ===== -->
+    <section class="view" id="v-res">
+      <div class="mod-head"><h2>资源库</h2><p>组内共享的校本资源与教研素材，每份都带使用批注。数据实时来自贡献记录。</p></div>
+      <div class="card" style="padding:18px 22px">
+        <table class="tbl" id="resTable">
+          <thead><tr><th>资源</th><th>类型</th><th>贡献人</th><th>时间</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== 成长空间 ===== -->
+    <section class="view" id="v-grow">
+      <div class="mod-head"><h2>成长空间</h2><p>每位老师的资源共享与参赛足迹，成长林的数据来源。</p></div>
+      <div class="cols">
+        <div class="col-l">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">贡献榜</div><div class="card-sub">叶片 = 资源份额　花苞 = 参与赛事</div></div></div>
+            <div id="growRank"></div>
+          </div>
+        </div>
+        <div class="col-r">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">在研赛事<span class="demo-chip">演示数据</span></div></div></div>
+            <div class="todo">省级精品课录制（张老师）· 12-03 前交片</div>
+            <div class="todo">市级实验说课比赛（陈老师）· 区级已出线</div>
+            <div class="todo">青年教师公开课（赵老师）· 11-19 组内听评</div>
+            <div class="todo">校本作业设计评比 · 全组参与</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">成员名单</div></div></div>
+            <div class="todo">张老师 · 陈老师 · 李老师 · 王老师 · 赵老师 · 教研组长</div>
+            <div class="todo">名单可随时更新，找教研组长登记即可</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 本周展板 ===== -->
+    <section class="view" id="v-board">
+      <div class="mod-head"><h2>本周展板<span class="demo-chip">演示数据</span></h2><p>每周轮换的教研展板：组内近况、亮点与提醒。</p></div>
+      <div class="board-grid">
+        <div class="board-card"><h4>🔥 月考质量分析</h4><p>高三第二次月考成绩已导入，11-05 分析会用平台报告逐题看失分点，重点看工业流程题的规范表述。</p></div>
+        <div class="board-card"><h4>🌱 新人第一课</h4><p>赵老师下周开课《原电池》，欢迎周三前把听课意见发群里，帮他磨一遍引入。</p></div>
+        <div class="board-card"><h4>📦 资源日预告</h4><p>11-26 月度资源日，每人至少上传 2 份带批注的资源，备课组长当天审核入库。</p></div>
+        <div class="board-card"><h4>⚗️ 实验安全提醒</h4><p>金属钠取用必须镊子 + 滤纸吸煤油，废钠放回原瓶。演示实验前 5 分钟再取药品。</p></div>
+        <div class="board-card"><h4>💡 本周金句</h4><p>「把一份资源留在这里，下一位上课的人就少走一段路。」——写在实验准备室门口的话。</p></div>
+        <div class="board-card"><h4>✅ 上周完成</h4><p>免疫调节…错了，烃的衍生物单元集体备课已完成；三份微生物实验资源已入资源库（见实验工作台）。</p></div>
+      </div>
+    </section>
+
+    <!-- ===== 数据看板 ===== -->
+    <section class="view" id="v-data">
+      <div class="mod-head"><h2>数据看板</h2><p>平台使用与资源共享的真实数据，自动生成。</p></div>
+      <div class="mini-stats" id="dataMinis"></div>
+      <div class="spark-wrap section">
+        <div class="card-head"><div><div class="card-title">近 30 天浏览</div><div class="card-sub">全平台访问热度</div></div></div>
+        <div id="dataSpark"></div>
+      </div>
+      <div class="cols">
+        <div class="col-l"><div class="card"><div class="card-head"><div><div class="card-title">教师贡献分布</div><div class="card-sub">资源份数</div></div></div><div id="dataTeachers"></div></div></div>
+        <div class="col-r"><div class="card"><div class="card-head"><div><div class="card-title">说明</div></div></div>
+          <div class="todo">浏览/下载/今日访问为真实统计</div>
+          <div class="todo">成绩类数据待上传后自动生成分析</div>
+          <div class="todo">统计每天零点归档，趋势随使用自然生长</div>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- ===== 计划与制度 ===== -->
+    <section class="view" id="v-plan">
+      <div class="mod-head"><h2>计划与制度<span class="demo-chip">演示数据</span></h2><p>学期教研计划与组内制度，执行情况在「本周展板」轮播。</p></div>
+      <div class="card" style="padding:18px 22px">
+        <table class="tbl">
+          <thead><tr><th>文件</th><th>要点</th><th>周期</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>学期教研计划</td><td>四件事：课标落到章节、真题进到单元、资源留在组里、成绩看得出问题</td><td>学期</td><td><span class="td-tag">执行中</span></td></tr>
+            <tr><td>集体备课制度</td><td>双周一次，主备人轮值，备后 3 天内上传单元资源包</td><td>双周</td><td><span class="td-tag">执行中</span></td></tr>
+            <tr><td>资源入库规范</td><td>每份资源必须带使用批注（用了哪个班、效果如何）</td><td>长期</td><td><span class="td-tag">执行中</span></td></tr>
+            <tr><td>实验安全守则</td><td>危化品双人双锁、演示实验前试做、废液分类回收</td><td>长期</td><td><span class="td-tag">执行中</span></td></tr>
+            <tr><td>青年教师培养</td><td>每人每学期 1 节公开课 + 3 次听课，师傅一对一带教</td><td>学期</td><td><span class="td-tag y">进行中</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== 成绩分析 ===== -->
+    <section class="view" id="v-score">
+      <div class="mod-head"><h2>成绩分析<span class="demo-chip">演示数据</span></h2><p>上传成绩后自动生成：均分、分数段、题目失分点、班级对比。</p></div>
+      <div class="card" style="padding:52px 28px">
+        <div class="empty-state" style="padding:0">
+          <div class="big">📊</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink-900)">最近考试均分 — 待上传</div>
+          <div style="font-size:12.5px;margin-top:10px;line-height:2">
+            成绩表支持 Excel 上传，系统自动生成：<br>
+            均分与排名 · 分数段分布 · 题目失分点 · 班级横向对比<br>
+            <span style="color:var(--ink-300)">11-05 月考分析会前导入即可</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 建设方案 ===== -->
+    <section class="view" id="v-about">
+      <div class="mod-head"><h2>建设方案</h2><p>化学学科园地怎么建、怎么用、怎么长。</p></div>
+      <div class="card about-body">
+        <h3>一句话</h3>
+        <p>把教研组一年产生的东西留下来：课标映射、真题归档、实验资源、成绩分析，第二年接着用。</p>
+        <h3>四件事</h3>
+        <ul>
+          <li><b>课标落到章节</b> —— 课标条目与教材章节建立映射，学期复核一次。</li>
+          <li><b>真题进到单元</b> —— 六年高考真题按课标归档，备课直接取用。</li>
+          <li><b>资源留在组里</b> —— 实验工作台与校本资源库，链接发群里打开即用。</li>
+          <li><b>成绩看得出问题</b> —— 成绩导入自动生成分析报告，逐题看失分。</li>
+        </ul>
+        <h3>怎么用</h3>
+        <ul>
+          <li>浏览、下载、看统计：<b>免登录</b>，链接发群里点开即用。</li>
+          <li>上传资源、推送实验产物：找教研组长拿管理入口。</li>
+          <li>AI 生成实验模块：右下角「AI 生成」接 MCP，或装 WorkBuddy 插件。</li>
+        </ul>
+        <h3>数据在哪</h3>
+        <p>校内教研内部使用，数据不出校园网（公网入口走隧道，仅限组内分发）。自动备份每 24 小时一份，保留 7 份。</p>
+      </div>
+      <div class="motto"><b>独行快，众行远</b>　——　把一份资源留在这里，下一位上课的人就少走一段路</div>
+    </section>
+  </div>
+</div>
+
+<!-- ===== AI 浮动按钮 ===== -->
+<button class="fab-ai" id="fabAI">
+  <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12Z"/><path d="M9 11h6"/><path d="M12 8v6" stroke-opacity=".0"/><circle cx="9.5" cy="12" r=".2"/></svg>
+  <span class="fab-txt">AI 生成</span>
+</button>
+<div class="ai-panel" id="aiPanel">
+  <h4>⚗️ AI 生成实验模块</h4>
+  <p>把下面的 MCP 地址交给 AI 客户端（支持 MCP 的都行），说一句「帮我生成一个 ×× 实验模块」，产物会自动进实验工作台。</p>
+  <div class="mcp-url" id="mcpUrl">…</div>
+  <button class="btn-primary" id="copyMcp">复制 MCP 地址</button>
+  <p style="margin-top:10px">已装 WorkBuddy 的老师：用 <b>virtual-lab-generator</b> 技能直接生成。</p>
+</div>
+
+<script>
+"use strict";
+/* ============ 工具 ============ */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+function teacherMap(){const o={};((STATS&&STATS.by_teacher)||[]).forEach(t=>{o[t.teacher]={count:(t.workbenches||0)+(t.contribs||0),w:t.workbenches||0,c:t.contribs||0}});return o}
+function dailyArr(){const d=(STATS&&STATS.totals&&STATS.totals.daily)||{};return Object.entries(d).map(([date,v])=>({date,v})).sort((a,b)=>a.date.localeCompare(b.date))}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function fmtTs(ts){if(!ts)return"";let d;const n=Number(ts);if(Number.isFinite(n)&&n>1e8){d=new Date(n*1000)}else{d=new Date(String(ts).endsWith("Z")?String(ts):String(ts).replace(" ","T")+"Z")}if(isNaN(d.getTime()))return"";const p=x=>String(x).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}
+function toast(msg){const t=document.createElement("div");t.textContent=msg;t.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#2F6B45;color:#fff;font-size:13px;padding:10px 22px;border-radius:999px;z-index:200;box-shadow:0 6px 20px rgba(47,107,69,.3)";document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+
+/* ============ 演示数据（标「演示数据」处使用） ============ */
+const DEMO_CAL=[
+ {d:"11-05",t:"高三第二次月考质量分析会",s:"成绩已导入，会上用平台报告逐题分析"},
+ {d:"11-12",t:"高二备课组：烃的衍生物单元集体备课",s:"主备人：陈老师；需带单元资源包"},
+ {d:"11-19",t:"青年教师公开课（赵老师）",s:"课题：原电池；组内听评课"},
+ {d:"11-26",t:"月度资源日",s:"每人至少上传 2 份，备课组长审核"},
+ {d:"12-03",t:"省级精品课录制（张老师）",s:"课题：钠与水；需提前调试录播教室"},
+ {d:"12-17",t:"学期课标复核",s:"核对课标条目库与教材章节的对应关系"}
+];
+const DEMO_MEMBERS=[
+ {name:"张老师",res:4,comp:2},{name:"陈老师",res:4,comp:2},{name:"李老师",res:3,comp:2},
+ {name:"王老师",res:2,comp:2},{name:"赵老师",res:2,comp:2},{name:"教研组长",res:0,comp:0}
+];
+
+/* ============ 植物 SVG（成长林） ============ */
+function plantSVG(leafPairs,hasBud,h){
+  // h: 植物像素高度（130~185）；leafPairs: 叶片对数（2~7）
+  const W=88,H=190,baseY=H-8,topY=H-8-h,x0=W/2;
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" fill="none">`;
+  s+=`<ellipse cx="${x0}" cy="${H-4}" rx="22" ry="4.5" fill="#C9DEC6" opacity=".5"/>`;
+  s+=`<path d="M${x0} ${baseY} Q${x0+2} ${baseY-h*0.55} ${x0+5} ${topY}" stroke="#4E9A63" stroke-width="2.8" stroke-linecap="round"/>`;
+  for(let i=0;i<leafPairs;i++){
+    const f=(i+1)/(leafPairs+0.6), y=baseY-f*h*0.92, size=1-f*0.42;
+    const lw=30*size, lh=15*size, lx=x0+(i%2?1.5:2)*Math.min(i,3);
+    const col=i>=leafPairs-2?"#A7D2AE":"#8FC79B";
+    // 左叶
+    s+=`<path d="M${lx} ${y} q${-lw*0.55} ${-lh*0.35} ${-lw} ${-lh*0.1} q${lw*0.32} ${lh*0.72} ${lw} ${lh*0.1}Z" fill="${col}" transform="rotate(-8 ${lx} ${y})"/>`;
+    // 右叶
+    s+=`<path d="M${lx} ${y-3} q${lw*0.55} ${-lh*0.35} ${lw} ${-lh*0.1} q${-lw*0.32} ${lh*0.72} ${-lw} ${lh*0.1}Z" fill="${col}" transform="rotate(8 ${lx} ${y-3})"/>`;
+  }
+  if(hasBud){
+    s+=`<path d="M${x0+5} ${topY} v-7" stroke="#4E9A63" stroke-width="2.2" stroke-linecap="round"/>`;
+    s+=`<circle cx="${x0+5}" cy="${topY-11}" r="3.6" fill="#E5A93F"/>`;
+    s+=`<path d="M${x0+5} ${topY-7} q-5 2 -5 6 q5 -0.5 5 -6Z" fill="#A7D2AE"/>`;
+  }
+  return s+"</svg>";
+}
+
+/* ============ 视图切换 ============ */
+const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",res:"资源库",grow:"成长空间",board:"本周展板",data:"数据看板",plan:"计划与制度",score:"成绩分析",about:"建设方案"};
+function go(view){
+  $$(".view").forEach(v=>v.classList.remove("on"));
+  const el=$("#v-"+view); if(!el)return;
+  el.classList.add("on");
+  $$(".nav-item").forEach(n=>n.classList.toggle("on",n.dataset.view===view));
+  $("#topTitle").textContent=TITLES[view]||"总览";
+  $("#sidebar").classList.remove("open");
+  window.scrollTo(0,0);
+  if(location.hash!=="#"+view)history.replaceState(null,"","#"+view);
+}
+document.addEventListener("click",e=>{
+  const nav=e.target.closest("[data-view]");
+  if(nav){e.preventDefault();go(nav.dataset.view);}
+});
+$("#menuBtn").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
+document.addEventListener("click",e=>{
+  const sb=$("#sidebar");
+  if(sb.classList.contains("open")&&!e.target.closest("#sidebar")&&!e.target.closest("#menuBtn"))sb.classList.remove("open");
+});
+
+/* ============ 全局搜索：跳实验工作台并检索 ============ */
+$("#globalSearch").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    const q=e.target.value.trim();
+    go("lab");$("#labQ").value=q;renderWbs();
+  }
+});
+
+/* ============ 演示数据按钮 ============ */
+$("#demoBtn").addEventListener("click",()=>{
+  toast("标「演示数据」的板块是示意内容，真实数据板块随使用自动生长");
+  go("overview");
+});
+
+/* ============ AI 面板 ============ */
+$("#mcpUrl").textContent=location.origin+"/mcp";
+$("#fabAI").addEventListener("click",()=>$("#aiPanel").classList.toggle("on"));
+document.addEventListener("click",e=>{
+  if(!e.target.closest("#aiPanel")&&!e.target.closest("#fabAI"))$("#aiPanel").classList.remove("on");
+});
+$("#copyMcp").addEventListener("click",()=>{
+  const u=$("#mcpUrl").textContent;
+  (navigator.clipboard?.writeText(u)||Promise.reject()).then(()=>toast("MCP 地址已复制")).catch(()=>{
+    const ta=document.createElement("textarea");ta.value=u;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("MCP 地址已复制");
+  });
+});
+
+/* ============ 数据加载 ============ */
+let WBS=[],STATS=null,CONTRIBS=[];
+async function jget(u){const r=await fetch(u);if(!r.ok)throw new Error(u+" "+r.status);return r.json()}
+function levenshtein(a,b){const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);for(let j=0;j<=n;j++)d[0][j]=j;for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n]}
+
+/* —— 成长林 —— */
+function renderForest(){
+  const byT=teacherMap();
+  const real=Object.entries(byT).map(([name,v])=>({name,res:v.count||0,comp:0}));
+  // 合并演示名单：同名优先真实数据，演示补足 6 株
+  const names=[...new Set([...real.map(r=>r.name),...DEMO_MEMBERS.map(m=>m.name)])];
+  const merged=names.map(n=>{
+    const r=real.find(x=>x.name===n),d=DEMO_MEMBERS.find(x=>x.name===n);
+    return {name:n,res:r?Math.max(r.res,1):(d?d.res:0),comp:d?d.comp:0,dim:!r&&(!d||d.res===0)};
+  }).sort((a,b)=>b.res-a.res);
+  $("#forest").innerHTML=merged.slice(0,7).map(m=>{
+    const pairs=Math.max(1,Math.min(7,m.res)),h=m.res>0?(92+pairs*13):72;
+    return `<div class="plant ${m.dim?"dim":""}">
+      ${plantSVG(pairs,m.comp>0,h)}
+      <div class="pname">${esc(m.name)}</div>
+      <div class="pnum">${m.res>0?`<b>${m.res} 份</b>`:"待上传"}${m.comp>0?` · ${m.comp} 赛`:""}</div>
+    </div>`;
+  }).join("");
+  const total=merged.reduce((s,m)=>s+m.res,0);
+  $("#goalNow").textContent=total;
+  $("#htagAcc").textContent=total;
+  $("#statRes").innerHTML=`${total}<small>份</small>`;
+  $("#goalFill").style.width=Math.min(100,total/28*100)+"%";
+}
+
+/* —— 教研日历 —— */
+function renderCal(){
+  $("#calendar").innerHTML=DEMO_CAL.map(c=>
+    `<div class="tl-item"><div class="tl-date">${c.d}</div><div class="tl-title">${esc(c.t)}</div><div class="tl-desc">${esc(c.s)}</div></div>`
+  ).join("");
+}
+
+/* —— 最近上传（真实数据） —— */
+function renderRecent(){
+  const rows=[];
+  (CONTRIBS||[]).slice(0,5).forEach(c=>{
+    const tag=c.subject||c.tag||(c.text&&c.text.indexOf("实验")>=0?"实验":"资源");
+    const cls=/实验|演示/.test(tag)?"exp":(/作业/.test(tag)?"hw":(/活动/.test(tag)?"act":""));
+    rows.push(`<div class="up-item"><div class="up-tag ${cls}">${esc(tag.slice(0,4))}</div><div style="flex:1;min-width:0"><div class="up-title">${esc(c.title||c.text||"教研资料")}</div><div class="up-meta">${esc(c.teacher||"教研组")} · ${fmtTs(c.at)}</div></div></div>`);
+  });
+  // 实验产物补位
+  WBS.slice(0,6).forEach(w=>{
+    if(rows.length>=5)return;
+    rows.push(`<div class="up-item"><div class="up-tag exp">实验</div><div style="flex:1;min-width:0"><div class="up-title"><a href="/w/${esc(w.id)}" target="_blank">${esc(w.title)}</a></div><div class="up-meta">${esc(w.teacher||"教研组")} · ${fmtTs(w.created_at)}</div></div></div>`);
+  });
+  $("#recentUp").innerHTML=rows.slice(0,5).join("")||`<div class="empty-state" style="padding:22px 0">还没有上传记录</div>`;
+  $("#upCount").textContent=`本月 ${Object.values(teacherMap()).reduce((s,t)=>s+t.count,0)} / 28`;
+}
+
+/* —— 实验工作台产物库 —— */
+let labFilter="",labSort="new",labTag="";
+function renderWbs(){
+  const q=($("#labQ").value||"").trim().toLowerCase();
+  let list=WBS.filter(w=>{
+    if(w.hidden)return false;
+    if(labTag&&!(w.tags||[]).includes(labTag))return false;
+    if(!q)return true;
+    return [w.title,w.desc,(w.tags||[]).join(" "),w.keywords||""].join(" ").toLowerCase().includes(q);
+  });
+  if(q&&!list.length){
+    // 模糊降级
+    list=WBS.filter(w=>!w.hidden&&levenshtein(q.slice(0,6),w.title.toLowerCase().slice(0,Math.max(6,q.length)))<=Math.max(2,Math.floor(q.length/2)));
+  }
+  list.sort((a,b)=>labSort==="hot"?((b.views||0)-(a.views||0)):((Number(b.created_at)||0)-(Number(a.created_at)||0)));
+  const grid=$("#wbGrid"),empty=$("#labEmpty");
+  if(!list.length){
+    grid.innerHTML="";empty.style.display="block";
+    const hot=[...new Set(WBS.flatMap(w=>w.tags||[]))].slice(0,6);
+    $("#labReco").innerHTML=hot.map(t=>`<button class="chip" data-rt="${esc(t)}">${esc(t)}</button>`).join("");
+    return;
+  }
+  empty.style.display="none";
+  const favs=new Set(JSON.parse(localStorage.getItem("th_favs")||"[]"));
+  const now=Date.now();
+  grid.innerHTML=list.map(w=>{
+    const isNew=now-(Number(w.created_at)||0)*1000<7*864e5;
+    const rate=w.rate||0,rateN=w.rate_num||0;
+    return `<div class="wb-card" data-id="${esc(w.id)}">
+      <div class="wb-prev">
+        ${w.preview?`<img src="${esc(w.preview)}" alt="">`:`<div class="ph">⚗️</div>`}
+        ${isNew?'<div class="wb-new">NEW</div>':""}
+        <div class="wb-fav" data-fav="${esc(w.id)}">${favs.has(w.id)?"⭐":"☆"}</div>
+      </div>
+      <div class="wb-body">
+        <div class="wb-title">${esc(w.title)}</div>
+        <div class="wb-desc">${esc(w.desc||"")}</div>
+        <div class="wb-tags">${(w.tags||[]).map(t=>`<span class="wb-tag" data-rt="${esc(t)}">${esc(t)}</span>`).join("")}</div>
+        <div class="wb-meta">
+          <span>👁 ${w.views||0}</span><span>⬇ ${w.downloads||0}</span>
+          ${rateN?`<span>⭐ ${rate.toFixed(1)}（${rateN} 人）</span>`:""}
+          <span>${esc(w.teacher||"教研组")}</span><span>${fmtTs(w.created_at)}</span>
+        </div>
+      </div>
+      <div class="wb-actions">
+        <a class="btn-primary" href="/w/${esc(w.id)}" target="_blank">打开工作台 ↗</a>
+        <a class="btn-line" href="/w/${esc(w.id)}/raw" download>下载</a>
+      </div>
+    </div>`;
+  }).join("");
+}
+$("#labQ").addEventListener("input",()=>{clearTimeout(window.__qT);window.__qT=setTimeout(renderWbs,180)});
+document.addEventListener("click",e=>{
+  const rt=e.target.closest("[data-rt]");
+  if(rt){go("lab");labTag="";$("#labQ").value=rt.dataset.rt;renderWbs();
+    $$("#labChips .chip").forEach(c=>c.classList.toggle("on",c.dataset.tag===rt.dataset.rt));return;}
+  const fav=e.target.closest("[data-fav]");
+  if(fav){
+    const id=fav.dataset.fav,fs=new Set(JSON.parse(localStorage.getItem("th_favs")||"[]"));
+    if(fs.has(id)){fs.delete(id);fav.textContent="☆";toast("已取消收藏")}else{fs.add(id);fav.textContent="⭐";toast("已收藏")}
+    localStorage.setItem("th_favs",JSON.stringify([...fs]));
+    return;
+  }
+  const chip=e.target.closest("#labChips .chip");
+  if(chip){
+    labTag=chip.dataset.tag||"";
+    $$("#labChips .chip").forEach(c=>c.classList.remove("on"));
+    if(labTag)chip.classList.add("on");
+    renderWbs();
+  }
+});
+$("#sortNew").addEventListener("click",()=>{labSort="new";$("#sortNew").classList.add("on");$("#sortHot").classList.remove("on");renderWbs()});
+$("#sortHot").addEventListener("click",()=>{labSort="hot";$("#sortHot").classList.add("on");$("#sortNew").classList.remove("on");renderWbs()});
+
+function renderLabChips(){
+  const tags=[...new Set(WBS.flatMap(w=>w.tags||[]))];
+  $("#labChips").innerHTML=[`<button class="chip on" data-tag="">全部</button>`,...tags.map(t=>`<button class="chip" data-tag="${esc(t)}">${esc(t)}</button>`)].join("");
+}
+
+/* —— 资源库表格（真实） —— */
+function renderRes(){
+  const tb=$("#resTable tbody");
+  const rows=[];
+  WBS.filter(w=>!w.hidden).forEach(w=>{
+    rows.push(`<tr><td><a href="/w/${esc(w.id)}" target="_blank">${esc(w.title)}</a></td><td><span class="td-tag">实验模块</span></td><td>${esc(w.teacher||"教研组")}</td><td>${fmtTs(w.created_at)}</td></tr>`);
+  });
+  (CONTRIBS||[]).forEach(c=>{
+    rows.push(`<tr><td>${esc(c.title||c.text||"教研资料")}</td><td><span class="td-tag b">${esc((c.subject||c.tag||"资料").slice(0,4))}</span></td><td>${esc(c.teacher||"教研组")}</td><td>${fmtTs(c.at)}</td></tr>`);
+  });
+  tb.innerHTML=rows.join("")||`<tr><td colspan="4" style="text-align:center;color:var(--ink-300);padding:30px">暂无资源，右下角 AI 生成或找教研组长上传</td></tr>`;
+}
+
+/* —— 成长空间贡献榜 —— */
+function renderGrow(){
+  const byT=teacherMap();
+  const arr=Object.entries(byT).map(([name,v])=>({name,n:v.count||0})).sort((a,b)=>b.n-a.n);
+  const colors=["#E5A93F","#A8B2A9","#C98A5B","#4E9A63","#4E9A63","#4E9A63"];
+  $("#growRank").innerHTML=arr.map((r,i)=>
+    `<div class="rank-row"><div class="rank-badge" style="background:${colors[i]||"#C9DEC6"}">${i+1}</div><div class="rank-name">${esc(r.name)}</div><div class="rank-num"><b>${r.n}</b> 份资源</div></div>`
+  ).join("")||`<div class="empty-state" style="padding:22px 0">贡献记录生成中</div>`;
+}
+
+/* —— 数据看板 —— */
+function renderData(){
+  const t=(STATS&&STATS.totals)||{};
+  const minis=[
+    ["总浏览",t.views||0],["总下载",t.downloads||0],["今日访问",t.today_views||0],["留言",t.board_msgs||0]
+  ];
+  $("#dataMinis").innerHTML=minis.map(([l,n])=>`<div class="mini"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+  const daily=dailyArr();
+  const max=Math.max(1,...daily.map(d=>d.v||0));
+  const W=680,H=120;
+  const pts=daily.map((d,i)=>{
+    const v=d.v||0,x=daily.length>1?i/(daily.length-1)*W:W/2,y=H-8-(v/max)*(H-26);
+    return [x,y,v,d.date];
+  });
+  if(pts.length>1){
+    const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+    $("#dataSpark").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px"><path d="${path}" stroke="#4E9A63" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="${path} L${W} ${H} L0 ${H}Z" fill="#8FC79B" opacity=".16"/>${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="#2F6B45"><title>${esc(p[3]||"")}: ${p[2]}</title></circle>`).join("")}</svg>`;
+  }else{$("#dataSpark").innerHTML=`<div class="empty-state" style="padding:20px 0">数据积累中（需至少 2 天）</div>`}
+  renderGrow();
+  const byT=teacherMap();
+  $("#dataTeachers").innerHTML=Object.entries(byT).sort((a,b)=>b[1].count-a[1].count).map(([n,v])=>{
+    const c=v.count||0;
+    return `<div class="rank-row"><div class="rank-name">${esc(n)}</div><div style="flex:1;margin:0 14px"><div class="bar" style="height:8px"><i style="width:${Math.min(100,c/28*100)}%"></i></div></div><div class="rank-num"><b>${c}</b> 份</div></div>`;
+  }).join("")||`<div class="empty-state" style="padding:20px 0">贡献记录生成中</div>`;
+}
+
+/* ============ 启动 ============ */
+(async function init(){
+  try{
+    const [wb,st,cv]=await Promise.all([
+      jget("/api/workbenches").catch(()=>({workbenches:[]})),
+      jget("/api/stats").catch(()=>null),
+      jget("/api/contrib").catch(()=>({contribs:[]}))
+    ]);
+    WBS=wb.workbenches||wb.list||[];
+    STATS=st;
+    CONTRIBS=(cv.contribs||cv.list||[]).slice().reverse();
+  }catch(e){console.warn("data load:",e)}
+  renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();
+  // 公告
+  try{
+    const n=await jget("/api/notice");
+    if(n&&n.notice&&n.notice.text){
+      $("#noticeMini").style.display="flex";
+      $("#noticeMiniText").textContent=n.notice.text;
+    }
+  }catch(e){}
+  const h=location.hash.slice(1);
+  if(h&&TITLES[h])go(h);
+})();
+</script>
+</body>
+</html>
