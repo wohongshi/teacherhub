@@ -72,6 +72,13 @@ button.danger:hover{background:var(--warn-soft)}
       <textarea id="noticein" placeholder="公告内容（留空发送即撤下）"></textarea>
       <div class="row"><button class="primary" id="noticesend">发布 / 更新</button><button class="danger" id="noticeclear">撤下</button><span id="noticemsg" style="font-size:12px;color:var(--muted);align-self:center"></span></div>
     </div>
+    <div class="card">
+      <h2>📈 成绩录入</h2>
+      <input id="scorename" placeholder="考试名，如 高三月考一">
+      <textarea id="scorein" placeholder="分数列表：空格 / 逗号 / 换行分隔（0-150）&#10;如 88 92 76 45 100"></textarea>
+      <div class="row"><button class="primary" id="scorego">录入</button><span id="scoremsg" style="font-size:12px;color:var(--muted);align-self:center"></span></div>
+      <div id="scorelist" style="margin-top:10px"></div>
+    </div>
   </div>
   <div>
     <div class="card">
@@ -99,6 +106,19 @@ button.danger:hover{background:var(--warn-soft)}
     document.getElementById('keyerr').textContent='';
     login.style.display='none';app.style.display='grid';
     load(r);
+    renderScores();
+  }
+  async function renderScores(){
+    var d=await jget('/api/scores');
+    var box=document.getElementById('scorelist');
+    if(!d.ok||!(d.exams||[]).length){box.innerHTML='<div style="font-size:12px;color:var(--muted)">还没有成绩记录</div>';return}
+    box.innerHTML=d.exams.slice().reverse().map(function(e){
+      return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line)"><b style="flex:1">'+esc(e.name)+'</b><span style="color:var(--muted)">'+e.count+' 人 · 均分 '+e.avg+' · 及格 '+e.pass_rate+'%</span><button class="danger" data-sx="'+esc(e.id)+'" style="padding:3px 9px;font-size:11px">删</button></div>';
+    }).join('');
+    box.querySelectorAll('[data-sx]').forEach(function(b){b.addEventListener('click',async function(){
+      if(!confirm('删除这场考试的成绩？'))return;
+      var r=await jsend('DELETE','/api/scores/'+b.dataset.sx);if(r.ok){renderScores();toast('已删除')}else{toast(r.error||'删除失败')}
+    })});
   }
   function load(ping){
     /* 统计 */
@@ -177,6 +197,18 @@ button.danger:hover{background:var(--warn-soft)}
     if(!r.ok){toast('下载失败');return}
     var blob=await r.blob();var a=document.createElement('a');
     a.href=URL.createObjectURL(blob);a.download=b.getAttribute('data-dl');a.click();
+  });
+  document.getElementById('scorego').addEventListener('click',async function(){
+    var name=document.getElementById('scorename').value.trim();
+    var txt=document.getElementById('scorein').value.trim();
+    var msg=document.getElementById('scoremsg');
+    if(!name||!txt){msg.textContent='填考试名和分数';return}
+    var arr=txt.split(/[\s,，;；\n]+/).filter(Boolean).map(Number);
+    if(!arr.length||arr.some(function(v){return !isFinite(v)||v<0||v>150})){msg.textContent='分数须为 0-150 的数字';return}
+    if(arr.length>500){msg.textContent='最多 500 个分数';return}
+    var r=await jsend('POST','/api/scores',{name:name,scores:arr});
+    if(r.ok){msg.textContent='已录入 '+arr.length+' 个分数';document.getElementById('scorename').value='';document.getElementById('scorein').value='';renderScores();toast('成绩已录入')}
+    else{msg.textContent=r.error||'录入失败'}
   });
   document.getElementById('exportbtn').addEventListener('click',async function(){
     var r=await fetch('/api/admin/export',{headers:{'X-Access-Key':key()}});

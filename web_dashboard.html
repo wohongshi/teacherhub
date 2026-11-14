@@ -255,6 +255,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   .hero h1{font-size:21px}
   .cols{flex-direction:column}
   .stats{grid-template-columns:repeat(2,1fr)}
+  .mini-stats{grid-template-columns:repeat(2,1fr)}
   .wb-grid,.board-grid{grid-template-columns:1fr}
   .forest{overflow-x:auto;justify-content:flex-start;padding:10px 56px 10px 4px}
   .fab-ai{bottom:calc(78px + env(safe-area-inset-bottom,0px));right:16px;padding:0;width:46px;height:46px;justify-content:center}
@@ -276,6 +277,68 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 }
 .msearch-btn{display:none;width:40px;height:40px;border-radius:11px;align-items:center;justify-content:center;border:1px solid var(--line);background:#fff}
 .msearch-btn svg{width:17px;height:17px;stroke:var(--ink-500);fill:none;stroke-width:2}
+/* ===== 深色模式 ===== */
+[data-theme="dark"]{
+  --green-900:#8FD3A8; --green-700:#6FBE8C; --green-600:#5EAF7E; --green-400:#4E9A63;
+  --green-200:#2E4A38; --green-100:#22362A; --green-50:#1E2C23;
+  --sand-100:#3A3423; --sand-200:#4A422C; --sand-700:#D9B872; --bud:#E5A93F;
+  --ink-900:#E9F1EB; --ink-700:#C4D2C8; --ink-500:#8C9C90; --ink-300:#66756B;
+  --bg:#131A15; --surface:#1B241E; --line:#2A362D; --line2:#263028;
+  --blue-100:#22303C; --blue-700:#7FA8C9;
+}
+[data-theme="dark"] body,[data-theme="dark"] .main{background:var(--bg);background-image:radial-gradient(#243027 1px,transparent 1px)}
+[data-theme="dark"] .sidebar,[data-theme="dark"] .topbar{background:var(--surface)}
+[data-theme="dark"] .card,[data-theme="dark"] .stat,[data-theme="dark"] .mini,[data-theme="dark"] .spark-wrap,
+[data-theme="dark"] .board-card,[data-theme="dark"] .wb-card,[data-theme="dark"] .elem-tile,
+[data-theme="dark"] .msearch-box,[data-theme="dark"] .ai-panel{background:var(--surface);border-color:var(--line2)}
+[data-theme="dark"] .hero{background:linear-gradient(135deg,#1E2B21 0%,#232B1E 55%,#262A1D 100%)}
+[data-theme="dark"] .hero p{color:#A9BBAF}
+[data-theme="dark"] .htag,[data-theme="dark"] .btn-ghost,[data-theme="dark"] .btn-line,[data-theme="dark"] .chip,
+[data-theme="dark"] .search-box input,[data-theme="dark"] .msearch-btn{background:#222D25;border-color:var(--line);color:var(--ink-700)}
+[data-theme="dark"] .stat::after{background:#212D24}
+[data-theme="dark"] .stat .elem-tag{color:#3F5445}
+[data-theme="dark"] .notice-mini{background:linear-gradient(135deg,#1E2B21,#262A1D);border-color:var(--green-200)}
+[data-theme="dark"] .notice-mini .ic{background:var(--surface)}
+[data-theme="dark"] .mbar{background:rgba(27,36,30,.94);border-color:var(--line)}
+[data-theme="dark"] .mbar-item.on{background:var(--green-100)}
+[data-theme="dark"] .btn-demo{background:var(--sand-100);color:var(--sand-700)}
+[data-theme="dark"] .btn-primary{background:#3C7D52}
+[data-theme="dark"] .btn-primary:hover{background:#4E9A63}
+[data-theme="dark"] .fab-ai{background:#2A5C3E}
+[data-theme="dark"] .wb-prev{background:#1E2C23}
+[data-theme="dark"] .wb-tag{background:#1E2C23;border-color:var(--green-200)}
+[data-theme="dark"] .up-tag{background:var(--blue-100);color:var(--blue-700)}
+[data-theme="dark"] .up-tag.exp{background:var(--green-100);color:var(--green-600)}
+[data-theme="dark"] .up-tag.hw{background:#2A2438;color:#A88FD0}
+[data-theme="dark"] .up-tag.act{background:var(--sand-100);color:var(--sand-700)}
+[data-theme="dark"] .tbl tr:hover td{background:#1F2A22}
+[data-theme="dark"] .td-tag{background:#1E2C23;border-color:var(--green-200)}
+[data-theme="dark"] .td-tag.b{background:var(--blue-100);border-color:#2C3A46}
+[data-theme="dark"] .td-tag.y{background:var(--sand-100);border-color:#4A422C}
+[data-theme="dark"] .tl-item::before{border-color:var(--surface)}
+[data-theme="dark"] .bar{background:#212D24}
+[data-theme="dark"] .elem-tile:hover{background:var(--green-50)}
+[data-theme="dark"] .goal-row,[data-theme="dark"] .rank-num,[data-theme="dark"] .up-meta,[data-theme="dark"] .pnum{color:var(--ink-500)}
+[data-theme="dark"] .stat .sval.empty,[data-theme="dark"] .empty-state{color:var(--ink-500)}
+[data-theme="dark"] .motto,[data-theme="dark"] .motto b{color:var(--ink-500)}
+[data-theme="dark"] .slogan{background:var(--sand-100);color:var(--sand-700)}
+[data-theme="dark"] .rank-badge{color:#131A15}
+[data-theme="dark"] .search-box input:focus{border-color:var(--green-600);box-shadow:0 0 0 3px rgba(78,154,99,.22)}
+[data-theme="dark"] .chip.on{background:var(--green-100);border-color:var(--green-600);color:var(--green-900)}
+[data-theme="dark"] .nav-item.on{background:var(--green-100);color:var(--green-900)}
+/* ===== 化学动效 ===== */
+@keyframes plantGrow{from{transform:scaleY(.15);opacity:0}to{transform:scaleY(1);opacity:1}}
+.plant svg{transform-origin:bottom center;animation:plantGrow .7s cubic-bezier(.34,1.3,.64,1) both}
+.plant:nth-child(2) svg{animation-delay:.08s}.plant:nth-child(3) svg{animation-delay:.16s}
+.plant:nth-child(4) svg{animation-delay:.24s}.plant:nth-child(5) svg{animation-delay:.32s}
+.plant:nth-child(6) svg{animation-delay:.4s}.plant:nth-child(7) svg{animation-delay:.48s}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.view.on{animation:viewIn .28s ease both}
+@keyframes elemPulse{0%,100%{box-shadow:0 0 0 0 rgba(78,154,99,.18)}50%{box-shadow:0 0 0 5px rgba(78,154,99,0)}}
+.elem-tile:hover{animation:elemPulse 1.2s ease infinite}
+@keyframes barGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+#scoreBars rect{transform-origin:bottom;animation:barGrow .5s ease both}
+@media (prefers-reduced-motion:reduce){.plant svg,.view.on,.elem-tile:hover,#scoreBars rect{animation:none}}
 </style>
 </head>
 <body>
@@ -370,13 +433,27 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
           <input id="globalSearch" placeholder="搜课标/真题/资源">
         </div>
+        <button class="msearch-btn" id="themeBtn" aria-label="切换深色模式" style="display:flex;font-size:15px">🌙</button>
         <button class="btn-demo" id="demoBtn">使用说明</button>
       </div>
     </header>
 
     <!-- ===== 总览 ===== -->
     <section class="view on" id="v-overview">
-      <div class="notice-mini" id="noticeMini" style="display:none"><div class="ic">📢</div><div id="noticeMiniText"></div></div>
+      <div class="msearch" id="kbPanel">
+  <div class="msearch-box">
+    <div style="font-size:14px;font-weight:700;color:var(--ink-900);margin-bottom:10px">📌 认领课标模块 <span id="kbModule" style="color:var(--green-700)"></span></div>
+    <input id="kbName" placeholder="你的姓名" style="margin-bottom:8px">
+    <input id="kbKey" placeholder="管理 key（找教研组长）" type="password" style="margin-bottom:12px">
+    <div style="display:flex;gap:8px">
+      <button class="btn-primary" id="kbSubmit" style="flex:1;height:42px">确认认领</button>
+      <button class="btn-line" id="kbCancel" style="height:42px">取消</button>
+    </div>
+    <div class="tip" id="kbMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div class="notice-mini" id="noticeMini" style="display:none"><div class="ic">📢</div><div id="noticeMiniText"></div></div>
 
       <div class="hero">
         <div class="hero-text">
@@ -443,7 +520,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="stat"><span class="elem-tag">H₂O</span><div class="sname">高考真题</div><div class="sval">74<small>题</small></div><div class="snote">2021—2026 六年归档</div></div>
         <div class="stat"><span class="elem-tag">Fe</span><div class="sname">校本资源</div><div class="sval" id="statRes">0<small>份</small></div><div class="snote">上传第一份 →</div></div>
         <div class="stat"><span class="elem-tag">O₂</span><div class="sname">实验模块</div><div class="sval" id="statLab">0<small>个</small></div><div class="snote">AI 生成一个 →</div></div>
-        <div class="stat"><span class="elem-tag">C</span><div class="sname">最近考试均分</div><div class="sval empty">— 待上传</div><div class="snote">上传成绩后自动生成</div></div>
+        <div class="stat"><span class="elem-tag">C</span><div class="sname">最近考试均分</div><div class="sval" id="statAvg">— 待录入</div><div class="snote" id="statAvgNote">录入成绩后自动生成</div></div>
       </div>
 
       <!-- 日历 + 最近上传/待办 -->
@@ -627,15 +704,26 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
     <!-- ===== 成绩分析 ===== -->
     <section class="view" id="v-score">
-      <div class="mod-head"><h2>成绩分析<span class="demo-chip">演示数据</span></h2><p>上传成绩后自动生成：均分、分数段、题目失分点、班级对比。</p></div>
-      <div class="card" style="padding:52px 28px">
-        <div class="empty-state" style="padding:0">
-          <div class="big">📊</div>
-          <div style="font-size:15px;font-weight:600;color:var(--ink-900)">最近考试均分 — 待上传</div>
-          <div style="font-size:12.5px;margin-top:10px;line-height:2">
-            成绩表支持 Excel 上传，系统自动生成：<br>
-            均分与排名 · 分数段分布 · 题目失分点 · 班级横向对比<br>
-            <span style="color:var(--ink-300)">11-05 月考分析会前导入即可</span>
+      <div class="mod-head"><h2>成绩分析</h2><p>录入成绩后自动生成：均分、分数段、及格率、历次趋势。</p></div>
+      <div class="lab-toolbar" id="scoreTabs" style="margin:0 0 18px"></div>
+      <div class="mini-stats" id="scoreMinis"></div>
+      <div class="card section">
+        <div class="card-head"><div><div class="card-title">分数段分布</div><div class="card-sub" id="scoreBarsSub">10 分一档</div></div></div>
+        <div id="scoreBars"></div>
+      </div>
+      <div class="cols">
+        <div class="col-l">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">历次均分趋势</div><div class="card-sub">按录入时间</div></div></div>
+            <div id="scoreTrend"></div>
+          </div>
+        </div>
+        <div class="col-r">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">怎么录入</div></div></div>
+            <div class="todo">打开管理面板（/admin），「成绩录入」卡粘贴分数即可</div>
+            <div class="todo">支持空格 / 逗号 / 换行分隔，分数 0—150</div>
+            <div class="todo">原始分只进统计不公开，链接发群里安全</div>
           </div>
         </div>
       </div>
@@ -819,6 +907,16 @@ $("#demoBtn").addEventListener("click",()=>{
   go("overview");
 });
 
+/* ============ 深色模式 ============ */
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  try{localStorage.setItem("th_theme",t)}catch(e){}
+  $("#themeBtn").textContent=t==="dark"?"☀️":"🌙";
+}
+applyTheme((()=>{try{const s=localStorage.getItem("th_theme");if(s)return s}catch(e){}
+  return matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"})());
+$("#themeBtn").addEventListener("click",()=>applyTheme(document.documentElement.dataset.theme==="dark"?"light":"dark"));
+
 /* ============ AI 面板 ============ */
 $("#mcpUrl").textContent=location.origin+"/mcp";
 $("#fabAI").addEventListener("click",()=>$("#aiPanel").classList.toggle("on"));
@@ -1000,6 +1098,109 @@ function renderGrow(){
   ).join("")||`<div class="empty-state" style="padding:22px 0"><div style="font-size:12.5px">贡献榜在等第一行名字</div></div>`;
 }
 
+/* —— 成绩分析（真实数据） —— */
+let SCORES=[];
+function renderScore(){
+  const tabs=$("#scoreTabs");
+  if(!SCORES.length){
+    tabs.innerHTML="";
+    $("#scoreMinis").innerHTML=`<div class="mini" style="grid-column:1/-1"><div class="l" style="font-size:13px">还没有成绩记录——打开 <a href="/admin" target="_blank">管理面板</a> 录入第一场考试</div></div>`;
+    $("#scoreBars").innerHTML=`<div class="empty-state" style="padding:26px 0"><div class="big" style="font-size:30px">🧪</div><div style="font-size:12.5px">第一份成绩录入后，分数段在这里沉淀出来</div></div>`;
+    $("#scoreTrend").innerHTML=`<div class="empty-state" style="padding:22px 0"><div style="font-size:12.5px">至少两场考试才能看出趋势</div></div>`;
+    return;
+  }
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):sorted[sorted.length-1];
+  tabs.innerHTML=sorted.map(e=>`<button class="chip ${cur&&e.id===cur.id?'on':''}" data-sxtab="${esc(e.id)}">${esc(e.name)}</button>`).join("");
+  if(cur){
+    $("#scoreMinis").innerHTML=[
+      ["人数",cur.count+" 人"],["均分",cur.avg],["最高",cur.max],["最低",cur.min],["及格率",cur.pass_rate+"%"]
+    ].map(([l,n])=>`<div class="mini"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+    $("#scoreBarsSub").textContent=cur.name+" · 10 分一档";
+  }
+  // 分数段柱状图
+  if(cur&&cur.id){
+    jget("/api/scores/"+cur.id).then(d=>{
+      const segs=d.segments||[];
+      const mx=Math.max(1,...segs.map(s2=>s2.n));
+      const W=680,H=170,bw=Math.min(52,(W-40)/segs.length-8);
+      let bars="";
+      segs.forEach((s2,i)=>{
+        if(s2.n===0&&i<3)return; // 前段空档压缩
+        const x=30+i*((W-50)/segs.length),h=(H-46)*(s2.n/mx),y=H-30-h;
+        bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="${Math.max(h,1.5)}" rx="5" fill="#4E9A63" opacity="${s2.n?.85:.25}"><title>${s2.lo}-${s2.hi}分: ${s2.n}人</title></rect>`;
+        bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-12}" font-size="10" fill="#A8B2A9" text-anchor="middle">${s2.lo}</text>`;
+        if(s2.n)bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-5).toFixed(1)}" font-size="10.5" fill="#2F6B45" font-weight="700" text-anchor="middle">${s2.n}</text>`;
+      });
+      $("#scoreBars").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${bars}</svg>`;
+    }).catch(()=>{});
+  }
+  // 历次均分趋势
+  if(sorted.length>=2){
+    const W=560,H=140;
+    const avgs=sorted.map(e=>e.avg);
+    const mn=Math.min(...avgs),mx2=Math.max(...avgs),span=Math.max(1,mx2-mn);
+    const pts=sorted.map((e,i)=>{
+      const x=sorted.length>1?20+i/(sorted.length-1)*(W-40):W/2;
+      const y=H-28-((e.avg-mn)/span)*(H-58);
+      return [x,y,e];
+    });
+    const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+    $("#scoreTrend").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
+      <path d="${path}" stroke="#4E9A63" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      ${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="#fff" stroke="#2F6B45" stroke-width="2"><title>${esc(p[2].name)}: ${p[2].avg}</title></circle>
+      <text x="${p[0].toFixed(1)}" y="${(p[1]-10).toFixed(1)}" font-size="10.5" fill="#2F6B45" text-anchor="middle" font-weight="700">${p[2].avg}</text>
+      <text x="${p[0].toFixed(1)}" y="${H-8}" font-size="9.5" fill="#A8B2A9" text-anchor="middle">${esc(p[2].name.slice(0,6))}</text>`).join("")}
+    </svg>`;
+  }else{
+    $("#scoreTrend").innerHTML=`<div class="empty-state" style="padding:22px 0"><div style="font-size:12.5px">至少两场考试才能看出趋势</div></div>`;
+  }
+}
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-sxtab]");
+  if(t){window.__scoreSel=t.dataset.sxtab;renderScore();}
+});
+
+/* —— 课标认领 —— */
+let KB_CLAIMS={};
+function renderKbClaims(){
+  $$("#v-kb tbody tr").forEach(tr=>{
+    const mod=(tr.cells[0]||{}).textContent?.trim();
+    const badge=tr.querySelector(".td-tag");
+    if(!mod||!badge)return;
+    const c=KB_CLAIMS[mod];
+    if(c){
+      badge.outerHTML=`<span class="td-tag" data-kbmod="${esc(mod)}" style="cursor:pointer">已认领 · ${esc(c.by)}</span>`;
+    }else{
+      badge.outerHTML=`<span class="td-tag y" data-kbmod="${esc(mod)}" style="cursor:pointer">待认领 · 点击认领</span>`;
+    }
+  });
+}
+let kbTarget="";
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-kbmod]");
+  if(!b)return;
+  kbTarget=b.dataset.kbmod;
+  $("#kbModule").textContent=kbTarget;
+  $("#kbMsg").textContent="";
+  $("#kbPanel").classList.add("on");
+});
+$("#kbCancel").addEventListener("click",()=>$("#kbPanel").classList.remove("on"));
+$("#kbPanel").addEventListener("click",e=>{if(e.target.id==="kbPanel")$("#kbPanel").classList.remove("on")});
+$("#kbSubmit").addEventListener("click",async()=>{
+  const name=$("#kbName").value.trim(),key=$("#kbKey").value.trim();
+  if(!name||!key){$("#kbMsg").textContent="姓名和 key 都要填";return}
+  try{
+    const r=await fetch("/api/kb/claim",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":key},body:JSON.stringify({module:kbTarget,by:name})}).then(x=>x.json());
+    if(r.ok){
+      KB_CLAIMS[kbTarget]={by:name,at:Date.now()/1000};
+      $("#kbPanel").classList.remove("on");
+      renderKbClaims();
+      toast("已认领 "+kbTarget);
+    }else{$("#kbMsg").textContent=r.error||"认领失败"}
+  }catch(err){$("#kbMsg").textContent="网络错误"}
+});
+
 /* —— 数据看板 —— */
 function renderData(){
   const t=(STATS&&STATS.totals)||{};
@@ -1037,8 +1238,21 @@ function renderData(){
     WBS=wb.workbenches||wb.list||[];
     STATS=st;
     CONTRIBS=(cv.contribs||cv.list||[]).slice().reverse();
+    const [sc,kb]=await Promise.all([
+      jget("/api/scores").catch(()=>({exams:[]})),
+      jget("/api/kb").catch(()=>({claims:{}}))
+    ]);
+    SCORES=sc.exams||[];
+    KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();renderKbClaims();
+  // 统计卡「最近考试均分」联动
+  if(SCORES.length){
+    const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
+    $("#statAvg").innerHTML=`${latest.avg}<small>分</small>`;
+    $("#statAvg").className="sval";
+    $("#statAvgNote").textContent=latest.name+" · "+latest.count+" 人";
+  }
   // 公告
   try{
     const n=await jget("/api/notice");

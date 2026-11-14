@@ -5,8 +5,8 @@ package main
 // 存储：data/store.json（元数据）+ data/artifacts/{id}.html（产物）。
 
 import (
-	"crypto/rand"
 	"archive/zip"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +14,7 @@ import (
 	"html"
 	"io/fs"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -35,43 +36,108 @@ type Contrib struct {
 }
 
 type Workbench struct {
-	ID        string   `json:"id"`
-	Title     string   `json:"title"`
-	Desc      string   `json:"desc,omitempty"`
-	Tags      []string `json:"tags,omitempty"`
-	Keywords  []string `json:"keywords,omitempty"`
-	Teacher   string   `json:"teacher,omitempty"`
-	Size      int64    `json:"size"`
-	Downloads int      `json:"downloads"`
-	Views     int      `json:"views"`
-	HasPreview bool    `json:"has_preview"`
-	Hidden     bool    `json:"hidden"`
+	ID         string   `json:"id"`
+	Title      string   `json:"title"`
+	Desc       string   `json:"desc,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
+	Keywords   []string `json:"keywords,omitempty"`
+	Teacher    string   `json:"teacher,omitempty"`
+	Size       int64    `json:"size"`
+	Downloads  int      `json:"downloads"`
+	Views      int      `json:"views"`
+	HasPreview bool     `json:"has_preview"`
+	Hidden     bool     `json:"hidden"`
 	RateSum    int      `json:"rate_sum"`
 	RateNum    int      `json:"rate_num"`
-	CreatedAt int64    `json:"created_at"`
+	CreatedAt  int64    `json:"created_at"`
+}
+
+// ScoreExam 一次考试成绩（原始分数组，仅进统计不公开原分）。
+type ScoreExam struct {
+	ID     string    `json:"id"`
+	Name   string    `json:"name"`
+	At     int64     `json:"at"`
+	Scores []float64 `json:"scores"`
+}
+
+// KBClaim 课标模块认领（谁认领了哪个模块的映射）。
+type KBClaim struct {
+	By string `json:"by"`
+	At int64  `json:"at"`
+}
+
+// scoreSummary 成绩统计视图（不含原始分）。
+func scoreSummary(e ScoreExam) map[string]any {
+	n := len(e.Scores)
+	out := map[string]any{"id": e.ID, "name": e.Name, "at": e.At, "count": n}
+	if n == 0 {
+		return out
+	}
+	sum, mx, mn, pass := 0.0, e.Scores[0], e.Scores[0], 0
+	for _, v := range e.Scores {
+		sum += v
+		if v > mx {
+			mx = v
+		}
+		if v < mn {
+			mn = v
+		}
+		if v >= 60 {
+			pass++
+		}
+	}
+	out["avg"] = math.Round(sum/float64(n)*10) / 10
+	out["max"] = mx
+	out["min"] = mn
+	out["pass_rate"] = math.Round(float64(pass)/float64(n)*1000) / 10
+	return out
+}
+
+// scoreSegments 分数段分布（10 分一桶）。
+func scoreSegments(scores []float64) []map[string]any {
+	segs := []map[string]any{}
+	for lo := 0; lo <= 140; lo += 10 {
+		n := 0
+		for _, v := range scores {
+			if v >= float64(lo) && v < float64(lo+10) {
+				n++
+			}
+		}
+		segs = append(segs, map[string]any{"lo": lo, "hi": lo + 9, "n": n})
+	}
+	n := 0
+	for _, v := range scores {
+		if v >= 150 {
+			n++
+		}
+	}
+	segs = append(segs, map[string]any{"lo": 150, "hi": 150, "n": n})
+	return segs
 }
 
 // BoardMsg 留言墙条目（开放留言，限速防刷）。
 type BoardMsg struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Text string `json:"text"`
-	Likes int   `json:"likes"`
-	At   int64  `json:"at"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Text  string `json:"text"`
+	Likes int    `json:"likes"`
+	At    int64  `json:"at"`
 }
 
 type cloudStore struct {
 	mu   sync.Mutex
 	dir  string
 	data struct {
-		Key         string      `json:"key"`
-		Contribs    []Contrib   `json:"contribs"`
-		Workbenches []Workbench `json:"workbenches"`
-		Board       []BoardMsg  `json:"board,omitempty"`
-		Notice      string      `json:"notice,omitempty"`
-		DailyViews  map[string]int `json:"daily_views,omitempty"`
+		Key         string             `json:"key"`
+		Contribs    []Contrib          `json:"contribs"`
+		Workbenches []Workbench        `json:"workbenches"`
+		Board       []BoardMsg         `json:"board,omitempty"`
+		Notice      string             `json:"notice,omitempty"`
+		DailyViews  map[string]int     `json:"daily_views,omitempty"`
+		Scores      []ScoreExam        `json:"scores,omitempty"`
+		KBClaims    map[string]KBClaim `json:"kb_claims,omitempty"`
 	}
-	boardLast map[string]int64 // IP → 上次留言时间（内存限速）
+	boardLast  map[string]int64 // IP → 上次留言时间（内存限速）
 	boardLikes map[string]bool  // ip|msgID → 已赞
 }
 
@@ -698,6 +764,142 @@ func cmdServe(args []string) {
 		_, _ = w.Write([]byte(viewerHTML(*meta)))
 	})
 
+	// 成绩分析：读免 key（只出统计）、写留 key
+	mux.HandleFunc("/api/scores", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet: // 列表（不含原始分）
+			st.mu.Lock()
+			exams := make([]map[string]any, 0, len(st.data.Scores))
+			for _, e := range st.data.Scores {
+				exams = append(exams, scoreSummary(e))
+			}
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true, "exams": exams})
+		case http.MethodPost: // 录入（key）
+			api(w, r, func(w http.ResponseWriter, r *http.Request) {
+				var in struct {
+					Name   string    `json:"name"`
+					Scores []float64 `json:"scores"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Name == "" || len(in.Scores) == 0 {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 name/scores"})
+					return
+				}
+				if len([]rune(in.Name)) > 50 || len(in.Scores) > 500 {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "name≤50字/scores≤500个"})
+					return
+				}
+				for _, v := range in.Scores {
+					if v < 0 || v > 150 {
+						writeJSON(w, 400, map[string]any{"ok": false, "error": "分数须在 0-150"})
+						return
+					}
+				}
+				e := ScoreExam{ID: "sx_" + randToken()[:12], Name: in.Name, At: time.Now().Unix(), Scores: in.Scores}
+				st.mu.Lock()
+				st.data.Scores = append(st.data.Scores, e)
+				_ = st.save()
+				st.mu.Unlock()
+				writeJSON(w, 200, map[string]any{"ok": true, "id": e.ID})
+			})
+		default:
+			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+		}
+	})
+	mux.HandleFunc("/api/scores/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/api/scores/")
+		if id == "" || strings.Contains(id, "/") {
+			writeJSON(w, 404, map[string]any{"ok": false, "error": "not found"})
+			return
+		}
+		switch r.Method {
+		case http.MethodGet: // 详情（含分数段，不含原始分）
+			st.mu.Lock()
+			var found *ScoreExam
+			for i := range st.data.Scores {
+				if st.data.Scores[i].ID == id {
+					found = &st.data.Scores[i]
+					break
+				}
+			}
+			var out map[string]any
+			if found != nil {
+				out = scoreSummary(*found)
+				out["segments"] = scoreSegments(found.Scores)
+			}
+			st.mu.Unlock()
+			if found == nil {
+				writeJSON(w, 404, map[string]any{"ok": false, "error": "考试不存在"})
+				return
+			}
+			out["ok"] = true
+			writeJSON(w, 200, out)
+		case http.MethodDelete: // 删除（key）
+			api(w, r, func(w http.ResponseWriter, r *http.Request) {
+				st.mu.Lock()
+				found := false
+				ns := st.data.Scores[:0]
+				for _, e := range st.data.Scores {
+					if e.ID == id {
+						found = true
+						continue
+					}
+					ns = append(ns, e)
+				}
+				if found {
+					st.data.Scores = ns
+					_ = st.save()
+				}
+				st.mu.Unlock()
+				if !found {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "考试不存在"})
+					return
+				}
+				writeJSON(w, 200, map[string]any{"ok": true})
+			})
+		default:
+			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+		}
+	})
+	// 课标认领：读免 key、写留 key
+	mux.HandleFunc("/api/kb", func(w http.ResponseWriter, r *http.Request) {
+		st.mu.Lock()
+		claims := make(map[string]KBClaim, len(st.data.KBClaims))
+		for k, v := range st.data.KBClaims {
+			claims[k] = v
+		}
+		st.mu.Unlock()
+		writeJSON(w, 200, map[string]any{"ok": true, "claims": claims})
+	})
+	mux.HandleFunc("/api/kb/claim", func(w http.ResponseWriter, r *http.Request) {
+		api(w, r, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+				return
+			}
+			var in struct {
+				Module string `json:"module"`
+				By     string `json:"by"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Module == "" || in.By == "" {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 module/by"})
+				return
+			}
+			if len([]rune(in.Module)) > 30 || len([]rune(in.By)) > 20 {
+				writeJSON(w, 400, map[string]any{"ok": false, "error": "module≤30字/by≤20字"})
+				return
+			}
+			st.mu.Lock()
+			if st.data.KBClaims == nil {
+				st.data.KBClaims = map[string]KBClaim{}
+			}
+			st.data.KBClaims[in.Module] = KBClaim{By: in.By, At: time.Now().Unix()}
+			_ = st.save()
+			st.mu.Unlock()
+			writeJSON(w, 200, map[string]any{"ok": true})
+		})
+	})
+
 	// 留言墙：免 key 开放留言（60s/条限速 + 200 字限制，滚动存 200 条）
 	mux.HandleFunc("/api/board", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete { // 删除留言（管理 key）
@@ -1142,11 +1344,11 @@ func wbView(w Workbench, r *http.Request) map[string]any {
 		"id": w.ID, "title": w.Title, "desc": w.Desc, "tags": w.Tags,
 		"keywords": w.Keywords, "teacher": w.Teacher, "size": w.Size,
 		"downloads": w.Downloads, "views": w.Views, "created_at": w.CreatedAt,
-		"preview":   pv,
-		"hidden":    w.Hidden,
-		"rate":      rateOf(w),
-		"rate_num":  w.RateNum,
-		"link":      workbenchLink(r, w.ID),
+		"preview":  pv,
+		"hidden":   w.Hidden,
+		"rate":     rateOf(w),
+		"rate_num": w.RateNum,
+		"link":     workbenchLink(r, w.ID),
 	}
 }
 
@@ -1201,5 +1403,3 @@ func similarity(q string, w Workbench) float64 {
 	}
 	return sc
 }
-
-

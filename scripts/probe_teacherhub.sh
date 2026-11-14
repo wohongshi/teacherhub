@@ -173,6 +173,25 @@ curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import j
 BN=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;print(json.load(sys.stdin)['backups'][0]['name'])" 2>/dev/null)
 [ -n "$BN" ] && curl -s -H "X-Access-Key: $KEY" -o /tmp/th-bn.zip -w '%{http_code} %{size_download}' "$BASE/api/admin/backups/$BN" | grep -qE '^200 [1-9][0-9]*$' && ok "备份单份下载（200，非空）" || bad "备份下载（BN=${BN:-空}）"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_backups","arguments":{}}}' | python3 -c "import json,sys;assert json.load(sys.stdin)['result'].get('isError')==True" 2>/dev/null && ok "MCP 备份清单无 key 拒" || bad "MCP 备份清单鉴权"
+
+# ---- 成绩分析 + 课标认领断言 ----
+SX=$(curl -s -X POST "$BASE/api/scores?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"name":"探针月考","scores":[88,92,76,45,100,67,73,81,55,90,62,78]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+[ -n "$SX" ] && ok "成绩录入（key）" || bad "成绩录入"
+curl -s "$BASE/api/scores" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+e=[x for x in d['exams'] if x['name']=='探针月考'][0]
+assert e['count']==12 and e['avg']==75.6 and e['max']==100 and e['min']==45 and e['pass_rate']==83.3, e" 2>/dev/null && ok "成绩统计精确（均分/极值/及格率）" || bad "成绩统计"
+curl -s "$BASE/api/scores/$SX" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+seg={s['lo']:s['n'] for s in d['segments'] if s['n']}
+assert seg=={40:1,50:1,60:2,70:3,80:2,90:2,100:1}, seg" 2>/dev/null && ok "分数段分布逐桶正确" || bad "分数段"
+curl -s -X POST "$BASE/api/scores?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"name":"x","scores":[200]}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "越界分数拒绝（400）" || bad "越界分数"
+curl -s -X POST "$BASE/api/scores" -H 'Content-Type: application/json' --data-raw '{"name":"x","scores":[50]}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "成绩录入无 key 拒" || bad "成绩无 key"
+curl -s -X POST "$BASE/api/kb/claim?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"module":"化学实验基础","by":"张老师"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && ok "课标认领（key）" || bad "课标认领"
+curl -s "$BASE/api/kb" | python3 -c "import json,sys;assert json.load(sys.stdin)['claims'].get('化学实验基础',{}).get('by')=='张老师'" 2>/dev/null && ok "认领持久化可查（免 key）" || bad "认领查询"
+curl -s -X DELETE "$BASE/api/scores/$SX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s -X DELETE "$BASE/api/scores/sx_nope" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 404 && ok "成绩删除（200/404）" || bad "成绩删除"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"
