@@ -922,7 +922,7 @@ $("#msearchInput").addEventListener("keydown",e=>{
   if(e.key==="Enter"){
     const q=e.target.value.trim();
     $("#msearch").classList.remove("on");
-    go("lab");$("#labQ").value=q;renderWbs();
+    doSearch(q);
   }
 });
 document.addEventListener("click",e=>{
@@ -931,11 +931,16 @@ document.addEventListener("click",e=>{
 });
 
 /* ============ 全局搜索：跳实验工作台并检索 ============ */
+function doSearch(q){
+  const ql=(q||"").toLowerCase().trim();
+  if(!ql)return;
+  const wbHit=WBS.some(w=>!w.hidden&&[w.title,w.desc,(w.tags||[]).join(" ")].join(" ").toLowerCase().includes(ql));
+  const fHit=FILES.some(x=>(x.name||"").toLowerCase().includes(ql));
+  if(wbHit||!fHit){go("lab");$("#labQ").value=q;renderWbs();}
+  else{go("res");$("#fileQ").value=q;renderFiles();}
+}
 $("#globalSearch").addEventListener("keydown",e=>{
-  if(e.key==="Enter"){
-    const q=e.target.value.trim();
-    go("lab");$("#labQ").value=q;renderWbs();
-  }
+  if(e.key==="Enter"){doSearch(e.target.value.trim())}
 });
 
 /* ============ 演示数据按钮 ============ */

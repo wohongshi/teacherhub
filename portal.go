@@ -66,15 +66,18 @@ func viewerHTML(w Workbench) string {
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>` + title + `</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#12333a;display:flex;flex-direction:column;height:100vh}
-.bar{display:flex;align-items:center;gap:12px;padding:10px 14px;color:#eef6f6;flex:none;background:rgba(18,51,58,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.bar a.primary{background:rgba(255,255,255,.16);color:#fff;font-weight:600}
-.bar a{color:#cfe3e5;text-decoration:none;font-size:13.5px;padding:7px 12px;border-radius:9px}
-.bar a:hover{background:rgba(255,255,255,.12);color:#fff}
-.bar .t{flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:#F7F9F6;background-image:radial-gradient(#E4EAE2 1px,transparent 1px);background-size:22px 22px;display:flex;flex-direction:column;height:100vh}
+.bar{display:flex;align-items:center;gap:9px;padding:10px 16px;flex:none;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #EBEFE9}
+.bar a{color:#3E4A41;text-decoration:none;font-size:12.5px;padding:8px 13px;border-radius:10px;background:#fff;border:1px solid #EBEFE9;white-space:nowrap}
+.bar a:hover{border-color:#8FC79B;color:#2F6B45}
+.bar a.primary{background:#3C7D52;color:#fff;border-color:#3C7D52;font-weight:600}
+.bar a.primary:hover{background:#2F6B45}
+.bar .t{flex:1;font-size:14px;font-weight:700;color:#1F2A22;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ratebar{display:flex;align-items:center;gap:12px;padding:9px 16px;background:#fff;border-bottom:1px solid #EBEFE9;font-size:12.5px;color:#7C8A7F;flex:none}
+.ratebar .stars{font-size:17px;color:#E5A93F;letter-spacing:2px;cursor:pointer}
 iframe{flex:1;width:100%%;border:0;background:#fff}
 </style></head><body>
-<div class="bar"><a href="/">← 教研工作台</a><span class="t">` + title + `</span><a class="primary" href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a class="primary" href="javascript:void(0)" id="qrbtn">📱 扫码</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
+<div class="bar"><a href="/">← 学科园地</a><span class="t">` + title + `</span><a class="primary" href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a class="primary" href="javascript:void(0)" id="qrbtn">📱 扫码</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
 <div class="ratebar"><span id="ratetxt">评分加载中…</span><span class="stars" id="starslot"></span></div>
 <iframe src="/w/` + w.ID + `/raw"></iframe>
 <script src="/qr.js"></script>

@@ -110,7 +110,7 @@ curl -s "$BASE/" | grep -q 'class="lab-toolbar"' && curl -s "$BASE/" | grep -q '
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==13 and {'rate_workbench','list_backups'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十三件（含评分/备份）" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==14 and {'rate_workbench','list_backups','list_files'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十四件（含评分/备份/文件）" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -218,6 +218,18 @@ EV=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=../../
 [ -n "$EV" ] && ok "穿越文件名净化（无路径分隔符）" || bad "文件名净化"
 curl -s -X DELETE "$BASE/api/files/$FX" -o /dev/null -w '%{http_code}' | grep -q 401 && curl -s -X DELETE "$BASE/api/files/$FX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s -X DELETE "$BASE/api/files/$FX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 404 && ok "文件删除（401/200/404）" || bad "文件删除"
 [ -n "$EV" ] && curl -s -X DELETE "$BASE/api/files/$EV" -H "X-Access-Key: $KEY" -o /dev/null
+# ---- 优化轮断言（gzip/备份含 files/MCP 文件工具）----
+curl -s -o /dev/null -D /tmp/th-gzh -H 'Accept-Encoding: gzip' "$BASE/"
+grep -qi 'content-encoding: gzip' /tmp/th-gzh && grep -qi 'vary: accept-encoding' /tmp/th-gzh && ok "页面 gzip 压缩（含 Vary）" || bad "gzip"
+printf '导出验证内容' > /tmp/th-exp-src.txt
+curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-exp-src.txt;filename=导出验证.txt" -F "teacher=探针" >/dev/null
+curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/export" -o /tmp/th-exp.zip
+unzip -l /tmp/th-exp.zip 2>/dev/null | grep -q 'files/' && unzip -l /tmp/th-exp.zip 2>/dev/null | grep -q 'store.json' && ok "导出 zip 含 files 目录" || bad "导出含 files"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"list_files","arguments":{}}}' | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+r=json.loads(d['result']['content'][0]['text'])
+assert r.get('ok')==True and isinstance(r.get('files'),list), r" 2>/dev/null && ok "MCP list_files（免 key）" || bad "MCP list_files"
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"

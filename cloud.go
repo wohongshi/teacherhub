@@ -6,6 +6,7 @@ package main
 
 import (
 	"archive/zip"
+	"compress/gzip"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -235,7 +236,44 @@ func randToken() string {
 	return hex.EncodeToString(b)
 }
 
-// autoBackup 启动时与每 24h 自动快照（zip：store.json + artifacts，轮转留 7 份）。
+// gzipRW gzip 响应包装。
+type gzipRW struct {
+	http.ResponseWriter
+	gz *gzip.Writer
+}
+
+func (w *gzipRW) Write(b []byte) (int, error) { return w.gz.Write(b) }
+
+// wantGzip 是否值得压缩：页面/JSON/XML 压缩，大文件下载与 zip 不压。
+func wantGzip(p string) bool {
+	if strings.HasPrefix(p, "/api/files/") ||
+		strings.HasPrefix(p, "/api/admin/export") ||
+		strings.HasPrefix(p, "/api/admin/backups") ||
+		strings.HasSuffix(p, "/file") ||
+		strings.HasSuffix(p, "/preview") {
+		return false
+	}
+	return true
+}
+
+// withGzip 对响应做 gzip（浏览器带 Accept-Encoding 时）。
+func withGzip(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead ||
+			!strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") ||
+			!wantGzip(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Add("Vary", "Accept-Encoding")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		next.ServeHTTP(&gzipRW{ResponseWriter: w, gz: gz}, r)
+	})
+}
+
+// autoBackup 启动时与每 24h 自动快照（zip：store.json + artifacts + files，轮转留 7 份）。
 func autoBackup(st *cloudStore) {
 	do := func() {
 		bdir := filepath.Join(st.dir, "backups")
@@ -253,14 +291,16 @@ func autoBackup(st *cloudStore) {
 			}
 		}
 		add("store.json", filepath.Join(st.dir, "store.json"))
-		_ = filepath.WalkDir(filepath.Join(st.dir, "artifacts"), func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
+		for _, sub := range []string{"artifacts", "files"} { // files：校本资源文件一并入包
+			_ = filepath.WalkDir(filepath.Join(st.dir, sub), func(path string, d fs.DirEntry, err error) error {
+				if err != nil || d.IsDir() {
+					return nil
+				}
+				rel, _ := filepath.Rel(st.dir, path)
+				add(filepath.ToSlash(rel), path)
 				return nil
-			}
-			rel, _ := filepath.Rel(st.dir, path)
-			add(filepath.ToSlash(rel), path)
-			return nil
-		})
+			})
+		}
 		_ = zw.Close()
 		_ = f.Close()
 		if entries, err := os.ReadDir(bdir); err == nil && len(entries) > 7 {
@@ -1456,7 +1496,7 @@ self.addEventListener('fetch',function(e){
 		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily})
 	})
 
-	// 管理备份导出：zip（store.json + artifacts 全量）
+	// 管理备份导出：zip（store.json + artifacts + files 全量）
 	mux.HandleFunc("/api/admin/export", func(w http.ResponseWriter, r *http.Request) {
 		got := r.Header.Get("X-Access-Key")
 		if got == "" {
@@ -1478,14 +1518,16 @@ self.addEventListener('fetch',function(e){
 			}
 		}
 		add("store.json", filepath.Join(st.dir, "store.json"))
-		_ = filepath.WalkDir(filepath.Join(st.dir, "artifacts"), func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
+		for _, sub := range []string{"artifacts", "files"} { // files：校本资源文件一并入包
+			_ = filepath.WalkDir(filepath.Join(st.dir, sub), func(path string, d fs.DirEntry, err error) error {
+				if err != nil || d.IsDir() {
+					return nil
+				}
+				rel, _ := filepath.Rel(st.dir, path)
+				add(filepath.ToSlash(rel), path)
 				return nil
-			}
-			rel, _ := filepath.Rel(st.dir, path)
-			add(filepath.ToSlash(rel), path)
-			return nil
-		})
+			})
+		}
 	})
 
 	// MCP 端点：AI 客户端（WorkBuddy 等）直连（JSON-RPC；读免 key、写留 key）
@@ -1506,7 +1548,7 @@ self.addEventListener('fetch',function(e){
 	log.Println("教师工作台云端已启动:", addr)
 	log.Println("访问 key:", st.data.Key)
 	log.Println("统计页:", "http://<地址>"+addr+"/stats?key="+st.data.Key)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(http.ListenAndServe(addr, withGzip(mux)))
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

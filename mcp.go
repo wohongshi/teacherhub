@@ -51,6 +51,7 @@ var mcpTools = []mcpTool{
 	{Name: "set_hidden", Description: "产物下架/上架（写操作，需要统一访问 key）。下架后门户不显示但直链仍可访问。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"hidden":{"type":"boolean","description":"true=下架 false=上架"}},"required":["id","hidden"]}`)},
 	{Name: "rate_workbench", Description: "给产物评分 1-5 星（免 key，每 IP 每产物限一评）。返回最新均分。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"stars":{"type":"integer","description":"1-5 星"}},"required":["id","stars"]}`)},
 	{Name: "list_backups", Description: "列出自动备份快照（需要统一访问 key）。返回名称/大小/时间。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
+	{Name: "list_files", Description: "列出校本资源共享文件（免 key）。返回文件名/大小/上传人/下载数；q 参数按文件名模糊检索。", InputSchema: json.RawMessage(`{"type":"object","properties":{"q":{"type":"string","description":"可选：文件名关键词"}}}`)},
 }
 
 // mcpText 成功结果包装成 MCP content[] 文本。
@@ -333,6 +334,22 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 			return
 		}
 		reply(mcpText(map[string]any{"ok": true, "already": already, "rate": rate}))
+	case "list_files":
+		q, _ := args["q"].(string)
+		q = strings.ToLower(strings.TrimSpace(q))
+		st.mu.Lock()
+		files := make([]FileRec, len(st.data.Files))
+		copy(files, st.data.Files)
+		st.mu.Unlock()
+		out := make([]map[string]any, 0, len(files))
+		for i := len(files) - 1; i >= 0; i-- { // 倒序（新在前）
+			x := files[i]
+			if q != "" && !strings.Contains(strings.ToLower(x.Name), q) {
+				continue
+			}
+			out = append(out, map[string]any{"id": x.ID, "name": x.Name, "size": x.Size, "teacher": x.Teacher, "at": x.At, "downloads": x.Downloads})
+		}
+		reply(mcpText(map[string]any{"ok": true, "files": out}))
 	case "list_backups":
 		if !keyOK() {
 			reply(mcpErr("读备份需统一访问 key（X-Access-Key 头或 ?key=）"))
