@@ -790,6 +790,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <button class="btn-line" id="copyReport" style="height:36px;display:none">📋 复制报告</button>
         </div>
       </div>
+      <div class="card section" id="radarCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">能力雷达</div><div class="card-sub">各题得分率雷达图 · 强弱项一眼看出</div></div></div>
+        <div id="radarChart"></div>
+      </div>
       <div class="card section" id="segTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">分数段趋势</div><div class="card-sub">多次考试分数段占比变化（不及格/及格/良好/优秀）</div></div></div>
         <div id="segTrendChart"></div>
@@ -1184,6 +1188,14 @@ function renderLabChips(){
 /* —— 校本资源文件（上传/下载） —— */
 let FILES=[];
 function fmtSize(n){if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(2)+' MB'}
+function previewFile(id,name){
+  const ext=(name||"").split(".").pop().toLowerCase();
+  if(["png","jpg","jpeg","gif","webp","svg"].includes(ext)){toast("图片请下载查看");return}
+  fetch("/api/files/"+encodeURIComponent(id)).then(r=>r.text()).then(t=>{
+    const preview=t.length>500?t.slice(0,500)+"\u2026":t;
+    alert(name+" 预览（前 500 字）：\n\n"+preview);
+  }).catch(()=>toast("预览失败"));
+}
 function renderFiles(){
   const q=($("#fileQ").value||"").trim().toLowerCase();
   const list=FILES.filter(x=>!q||(x.name||"").toLowerCase().includes(q));
@@ -1196,7 +1208,8 @@ function renderFiles(){
     <td>${esc(x.teacher||"匿名")}</td>
     <td class="file-size">${fmtTs(x.at)}</td>
     <td>${x.downloads||0}</td>
-    <td><a class="btn-line" href="/api/files/${encodeURIComponent(x.id)}" style="height:32px;padding:0 12px;font-size:11.5px">下载</a></td>
+    <td><a class="btn-line" href="/api/files/${encodeURIComponent(x.id)}" style="height:32px;padding:0 12px;font-size:11.5px">下载</a>
+      <button class="chip" onclick="previewFile('${x.id}','${(x.name||"").replace(/'/g,"")}')">预览</button></td>
   </tr>`).join("");
 }
 $("#fileQ").addEventListener("input",()=>{clearTimeout(window.__fT);window.__fT=setTimeout(renderFiles,180)});
@@ -1300,6 +1313,41 @@ ${failRate>30?'不及格比例偏高，建议课后辅导或分层作业。':''}
     });
   }
 });
+
+// 能力雷达图（各题得分率）
+function renderRadar(){
+  if(!SCORES.length){return}
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const qs=d.questions||[];
+    if(qs.length<3){$("#radarCard").style.display="none";return}
+    $("#radarCard").style.display="block";
+    const W=560,H=420,cx=W/2,cy=H/2+10,R=Math.min(W,H)/2-70;
+    const n=qs.length;
+    const angle=i=>-Math.PI/2+i*2*Math.PI/n;
+    const pt=(i,v)=>[cx+R*v*Math.cos(angle(i)),cy+R*v*Math.sin(angle(i))];
+    let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+    for(let ring=1;ring<=5;ring++){
+      const pts=[];
+      for(let i=0;i<n;i++){const[x,y]=pt(i,ring/5);pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)}
+      svg+=`<polygon points="${pts.join(' ')}" fill="none" stroke="var(--green-200)" stroke-width="${ring===5?1.5:0.8}"/>`;
+    }
+    for(let i=0;i<n;i++){
+      const[x,y]=pt(i,1);
+      svg+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--green-200)" stroke-width="0.8"/>`;
+      const[lx,ly]=pt(i,1.18);
+      svg+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--ink-500)">第${qs[i].name}题</text>`;
+      svg+=`<text x="${lx.toFixed(1)}" y="${(ly+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--green-600)">${qs[i].rate}%</text>`;
+    }
+    const dataPts=[];
+    for(let i=0;i<n;i++){const[x,y]=pt(i,qs[i].rate/100);dataPts.push(`${x.toFixed(1)},${y.toFixed(1)}`)}
+    svg+=`<polygon points="${dataPts.join(' ')}" fill="rgba(45,164,78,0.18)" stroke="var(--green-500)" stroke-width="2"/>`;
+    for(let i=0;i<n;i++){const[x,y]=pt(i,qs[i].rate/100);svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="var(--green-600)"/>`}
+    svg+='</svg>';
+    $("#radarChart").innerHTML=svg;
+  });
+}
 
 // 分数段趋势（≥2 场考试才显示）
 function renderSegTrend(){
@@ -1468,6 +1516,7 @@ function renderScore(){
   }else{
     $("#scoreTrend").innerHTML=`<div class="empty-state" style="padding:22px 0"><div style="font-size:12.5px">至少两场考试才能看出趋势</div></div>`;
   }
+  renderRadar();
 }
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-sxtab]");
