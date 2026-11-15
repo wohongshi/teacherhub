@@ -33,9 +33,9 @@ for _ in $(seq 1 30); do curl -s --max-time 1 "$BASE/api/ping?key=$KEY" 2>/dev/n
 
 echo "== 访问政策：读免 key / 写留 key =="
 R=$(curl -s "$BASE/api/ping?key=$KEY")
-echo "$R" | jassert 'assert d["version"]=="1.0.0", d' "带 key ping 通"
+echo "$R" | jassert 'assert d["version"]=="1.1.0", d' "带 key ping 通"
 R=$(curl -s "$BASE/api/ping")
-echo "$R" | jassert 'assert d["version"]=="1.0.0", d' "读接口免 key（打开即看）"
+echo "$R" | jassert 'assert d["version"]=="1.1.0", d' "读接口免 key（打开即看）"
 R=$(curl -s -X POST "$BASE/api/contrib" -H 'Content-Type: application/json' --data-raw '{"teacher":"x","text":"y"}')
 echo "$R" | jerr "key" "写操作无 key 拒绝"
 R=$(curl -s -X POST "$BASE/api/workbenches" -H 'Content-Type: application/json' --data-raw '{"title":"x","content":"y"}')

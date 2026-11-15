@@ -76,6 +76,16 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sa
 .ratebar{display:flex;align-items:center;gap:12px;padding:9px 16px;background:#fff;border-bottom:1px solid #EBEFE9;font-size:12.5px;color:#7C8A7F;flex:none}
 .ratebar .stars{font-size:17px;color:#E5A93F;letter-spacing:2px;cursor:pointer}
 iframe{flex:1;width:100%%;border:0;background:#fff}
+@media (prefers-color-scheme:dark){
+body{background:#131A15;background-image:radial-gradient(#243027 1px,transparent 1px)}
+.bar{background:rgba(27,36,30,.92);border-color:#2A362D}
+.bar a{background:#222D25;border-color:#2A362D;color:#C4D2C8}
+.bar a:hover{border-color:#4E9A63;color:#8FD3A8}
+.bar a.primary{background:#3C7D52;border-color:#3C7D52;color:#fff}
+.bar .t{color:#E9F1EB}
+.ratebar{background:#1B241E;border-color:#2A362D;color:#8C9C90}
+iframe{background:#1B241E}
+}
 </style></head><body>
 <div class="bar"><a href="/">← 学科园地</a><span class="t">` + title + `</span><a class="primary" href="/api/workbenches/` + w.ID + `/file">⬇ 下载</a><a class="primary" href="javascript:void(0)" id="qrbtn">📱 扫码</a><a href="javascript:void(0)" id="sharelink">🔗 复制链接</a><a href="/w/` + w.ID + `/raw" target="_blank">新窗口打开</a></div>
 <div class="ratebar"><span id="ratetxt">评分加载中…</span><span class="stars" id="starslot"></span></div>

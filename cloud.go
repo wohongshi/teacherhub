@@ -1605,9 +1605,9 @@ self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim())})
 self.addEventListener('fetch',function(e){
   if(e.request.method!=='GET')return;
   e.respondWith(fetch(e.request).catch(function(){
-    return caches.open('th-v1').then(function(c){return c.match(e.request)}).then(function(r){return r||new Response('offline',{status:503})});
+    return caches.open('th-v2').then(function(c){return c.match(e.request)}).then(function(r){return r||new Response('offline',{status:503})});
   }).then(function(resp){
-    if(resp&&resp.ok){var cl=resp.clone();caches.open('th-v1').then(function(c){c.put(e.request,cl)})}
+    if(resp&&resp.ok){var cl=resp.clone();caches.open('th-v2').then(function(c){c.put(e.request,cl)})}
     return resp;
   }));
 });`))

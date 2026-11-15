@@ -33,6 +33,34 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 input,textarea,select{font-family:inherit;font-size:13px;color:var(--ink-900)}
 #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-14px);background:var(--green-900);color:#fff;padding:10px 22px;border-radius:999px;font-size:13px;opacity:0;transition:all .25s;z-index:999;pointer-events:none;box-shadow:0 6px 20px rgba(47,107,69,.3)}
 #toast.show{opacity:1;transform:translateX(-50%)}
+@media (prefers-color-scheme:dark){
+:root{
+  --green-900:#8FD3A8;--green-700:#6FBE8C;--green-600:#5EAF7E;--green-400:#4E9A63;
+  --green-100:#22362A;--green-50:#1E2C23;
+  --sand-100:#3A3423;--sand-700:#D9B872;
+  --ink-900:#E9F1EB;--ink-700:#C4D2C8;--ink-500:#8C9C90;--ink-300:#66756B;
+  --bg:#131A15;--surface:#1B241E;--line:#2A362D;--line2:#263028;
+}
+body{background:var(--bg);background-image:radial-gradient(#243027 1px,transparent 1px)}
+.side{background:var(--surface);border-color:var(--line)}
+.side-item:hover{background:#222D25}
+.card{background:var(--surface);border-color:var(--line2)}
+.stat{background:#1E2C23;border-color:var(--green-100)}
+.btn.primary{background:#3C7D52}
+.btn.primary:hover{background:#4E9A63}
+.btn.line,.btn.danger{background:#222D25;border-color:var(--line);color:var(--ink-700)}
+.btn.danger{border-color:#5A3634;color:#E08A85}
+input.f,textarea.f,select.f{background:#222D25;border-color:var(--line);color:var(--ink-900)}
+.tag.g{background:#1E2C23;color:#6FBE8C}
+.tag.y{background:#3A3423;color:#D9B872}
+.tag.r{background:#3A2422;color:#E08A85}
+.tbl tr:hover td{background:#212D24}
+.mono{background:#1E2C23;border-color:var(--green-600)}
+.login{background:var(--surface);border-color:var(--line2)}
+.login button{background:#3C7D52}
+.login button:hover{background:#4E9A63}
+#toast{background:rgba(78,154,99,.95)}
+}
 /* ===== 登录 ===== */
 .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .login{width:380px;max-width:100%;background:var(--surface);border:1px solid var(--line2);border-radius:20px;padding:34px 32px;box-shadow:0 8px 30px rgba(31,42,34,.07)}
