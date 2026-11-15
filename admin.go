@@ -283,8 +283,12 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
       </div>
       <div class="card">
         <h3>考试列表</h3>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+          <button class="btn danger sm" id="batchDelSx">🗑️ 批量删除选中</button>
+          <span style="font-size:11.5px;color:var(--ink-400)">勾选后一键删除多场考试</span>
+        </div>
         <div class="tbl-wrap"><table class="tbl" id="sxTable">
-          <thead><tr><th>考试</th><th>人数</th><th>均分</th><th>最高</th><th>最低</th><th>及格率</th><th>时间</th><th>操作</th></tr></thead>
+          <thead><tr><th><input type="checkbox" id="sxCheckAll" title="全选"/></th><th>考试</th><th>人数</th><th>均分</th><th>最高</th><th>最低</th><th>及格率</th><th>时间</th><th>操作</th></tr></thead>
           <tbody></tbody>
         </table></div>
         <div class="empty" id="sxEmpty" style="display:none">还没有成绩记录</div>
@@ -613,7 +617,7 @@ function renderSx(){
     var list=d.exams||[];
     $('#sxEmpty').style.display=list.length?'none':'block';
     $('#sxTable').querySelector('tbody').innerHTML=list.slice().reverse().map(function(e){
-      return '<tr><td><b>'+esc(e.name)+'</b></td><td>'+e.count+' 人</td><td>'+e.avg+'</td><td>'+e.max+'</td><td>'+e.min+'</td><td>'+e.pass_rate+'%</td><td>'+fmtTs(e.at)+'</td><td class="row" style="gap:6px"><a class="btn line sm" href="/api/scores/csv/'+esc(e.id)+'?key='+encodeURIComponent(key())+'">CSV</a><button class="btn danger sm" data-delsx="'+esc(e.id)+'">删除</button></td></tr>';
+      return '<tr><td><input type="checkbox" class="sx-check" data-id="'+esc(e.id)+'"/></td><td><b>'+esc(e.name)+'</b></td><td>'+e.count+' 人</td><td>'+e.avg+'</td><td>'+e.max+'</td><td>'+e.min+'</td><td>'+e.pass_rate+'%</td><td>'+fmtTs(e.at)+'</td><td class="row" style="gap:6px"><a class="btn line sm" href="/api/scores/csv/'+esc(e.id)+'?key='+encodeURIComponent(key())+'">CSV</a><button class="btn danger sm" data-delsx="'+esc(e.id)+'">删除</button></td></tr>';
     }).join('');
   });
 }
@@ -667,6 +671,25 @@ $('#bulkImport').addEventListener('click',function(){
   });
 });
 $('#sxTable').addEventListener('click',function(e){
+  if(e.target.id==='sxCheckAll'){
+    var checked=e.target.checked;
+    document.querySelectorAll('.sx-check').forEach(function(c){c.checked=checked});
+    return;
+  }
+  if(e.target.id==='batchDelSx'){
+    var ids=[];
+    document.querySelectorAll('.sx-check:checked').forEach(function(c){ids.push(c.dataset.id)});
+    if(!ids.length){toast('先勾选要删除的考试');return}
+    if(!confirm('确认删除 '+ids.length+' 场考试？此操作不可恢复'))return;
+    var done=0;
+    ids.forEach(function(id){
+      jsend('DELETE','/api/scores/'+id).then(function(d){
+        done++;
+        if(done===ids.length){toast('已删除 '+ids.length+' 场考试');renderSx();renderLogs()}
+      });
+    });
+    return;
+  }
   var b=e.target.closest('[data-delsx]');
   if(!b)return;
   if(!confirm('删除这场考试？'))return;

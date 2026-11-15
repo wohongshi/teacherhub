@@ -613,6 +613,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="mod-head"><h2>课标地图</h2><p>课标条目 → 教材章节 → 真题 → 校本资源，四级映射。映射进度从备课组认领开始。</p></div>
       <div class="card" style="margin-bottom:18px">
         <div class="card-head"><div><div class="card-title">认领进度</div><div class="card-sub" id="kbProgress">0 / 5 模块已认领</div></div></div>
+        <div style="display:flex;gap:10px;margin-bottom:14px">
+          <div class="mini" style="flex:1;text-align:center"><div class="n" id="kbStatClaimed" style="color:var(--green-600)">0</div><div class="l">已认领</div></div>
+          <div class="mini" style="flex:1;text-align:center"><div class="n" id="kbStatPending" style="color:#E5A93F">0</div><div class="l">待认领</div></div>
+          <div class="mini" style="flex:1;text-align:center"><div class="n" id="kbStatTotal">0</div><div class="l">总模块</div></div>
+        </div>
         <div style="display:flex;align-items:center;gap:18px">
           <svg id="kbRing" viewBox="0 0 100 100" style="width:80px;height:80px;flex:none">
             <circle cx="50" cy="50" r="40" fill="none" stroke="var(--green-100)" stroke-width="10"/>
@@ -1299,8 +1304,25 @@ function previewFile(id,name){
     box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${name}</div><img src="/api/files/${encodeURIComponent(id)}" style="max-width:100%;max-height:70vh;border-radius:8px"/>`;
   }else{
     fetch("/api/files/"+encodeURIComponent(id)).then(r=>r.text()).then(t=>{
-      const preview=t.length>2000?t.slice(0,2000)+"\u2026":t;
-      box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${name}（前 2000 字）</div><pre style="font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto">${preview.replace(/</g,"&lt;")}</pre>`;
+      const isMd=name.toLowerCase().endsWith(".md");
+      if(isMd){
+        // 简易 Markdown 渲染（标题/粗体/列表/代码/段落）
+        const md=t.length>5000?t.slice(0,5000)+"\u2026":t;
+        const html=md
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+          .replace(/^### (.+)$/gm,"<h4 style='margin:12px 0 6px;color:var(--green-700)'>$1</h4>")
+          .replace(/^## (.+)$/gm,"<h3 style='margin:14px 0 8px;color:var(--green-700)'>$1</h3>")
+          .replace(/^# (.+)$/gm,"<h2 style='margin:16px 0 10px;color:var(--green-800)'>$1</h2>")
+          .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+          .replace(/`([^`]+)`/g,"<code style='background:var(--green-50);padding:2px 6px;border-radius:4px;font-size:12px'>$1</code>")
+          .replace(/^[-*] (.+)$/gm,"<li style='margin:4px 0 4px 20px'>$1</li>")
+          .replace(/\n\n/g,"</p><p style='margin:8px 0'>")
+          .replace(/\n/g,"<br/>");
+        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">📝 ${name}（Markdown 预览）</div><div style="font-size:13px;line-height:1.8;max-height:60vh;overflow:auto;padding:4px 0"><p style='margin:8px 0'>${html}</p></div>`;
+      }else{
+        const preview=t.length>2000?t.slice(0,2000)+"\u2026":t;
+        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${name}（前 2000 字）</div><pre style="font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto">${preview.replace(/</g,"&lt;")}</pre>`;
+      }
     });
   }
   overlay.appendChild(box);
@@ -1872,6 +1894,10 @@ document.addEventListener("click",e=>{
 let KB_CLAIMS={};
 function updateKbRing(claimed,total){
   const pct=total?Math.round(claimed/total*100):0;
+  const sc=document.getElementById("kbStatClaimed"),sp=document.getElementById("kbStatPending"),st2=document.getElementById("kbStatTotal");
+  if(sc)sc.textContent=claimed;
+  if(sp)sp.textContent=Math.max(0,total-claimed);
+  if(st2)st2.textContent=total;
   const C=2*Math.PI*40;
   const arc=document.getElementById("kbRingArc");
   const pctEl=document.getElementById("kbRingPct");
