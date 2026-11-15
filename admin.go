@@ -656,11 +656,22 @@ function renderBackups(){
     var list=d.backups||[];
     if(!list.length){$('#backupList').innerHTML='<div class="empty">暂无备份（服务启动后自动生成）</div>';return}
     $('#backupList').innerHTML=list.map(function(b){
-      return '<div class="hist-item"><b style="flex:1">'+esc(b.name)+'</b><span style="color:var(--ink-500)">'+(b.size?(Number(b.size)/1024/1024).toFixed(2)+' MB':'')+'</span><a class="btn line sm" href="/api/admin/backups/'+encodeURIComponent(b.name)+'?key='+encodeURIComponent(key())+'">下载</a></div>';
+      return '<div class="hist-item"><b style="flex:1">'+esc(b.name)+'</b><span style="color:var(--ink-500)">'+(b.size?(Number(b.size)/1024/1024).toFixed(2)+' MB':'')+'</span><button class="btn line sm" data-dlbackup="'+esc(b.name)+'">下载</button></div>';
     }).join('');
   });
 }
 
+$('#backupList').addEventListener('click',function(e){
+  var b=e.target.closest('[data-dlbackup]');
+  if(!b)return;
+  fetch('/api/admin/backups/'+encodeURIComponent(b.dataset.dlbackup),{headers:{'X-Access-Key':key()}}).then(function(r){
+    if(!r.ok){toast('下载失败');return}
+    return r.blob().then(function(blob){
+      var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=b.dataset.dlbackup;a.click();
+      toast('备份已开始下载');
+    });
+  }).catch(function(){toast('下载失败')});
+});
 $('#backupNow').addEventListener('click',function(){
   var btn=this;btn.disabled=true;btn.textContent='备份中…';
   jsend('POST','/api/admin/backup').then(function(d){

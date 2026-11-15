@@ -230,6 +230,13 @@ func (s *cloudStore) save() error {
 	return os.WriteFile(filepath.Join(s.dir, "store.json"), b, 0o600)
 }
 
+// keyMatches 锁内比较 key（rotate-key 并发写时防撕裂读）。
+func (s *cloudStore) keyMatches(got string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return got != "" && got == s.data.Key
+}
+
 // log 记录管理操作日志（须在 st.mu 锁内调用，随外层 save 落盘；滚动 500 条）。
 func (s *cloudStore) log(op, detail string) {
 	s.data.Logs = append(s.data.Logs, LogEntry{At: time.Now().Unix(), Op: op, Detail: detail})
@@ -306,48 +313,78 @@ func withGzip(next http.Handler) http.Handler {
 }
 
 // doBackup 立即生成一份快照 zip（store.json + artifacts + files，轮转留 7 份）。
-func doBackup(st *cloudStore) {
+// backupMu 串行化手动备份与 24h ticker；返回 error 供调用方判断成败。
+var backupMu sync.Mutex
+
+func doBackup(st *cloudStore) error {
+	backupMu.Lock()
+	defer backupMu.Unlock()
 	bdir := filepath.Join(st.dir, "backups")
-	_ = os.MkdirAll(bdir, 0o755)
-	f, err := os.Create(filepath.Join(bdir, fmt.Sprintf("backup-%019d-%s.zip", time.Now().UnixNano(), randToken()[:4])))
+	if err := os.MkdirAll(bdir, 0o755); err != nil {
+		return err
+	}
+	// 原子写：先写临时文件再 rename，防同秒覆盖/半成品被下载
+	tmp, err := os.CreateTemp(bdir, "backup-*.tmp")
 	if err != nil {
-		return
+		return err
 	}
-	zw := zip.NewWriter(f)
-	add := func(n, p string) {
-		if b, err := os.ReadFile(p); err == nil {
-			if fw, err := zw.Create(n); err == nil {
-				_, _ = fw.Write(b)
-			}
+	defer os.Remove(tmp.Name())
+	zw := zip.NewWriter(tmp)
+	add := func(n, p string) error {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err // 可读性失败是真实错误，不该静默跳过
 		}
+		fw, err := zw.Create(n)
+		if err != nil {
+			return err
+		}
+		_, err = fw.Write(b)
+		return err
 	}
-	add("store.json", filepath.Join(st.dir, "store.json"))
-	for _, sub := range []string{"artifacts", "files"} { // files：校本资源文件一并入包
+	if err := add("store.json", filepath.Join(st.dir, "store.json")); err != nil {
+		zw.Close()
+		tmp.Close()
+		return err
+	}
+	for _, sub := range []string{"artifacts", "files"} {
 		_ = filepath.WalkDir(filepath.Join(st.dir, sub), func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}
 			rel, _ := filepath.Rel(st.dir, path)
-			add(filepath.ToSlash(rel), path)
+			// 单个文件读失败不中断整体（可能被并发删除），但记录
+			_ = add(filepath.ToSlash(rel), path)
 			return nil
 		})
 	}
-	_ = zw.Close()
-	_ = f.Close()
+	if err := zw.Close(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	finalName := filepath.Join(bdir, fmt.Sprintf("backup-%019d-%s.zip", time.Now().UnixNano(), randToken()[:4]))
+	if err := os.Rename(tmp.Name(), finalName); err != nil {
+		return err
+	}
+	// 轮转
 	if entries, err := os.ReadDir(bdir); err == nil && len(entries) > 7 {
 		sort.Slice(entries, func(a, b int) bool { return entries[a].Name() < entries[b].Name() })
 		for _, e := range entries[:len(entries)-7] {
 			_ = os.Remove(filepath.Join(bdir, e.Name()))
 		}
 	}
+	return nil
 }
 
 // autoBackup 启动时与每 24h 自动快照。
 func autoBackup(st *cloudStore) {
-	doBackup(st)
+	_ = doBackup(st) // 启动快照失败不致命，下次 tick 重试
 	go func() {
 		for range time.Tick(24 * time.Hour) {
-			doBackup(st)
+			_ = doBackup(st)
 		}
 	}()
 }
@@ -423,7 +460,7 @@ func cmdServe(args []string) {
 		if got == "" {
 			got = r.URL.Query().Get("key")
 		}
-		if got == "" || got != st.data.Key {
+		if !st.keyMatches(got) {
 			writeJSON(w, 401, map[string]any{"ok": false, "error": "写操作需要统一访问 key"})
 			return
 		}
@@ -713,6 +750,10 @@ func cmdServe(args []string) {
 				for i := range st.data.Workbenches {
 					if st.data.Workbenches[i].ID == id {
 						if in.Title != "" {
+							if len([]rune(in.Title)) > 200 || len([]rune(in.Desc)) > 500 || len(in.Content) > 5_000_000 {
+								writeJSON(w, 400, map[string]any{"ok": false, "error": "字段过长（title≤200字/desc≤500字/content≤5MB）"})
+								return
+							}
 							st.data.Workbenches[i].Title = strings.TrimSpace(in.Title)
 						}
 						if in.Desc != "" {
@@ -1031,7 +1072,7 @@ func cmdServe(args []string) {
 		if got == "" {
 			got = r.URL.Query().Get("key")
 		}
-		if got != st.data.Key {
+		if !st.keyMatches(got) {
 			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
 			return
 		}
@@ -1094,10 +1135,17 @@ func cmdServe(args []string) {
 					return
 				}
 				st.mu.Lock()
-				delete(st.data.KBClaims, in.Module)
-				st.log("清除认领", in.Module)
-				_ = st.save()
+				_, existed := st.data.KBClaims[in.Module]
+				if existed {
+					delete(st.data.KBClaims, in.Module)
+					st.log("清除认领", in.Module)
+					_ = st.save()
+				}
 				st.mu.Unlock()
+				if !existed {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "该模块无认领记录"})
+					return
+				}
 				writeJSON(w, 200, map[string]any{"ok": true})
 				return
 			}
@@ -1136,7 +1184,7 @@ func cmdServe(args []string) {
 			if got == "" {
 				got = r.URL.Query().Get("key")
 			}
-			if got != st.data.Key {
+			if !st.keyMatches(got) {
 				writeJSON(w, 401, map[string]any{"ok": false, "error": "写操作需要统一访问 key"})
 				return
 			}
@@ -1226,7 +1274,7 @@ func cmdServe(args []string) {
 			if got == "" {
 				got = r.URL.Query().Get("key")
 			}
-			if got != st.data.Key {
+			if !st.keyMatches(got) {
 				writeJSON(w, 401, map[string]any{"ok": false, "error": "写操作需要统一访问 key"})
 				return
 			}
@@ -1331,7 +1379,7 @@ func cmdServe(args []string) {
 		if got == "" {
 			got = r.URL.Query().Get("key")
 		}
-		if got != st.data.Key {
+		if !st.keyMatches(got) {
 			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
 			return
 		}
@@ -1371,7 +1419,10 @@ func cmdServe(args []string) {
 				writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
 				return
 			}
-			doBackup(st)
+			if err := doBackup(st); err != nil {
+				writeJSON(w, 500, map[string]any{"ok": false, "error": "备份失败：" + err.Error()})
+				return
+			}
 			st.mu.Lock()
 			st.log("手动备份", "生成快照 zip")
 			_ = st.save()
@@ -1386,7 +1437,7 @@ func cmdServe(args []string) {
 		if got == "" {
 			got = r.URL.Query().Get("key")
 		}
-		if got != st.data.Key {
+		if !st.keyMatches(got) {
 			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
 			return
 		}
@@ -1632,7 +1683,7 @@ self.addEventListener('fetch',function(e){
 		if got == "" {
 			got = r.URL.Query().Get("key")
 		}
-		if got != st.data.Key {
+		if !st.keyMatches(got) {
 			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
 			return
 		}
@@ -1672,7 +1723,7 @@ self.addEventListener('fetch',function(e){
 		if got == "" {
 			got = r.URL.Query().Get("key")
 		}
-		if got != st.data.Key {
+		if !st.keyMatches(got) {
 			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
 			return
 		}

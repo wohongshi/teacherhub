@@ -648,7 +648,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <div class="lab-search" style="width:220px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="fileQ" placeholder="搜文件名…"></div>
         </div>
         <div class="tbl-wrap"><table class="tbl" id="fileTable">
-          <thead><tr><th>文件名</th><th>大小</th><th>上传人</th><th>时间</th><th>下载</th><th></th></tr></thead>
+          <thead><tr><th>文件名</th><th>大小</th><th>上传人</th><th>时间</th><th>下载次数</th><th>操作</th></tr></thead>
           <tbody></tbody>
         </table></div>
         <div class="empty-state" id="fileEmpty" style="display:none"><div class="big" style="font-size:30px">📁</div><div style="font-size:12.5px">还没有共享文件——上传第一份，全组都能用</div></div>
@@ -1150,40 +1150,42 @@ function renderFiles(){
 }
 $("#fileQ").addEventListener("input",()=>{clearTimeout(window.__fT);window.__fT=setTimeout(renderFiles,180)});
 // 上传：点击 + 拖拽
-const upDrop=$("#upDrop"),upFile=$("#upFile");
-upDrop.addEventListener("click",e=>{if(e.target.tagName!=="LABEL"&&e.target.id!=="upFile")upFile.click()});
-upFile.addEventListener("change",()=>{const n=upFile.files[0];if(n)$("#upStatus").textContent="已选： "+n.name+"（"+fmtSize(n.size)+"）"});
+const upDrop=$("#upDrop"),upFile=$("#upFile");let pickedFile=null;
+upDrop.addEventListener("click",e=>{if(!e.target.closest("input")&&e.target.tagName!=="LABEL")upFile.click()});
+upFile.addEventListener("change",()=>{const n=upFile.files[0];if(n){pickedFile=n;$("#upStatus").textContent="已选： "+n.name+"（"+fmtSize(n.size)+"）"}});
 ["dragenter","dragover"].forEach(ev=>upDrop.addEventListener(ev,e=>{e.preventDefault();upDrop.classList.add("over")}));
 ["dragleave","drop"].forEach(ev=>upDrop.addEventListener(ev,e=>{e.preventDefault();upDrop.classList.remove("over")}));
 upDrop.addEventListener("drop",e=>{
   const fs=e.dataTransfer&&e.dataTransfer.files;
-  if(fs&&fs.length){upFile.files=fs;$("#upStatus").textContent="已选： "+fs[0].name+"（"+fmtSize(fs[0].size)+"）"}
+  if(fs&&fs.length){pickedFile=fs[0];try{upFile.files=fs}catch(_){}$("#upStatus").textContent="已选： "+fs[0].name+"（"+fmtSize(fs[0].size)+"）"}
 });
 $("#camBtn").addEventListener("click",()=>{$("#upCam").click()});
 $("#upCam").addEventListener("change",()=>{
   const fs=$("#upCam").files;
   if(fs&&fs.length){
-    const dt=new DataTransfer();dt.items.add(fs[0]);
-    $("#upFile").files=dt.files;
+    pickedFile=fs[0];
+    try{const dt=new DataTransfer();dt.items.add(fs[0]);$("#upFile").files=dt.files}catch(_){}
     $("#upStatus").textContent="已拍照： "+fs[0].name+"（"+fmtSize(fs[0].size)+"）";
   }
 });
 $("#upGo").addEventListener("click",()=>{
-  const file=upFile.files[0];
+  const file=pickedFile||upFile.files[0];
   if(!file){$("#upStatus").textContent="先选一个文件";return}
-  if(file.size>50*1024*1024){$("#upStatus").textContent="文件超过 50MB";return}
+  if(file.size>49.5*1024*1024){$("#upStatus").textContent="文件超过 49MB（服务端限制 50MB 含协议头）";return}
   const fd=new FormData();
   fd.append("file",file);
   fd.append("teacher",$("#upTeacher").value.trim()||"匿名");
+  const btn=$("#upGo");btn.disabled=true;btn.textContent="上传中…";
   $("#upStatus").textContent="上传中…";
   fetch("/api/files",{method:"POST",body:fd}).then(r=>r.json()).then(d=>{
+    btn.disabled=false;btn.textContent="上传";
     if(d.ok){
       $("#upStatus").textContent="已上传： "+d.name;
-      upFile.value="";$("#upTeacher").value="";
+      pickedFile=null;upFile.value="";$("#upTeacher").value="";
       toast("上传成功，全组都能下载了");
       loadFiles();
     }else{$("#upStatus").textContent=d.error||"上传失败"}
-  }).catch(()=>{$("#upStatus").textContent="网络错误"});
+  }).catch(()=>{btn.disabled=false;btn.textContent="上传";$("#upStatus").textContent="网络错误"});
 });
 function loadFiles(){
   jget("/api/files").then(d=>{
@@ -1376,7 +1378,7 @@ function renderData(){
     WBS=wb.workbenches||wb.list||[];
     STATS=st;
     CONTRIBS=(cv.contribs||cv.list||[]).slice().reverse();
-    loadFiles();
+    loadFiles().then(()=>renderData());
   const [sc,kb]=await Promise.all([
       jget("/api/scores").catch(()=>({exams:[]})),
       jget("/api/kb").catch(()=>({claims:{}}))

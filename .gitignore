@@ -1,4 +1,5 @@
-teacherhub
-dist/
-*.exe
-nohup.out
+/teacherhub
+/dist/
+/*.exe
+/nohup.out
+!plugins/workbuddy/teacherhub/bin/*.exe
