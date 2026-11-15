@@ -600,6 +600,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">认领进度</div><div class="card-sub" id="kbProgress">0 / 5 模块已认领</div></div></div>
         <div class="bar" style="height:12px"><i id="kbBar" style="width:0%;background:linear-gradient(90deg,var(--green-600),var(--green-400))"></i></div>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:18px">
+        <button class="chip on" data-kbfilter="">全部</button>
+        <button class="chip" data-kbfilter="claimed">已认领</button>
+        <button class="chip" data-kbfilter="unclaimed">待认领</button>
+      </div>
       <div class="card" id="kbDetail" style="display:none;margin-bottom:18px">
         <div class="card-head"><div><div class="card-title" id="kbDetailTitle">模块详情</div><div class="card-sub">课标条目与教材章节对应关系</div></div></div>
         <div id="kbDetailBody"></div>
@@ -1339,7 +1344,24 @@ function renderScore(){
         }
         bars+=`<path d="${cp}" stroke="#E5A93F" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7"/>`;
       }
-      $("#scoreBars").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${bars}<text x="${W-8}" y="16" font-size="10" fill="#E5A93F" text-anchor="end">── 分布曲线</text></svg>`;
+      // 分数段占比环形图
+      const total=segs.reduce((a,b)=>a+b.n,0)||1;
+      const segColors=['#C2453F','#E5A93F','#8FC79B','#4E9A63','#2F6B45'];
+      let cx=100,cy=85,r=60,startAngle=-Math.PI/2;
+      let ring='';
+      segs.forEach((s2,i)=>{
+        if(!s2.n)return;
+        const frac=s2.n/total,endAngle=startAngle+frac*2*Math.PI;
+        const x1=cx+r*Math.cos(startAngle),y1=cy+r*Math.sin(startAngle);
+        const x2=cx+r*Math.cos(endAngle),y2=cy+r*Math.sin(endAngle);
+        const large=frac>0.5?1:0;
+        ring+=`<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${segColors[i%5]}" opacity="0.75"><title>${s2.lo}-${s2.hi}分: ${s2.n}人 (${(frac*100).toFixed(1)}%)</title></path>`;
+        startAngle=endAngle;
+      });
+      ring+=`<circle cx="${cx}" cy="${cy}" r="32" fill="var(--surface,#fff)"/>`;
+      ring+=`<text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="14" fill="#1F2A22" font-weight="700">${total}</text>`;
+      ring+=`<text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="9" fill="#7C8A7F">总人数</text>`;
+      $("#scoreBars").innerHTML=`<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;flex:1;min-width:300px">${bars}<text x="${W-8}" y="16" font-size="10" fill="#E5A93F" text-anchor="end">── 分布曲线</text></svg><svg viewBox="0 0 200 170" style="width:200px;flex:none">${ring}</svg></div>`;
     }).catch(()=>{});
   }
   // 历次均分趋势
@@ -1390,6 +1412,18 @@ function renderKbClaims(){
 }
 let kbTarget="";
 document.addEventListener("click",e=>{
+  const f=e.target.closest("[data-kbfilter]");
+  if(f){
+    $$("[data-kbfilter]").forEach(b=>b.classList.remove("on"));
+    f.classList.add("on");
+    const mode=f.dataset.kbfilter;
+    $$("#v-kb tbody tr").forEach(tr=>{
+      const badge=tr.querySelector(".td-tag");
+      const isClaimed=badge&&badge.textContent.includes("已认领");
+      tr.style.display=(mode===""||(mode==="claimed"&&isClaimed)||(mode==="unclaimed"&&!isClaimed))?"":"none";
+    });
+    return;
+  }
   const tr=e.target.closest("#v-kb tbody tr");
   if(!tr||e.target.closest("[data-kbmod]"))return;
   const mod=(tr.cells[0]||{}).textContent?.trim();
