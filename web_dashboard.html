@@ -680,7 +680,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="card">
         <div class="card-head">
           <div><div class="card-title">共享文件</div><div class="card-sub" id="fileCount"></div></div>
-          <div class="lab-search" style="width:220px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="fileQ" placeholder="搜文件名…"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <button class="chip on" data-filetype="">全部</button>
+            <button class="chip" data-filetype="image">📷 图片</button>
+            <button class="chip" data-filetype="doc">📄 文档</button>
+            <button class="chip" data-filetype="table">📊 表格</button>
+            <div class="lab-search" style="width:180px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="fileQ" placeholder="搜文件名…"></div>
+          </div>
         </div>
         <div class="tbl-wrap"><table class="tbl" id="fileTable">
           <thead><tr><th>文件名</th><th>大小</th><th>上传人</th><th>时间</th><th>下载次数</th><th>操作</th></tr></thead>
@@ -795,6 +801,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <div><div class="card-title">一键生成报告</div><div class="card-sub">自动文字版分析，可复制发群</div></div>
           <button class="chip on" id="genReport">生成报告</button>
           <button class="chip" id="printScore" onclick="window.print()">🖨️ 打印</button>
+          <button class="chip" id="exportExcel">📊 Excel</button>
         </div>
         <div id="reportBody" style="font-size:13px;line-height:2;color:var(--ink-700);white-space:pre-wrap;background:var(--green-50);border-radius:12px;padding:16px;display:none"></div>
         <div class="row" style="margin-top:10px">
@@ -1294,6 +1301,34 @@ function renderRes(){
 }
 
 /* —— 成长空间贡献榜 —— */
+// Excel 导出（HTML table .xls）
+document.addEventListener("click",e=>{
+  if(e.target.id!=="exportExcel")return;
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){toast("还没有成绩数据");return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const segs=d.segments||[];
+    const qs=d.questions||[];
+    let html=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>`;
+    html+=`<table border="1"><tr><th colspan="6" style="background:#2F6B45;color:#fff">${cur.name} 成绩分析</th></tr>`;
+    html+=`<tr><th>参考人数</th><th>均分</th><th>最高</th><th>最低</th><th>及格率</th></tr>`;
+    html+=`<tr><td>${cur.count}</td><td>${cur.avg}</td><td>${cur.max}</td><td>${cur.min}</td><td>${cur.pass_rate}%</td></tr>`;
+    html+=`<tr><th colspan="6" style="background:#E8F5E9">分数段分布</th></tr>`;
+    html+=`<tr><th>区间</th><th>人数</th><th>占比</th></tr>`;
+    const total=segs.reduce((a,b)=>a+b.n,0)||1;
+    segs.filter(x=>x.n>0).forEach(x=>{html+=`<tr><td>${x.lo}-${x.hi}分</td><td>${x.n}</td><td>${(x.n/total*100).toFixed(1)}%</td></tr>`});
+    if(qs.length){
+      html+=`<tr><th colspan="6" style="background:#FFF8E1">逐题分析</th></tr>`;
+      html+=`<tr><th>题号</th><th>满分</th><th>均分</th><th>得分率</th></tr>`;
+      qs.forEach(q=>{html+=`<tr><td>第${q.name}题</td><td>${q.max}</td><td>${q.avg}</td><td>${q.rate}%</td></tr>`});
+    }
+    html+='</table></body></html>';
+    const blob=new Blob(["\ufeff"+html],{type:"application/vnd.ms-excel"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=cur.name+"_成绩分析.xls";a.click();URL.revokeObjectURL(a.href);
+    toast("Excel 已下载");
+  });
+});
+
 // 一键生成考试报告
 document.addEventListener("click",e=>{
   if(e.target.id==="genReport"){
@@ -1583,6 +1618,23 @@ function renderKbClaims(){
   });
 }
 let kbTarget="";
+document.addEventListener("click",e=>{
+  const f=e.target.closest("[data-filetype]");
+  if(!f)return;
+  $$("[data-filetype]").forEach(b=>b.classList.remove("on"));
+  f.classList.add("on");
+  const mode=f.dataset.filetype;
+  $$("#fileTable tbody tr").forEach(tr=>{
+    const link=tr.querySelector("a");
+    const name=link?link.textContent:"";
+    const ext=name.split(".").pop().toLowerCase();
+    const isImg=["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext);
+    const isDoc=["doc","docx","pdf","txt","md","ppt","pptx"].includes(ext);
+    const isTable=["xls","xlsx","csv"].includes(ext);
+    const show=!mode||(mode==="image"&&isImg)||(mode==="doc"&&isDoc)||(mode==="table"&&isTable);
+    tr.style.display=show?"":"none";
+  });
+});
 document.addEventListener("input",e=>{
   if(e.target.id!=="kbSearch")return;
   const q=e.target.value.trim().toLowerCase();
