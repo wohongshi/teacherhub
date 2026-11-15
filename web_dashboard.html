@@ -780,6 +780,20 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">分数段分布</div><div class="card-sub" id="scoreBarsSub">10 分一档</div></div></div>
         <div id="scoreBars"></div>
       </div>
+      <div class="card section" id="reportCard">
+        <div class="card-head">
+          <div><div class="card-title">一键生成报告</div><div class="card-sub">自动文字版分析，可复制发群</div></div>
+          <button class="chip on" id="genReport">生成报告</button>
+        </div>
+        <div id="reportBody" style="font-size:13px;line-height:2;color:var(--ink-700);white-space:pre-wrap;background:var(--green-50);border-radius:12px;padding:16px;display:none"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn-line" id="copyReport" style="height:36px;display:none">📋 复制报告</button>
+        </div>
+      </div>
+      <div class="card section" id="segTrendCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">分数段趋势</div><div class="card-sub">多次考试分数段占比变化（不及格/及格/良好/优秀）</div></div></div>
+        <div id="segTrendChart"></div>
+      </div>
       <div class="card section" id="qCard" style="display:none">
         <div class="card-head"><div><div class="card-title">题目失分排行</div><div class="card-sub">得分率越低失分越重 · 点击题号看教学建议</div></div></div>
         <div class="tbl-wrap"><table class="tbl" id="qTable">
@@ -1245,6 +1259,48 @@ function renderRes(){
 }
 
 /* —— 成长空间贡献榜 —— */
+// 一键生成考试报告
+document.addEventListener("click",e=>{
+  if(e.target.id==="genReport"){
+    const cur=SCORES[SCORES.length-1];
+    if(!cur){toast("还没有考试数据");return}
+    jget("/api/scores/"+cur.id).then(d=>{
+      const segs=d.segments||[];
+      const qs=d.questions||[];
+      const total=segs.reduce((a,b)=>a+b.n,0)||1;
+      const segSummary=segs.filter(s2=>s2.n>0).map(s2=>`${s2.lo}-${s2.hi}分 ${s2.n}人`).join('，');
+      const failRate=(segs.filter(s2=>s2.hi<60).reduce((a,b)=>a+b.n,0)/total*100).toFixed(1);
+      const qWorst=qs.slice(0,3).map(q=>`第${q.name}题（得分率${q.rate}%）`).join('、');
+      const report=`📊 ${cur.name} 考试分析报告
+
+一、总体情况
+参考人数 ${cur.count} 人，平均分 ${cur.avg} 分，最高 ${cur.max} 分，最低 ${cur.min} 分，及格率 ${cur.pass_rate}%。
+
+二、分数段分布
+${segSummary}。
+不及格占比 ${failRate}%。
+
+${qs.length?`三、失分重点
+失分最重的题目：${qWorst}。建议针对这些题目进行专项复习。`:'三、失分重点\n（录入逐题数据后自动生成）'}
+
+四、教学建议
+${cur.avg>=80?'整体水平良好，可适当拓展提高题训练。':cur.avg>=60?'整体中等，建议加强基础题型训练，关注不及格学生。':'基础薄弱，建议回归课本，强化核心概念与基本操作。'}
+${failRate>30?'不及格比例偏高，建议课后辅导或分层作业。':''}
+
+——数据由化学学科园地自动生成`;
+      $("#reportBody").style.display="block";
+      $("#reportBody").textContent=report;
+      $("#copyReport").style.display="inline-flex";
+    });
+  }
+  if(e.target.id==="copyReport"){
+    const txt=$("#reportBody").textContent;
+    (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>toast("报告已复制")).catch(()=>{
+      const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("报告已复制");
+    });
+  }
+});
+
 // 分数段趋势（≥2 场考试才显示）
 function renderSegTrend(){
   if(SCORES.length<2){$("#segTrendCard").style.display="none";return}
