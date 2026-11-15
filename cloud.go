@@ -230,6 +230,19 @@ func (s *cloudStore) save() error {
 	return os.WriteFile(filepath.Join(s.dir, "store.json"), b, 0o600)
 }
 
+// downloadDirty 下载计数脏标记（攒批后随下次 save 持久化，不再每次 GET 全量写）。
+var downloadDirty bool
+
+// flushDownloads 检查并持久化下载计数（由 autoBackup 定时调用）。
+func flushDownloads(st *cloudStore) {
+	st.mu.Lock()
+	if downloadDirty {
+		_ = st.save()
+		downloadDirty = false
+	}
+	st.mu.Unlock()
+}
+
 // keyMatches 锁内比较 key（rotate-key 并发写时防撕裂读）。
 func (s *cloudStore) keyMatches(got string) bool {
 	s.mu.Lock()
@@ -304,6 +317,7 @@ func withGzip(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		r.Header.Del("Range") // gzip 与 Range 语义冲突，去掉 Range 保证全量响应正确
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Header().Add("Vary", "Accept-Encoding")
 		gz := gzip.NewWriter(w)
@@ -382,6 +396,11 @@ func doBackup(st *cloudStore) error {
 // autoBackup 启动时与每 24h 自动快照。
 func autoBackup(st *cloudStore) {
 	_ = doBackup(st) // 启动快照失败不致命，下次 tick 重试
+	go func() {
+		for range time.Tick(1 * time.Hour) {
+			flushDownloads(st) // 每小时持久化一次下载计数
+		}
+	}()
 	go func() {
 		for range time.Tick(24 * time.Hour) {
 			_ = doBackup(st)
@@ -593,8 +612,9 @@ func cmdServe(args []string) {
 					Content  string   `json:"content"`
 					Preview  string   `json:"preview"`
 				}
+				r.Body = http.MaxBytesReader(w, r.Body, 10<<20) // 10MB 上限防内存 DoS
 				if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Title == "" || in.Content == "" {
-					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 title/content"})
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 title/content 或 body 过大"})
 					return
 				}
 				if len([]rune(in.Title)) > 200 || len([]rune(in.Desc)) > 500 || len(in.Content) > 5_000_000 {
@@ -1565,7 +1585,7 @@ func cmdServe(args []string) {
 			}
 			if rec != nil {
 				rec.Downloads++
-				_ = st.save()
+				downloadDirty = true
 			}
 			var fname string
 			if rec != nil {

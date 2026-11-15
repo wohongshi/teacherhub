@@ -268,6 +268,32 @@ r=json.loads(d['result']['content'][0]['text'])
 assert r.get('ok')==True and [q['rate'] for q in r['questions']]==[38.8,62.0,79.2], r" 2>/dev/null && ok "MCP get_score_detail（失分排行）" || bad "MCP 详情"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"x","scores":[50]}}}' | python3 -c "import json,sys;assert json.load(sys.stdin)['result'].get('isError')==True" 2>/dev/null && curl -s -X POST "$BASE/mcp?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"MCP录","scores":[70]}}}' | python3 -c "import json,sys;import json as j;r=j.loads(json.load(sys.stdin)['result']['content'][0]['text']);assert r.get('ok')==True" 2>/dev/null && ok "MCP record_score（无 key 拒/带 key 成）" || bad "MCP record"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":10,"method":"tools/list"}' | python3 -c "import json,sys;ns={t['name'] for t in json.load(sys.stdin)['result']['tools']};assert len(ns)==18 and {'record_score','get_scores','get_score_detail','push_file'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十八件（含成绩/文件/上传）" || bad "MCP 清单"
+# ---- ocr 列后补强断言（5 条）----
+# 1) 成绩公开 API 不泄露原始分
+curl -s "$BASE/api/scores" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for e in d.get('exams',[]):
+    assert 'scores' not in e, '原始分泄露!'" 2>/dev/null && ok "成绩列表不含原始分" || bad "成绩原始分泄露"
+# 2) 上传失败模式：缺 file 字段
+curl -s -X POST "$BASE/api/files" -F "teacher=t" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "上传缺 file 拒绝（400）" || bad "上传缺字段"
+# 3) 文件下载带 Accept-Encoding: gzip 不应被压缩
+curl -s -o /dev/null -D /tmp/th-dl-gz -H 'Accept-Encoding: gzip' "$BASE/api/files/$FX"
+grep -qi 'content-encoding' /tmp/th-dl-gz && bad "文件下载被 gzip 误压" || ok "文件下载不压缩（gzip 排除正确）"
+# 4) 文件名净化强断言（无 .. 无空名）
+curl -s "$BASE/api/files" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for f in d.get('files',[]):
+    n=f['name']
+    assert n, 'empty name'
+    assert chr(47) not in n, n
+    assert chr(92) not in n, n
+    assert '..' not in n, n" 2>/dev/null && ok "文件名净化强断言（无穿越/非空）" || bad "文件名净化"
+# 5) 备份内容断言（含 store.json + files/）
+BN=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;print(json.load(sys.stdin)['backups'][0]['name'])" 2>/dev/null)
+curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups/$BN" -o /tmp/th-bk-test.zip
+unzip -l /tmp/th-bk-test.zip 2>/dev/null | grep -q 'store.json' && ok "备份含 store.json" || bad "备份内容"
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"
