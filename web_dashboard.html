@@ -1190,11 +1190,22 @@ let FILES=[];
 function fmtSize(n){if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(2)+' MB'}
 function previewFile(id,name){
   const ext=(name||"").split(".").pop().toLowerCase();
-  if(["png","jpg","jpeg","gif","webp","svg"].includes(ext)){toast("图片请下载查看");return}
-  fetch("/api/files/"+encodeURIComponent(id)).then(r=>r.text()).then(t=>{
-    const preview=t.length>500?t.slice(0,500)+"\u2026":t;
-    alert(name+" 预览（前 500 字）：\n\n"+preview);
-  }).catch(()=>toast("预览失败"));
+  const isImg=["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext);
+  const overlay=document.createElement("div");
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer";
+  const box=document.createElement("div");
+  box.style.cssText="background:#fff;border-radius:16px;padding:20px;max-width:85vw;max-height:85vh;overflow:auto";
+  if(isImg){
+    box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${name}</div><img src="/api/files/${encodeURIComponent(id)}" style="max-width:100%;max-height:70vh;border-radius:8px"/>`;
+  }else{
+    fetch("/api/files/"+encodeURIComponent(id)).then(r=>r.text()).then(t=>{
+      const preview=t.length>2000?t.slice(0,2000)+"\u2026":t;
+      box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${name}（前 2000 字）</div><pre style="font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto">${preview.replace(/</g,"&lt;")}</pre>`;
+    });
+  }
+  overlay.appendChild(box);
+  overlay.addEventListener("click",()=>overlay.remove());
+  document.body.appendChild(overlay);
 }
 function renderFiles(){
   const q=($("#fileQ").value||"").trim().toLowerCase();
@@ -1314,16 +1325,21 @@ ${failRate>30?'不及格比例偏高，建议课后辅导或分层作业。':''}
   }
 });
 
-// 能力雷达图（各题得分率）
+// 能力雷达图（各题得分率，多场叠加对比）
 function renderRadar(){
   if(!SCORES.length){return}
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){return}
-  jget("/api/scores/"+cur.id).then(d=>{
-    const qs=d.questions||[];
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  const prev=sorted.filter(e=>e.id!==cur.id&&e.at<(cur.at||0)).pop();
+  const fetches=[jget("/api/scores/"+cur.id)];
+  if(prev&&prev.id)fetches.push(jget("/api/scores/"+prev.id));
+  Promise.all(fetches).then(results=>{
+    const dCur=results[0],dPrev=results[1];
+    const qs=dCur.questions||[];
     if(qs.length<3){$("#radarCard").style.display="none";return}
     $("#radarCard").style.display="block";
-    const W=560,H=420,cx=W/2,cy=H/2+10,R=Math.min(W,H)/2-70;
+    const W=560,H=430,cx=W/2,cy=H/2+10,R=Math.min(W,H)/2-75;
     const n=qs.length;
     const angle=i=>-Math.PI/2+i*2*Math.PI/n;
     const pt=(i,v)=>[cx+R*v*Math.cos(angle(i)),cy+R*v*Math.sin(angle(i))];
@@ -1340,10 +1356,22 @@ function renderRadar(){
       svg+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--ink-500)">第${qs[i].name}题</text>`;
       svg+=`<text x="${lx.toFixed(1)}" y="${(ly+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--green-600)">${qs[i].rate}%</text>`;
     }
+    if(dPrev&&dPrev.questions&&dPrev.questions.length===n){
+      const prevPts=[];
+      for(let i=0;i<n;i++){const[x,y]=pt(i,(dPrev.questions[i].rate||0)/100);prevPts.push(`${x.toFixed(1)},${y.toFixed(1)}`)}
+      svg+=`<polygon points="${prevPts.join(' ')}" fill="rgba(150,150,150,0.1)" stroke="#AAA" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+      for(let i=0;i<n;i++){const[x,y]=pt(i,(dPrev.questions[i].rate||0)/100);svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#AAA"/>`}
+    }
     const dataPts=[];
     for(let i=0;i<n;i++){const[x,y]=pt(i,qs[i].rate/100);dataPts.push(`${x.toFixed(1)},${y.toFixed(1)}`)}
     svg+=`<polygon points="${dataPts.join(' ')}" fill="rgba(45,164,78,0.18)" stroke="var(--green-500)" stroke-width="2"/>`;
     for(let i=0;i<n;i++){const[x,y]=pt(i,qs[i].rate/100);svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="var(--green-600)"/>`}
+    svg+=`<rect x="14" y="14" width="12" height="12" rx="3" fill="rgba(45,164,78,0.4)" stroke="var(--green-500)" stroke-width="1.5"/>`;
+    svg+=`<text x="32" y="24" font-size="11" fill="var(--ink-700)">${esc(cur.name)}</text>`;
+    if(dPrev){
+      svg+=`<rect x="14" y="32" width="12" height="12" rx="3" fill="rgba(150,150,150,0.15)" stroke="#AAA" stroke-width="1" stroke-dasharray="4,2"/>`;
+      svg+=`<text x="32" y="42" font-size="11" fill="#999">${esc(prev?prev.name:"上一场")}</text>`;
+    }
     svg+='</svg>';
     $("#radarChart").innerHTML=svg;
   });
