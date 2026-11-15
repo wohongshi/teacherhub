@@ -269,6 +269,15 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         </div>
       </div>
       <div class="card">
+        <h3>批量导入</h3>
+        <p style="font-size:12px;color:var(--ink-500);margin-bottom:10px">粘贴 CSV 格式（每行一场考试）：考试名,分数1,分数2,...</p>
+        <textarea class="f" id="bulkScores" placeholder="月考一,88,92,76,45,100,67&#10;月考二,90,85,88,60,95,70" style="min-height:120px"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="bulkImport">批量导入</button>
+          <span id="bulkMsg" style="font-size:12px;color:var(--ink-500)"></span>
+        </div>
+      </div>
+      <div class="card">
         <h3>考试列表</h3>
         <div class="tbl-wrap"><table class="tbl" id="sxTable">
           <thead><tr><th>考试</th><th>人数</th><th>均分</th><th>最高</th><th>最低</th><th>及格率</th><th>时间</th><th>操作</th></tr></thead>
@@ -581,6 +590,29 @@ $('#sxAdd').addEventListener('click',function(){
   jsend('POST','/api/scores',{name:name,scores:arr,questions:qs}).then(function(d){
     if(d.ok){toast('已录入 '+arr.length+' 个分数'+(qs.length?'（含 '+qs.length+' 题统计）':''));$('#sxName').value='';$('#sxScores').value='';$('#sxQs').value='';renderSx();renderLogs()}
     else{toast(d.error||'失败')}
+  });
+});
+$('#bulkImport').addEventListener('click',function(){
+  var txt=($('#bulkScores').value||'').trim();
+  if(!txt){$('#bulkMsg').textContent='粘贴 CSV 内容';return}
+  var lines=txt.split('\n').filter(function(l){return l.trim()});
+  var imported=0,errors=[];
+  var promises=lines.map(function(line,i){
+    var parts=line.split(',').map(function(x){return x.trim()}).filter(Boolean);
+    if(parts.length<2){errors.push('第'+(i+1)+'行格式不对');return null}
+    var name=parts[0];
+    var scores=parts.slice(1).map(Number).filter(function(v){return isFinite(v)&&v>=0&&v<=150});
+    if(!name||!scores.length){errors.push('第'+(i+1)+'行数据不对');return null}
+    return jsend('POST','/api/scores',{name:name,scores:scores}).then(function(d){
+      if(d.ok)imported++;else errors.push(name+': '+(d.error||'失败'));
+    });
+  }).filter(Boolean);
+  Promise.all(promises).then(function(){
+    $('#bulkMsg').textContent='导入 '+imported+' 场'+(errors.length?'，失败 '+errors.length+' 条':'');
+    if(errors.length)$('#bulkMsg').textContent+='（'+errors.slice(0,3).join('；')+'）';
+    $('#bulkScores').value='';
+    renderSx();renderLogs();
+    toast('批量导入完成：'+imported+' 场');
   });
 });
 $('#sxTable').addEventListener('click',function(e){
