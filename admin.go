@@ -473,7 +473,7 @@ function renderScoreMini(){
 document.addEventListener("click",function(e){
   if(e.target.id==="cleanupBtn"){
     if(!confirm("将删除 10 个以外的旧备份，确认？"))return;
-    fetch("/api/admin/cleanup-backups",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":(localStorage.getItem("th_key")||window.__admKey||"")}}).then(function(r){return r.json()}).then(function(d){
+    fetch("/api/admin/cleanup-backups",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":((function(){try{return localStorage.getItem("th_key")||window.__admKey||""}catch(e){return ""}})())}}).then(function(r){return r.json()}).then(function(d){
       if(d.ok){alert("已清理 "+d.removed+" 个旧备份（保留最近 10 个）");renderBackups()}
       else alert(d.error||"清理失败");
     }).catch(function(){alert("清理失败")});
