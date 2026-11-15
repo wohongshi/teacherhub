@@ -448,8 +448,9 @@ $('#backPortal').addEventListener('click',function(){location.href='/'});
 /* ===== 总览 ===== */
 function renderScoreMini(){
   jget('/api/scores').then(function(sc){
-    if(!sc||sc.length<2){return}
-    var sorted=sc.sort(function(a,b){return (a.at||0)-(b.at||0)});
+    var list=(sc&&sc.exams)||[];
+    if(list.length<2){return}
+    var sorted=list.slice().sort(function(a,b){return (a.at||0)-(b.at||0)});
     var W=560,H=130;
     var avgs=sorted.map(function(e){return e.avg});
     var mn=Math.min.apply(null,avgs),mx=Math.max.apply(null,avgs),span=Math.max(1,mx-mn);
@@ -473,7 +474,7 @@ function renderScoreMini(){
 document.addEventListener("click",function(e){
   if(e.target.id==="cleanupBtn"){
     if(!confirm("将删除 10 个以外的旧备份，确认？"))return;
-    fetch("/api/admin/cleanup-backups",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":((function(){try{return localStorage.getItem("th_key")||window.__admKey||""}catch(e){return ""}})())}}).then(function(r){return r.json()}).then(function(d){
+    fetch("/api/admin/cleanup-backups",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":key()}}).then(function(r){return r.json()}).then(function(d){
       if(d.ok){alert("已清理 "+d.removed+" 个旧备份（保留最近 10 个）");renderBackups()}
       else alert(d.error||"清理失败");
     }).catch(function(){alert("清理失败")});
@@ -681,12 +682,17 @@ $('#sxTable').addEventListener('click',function(e){
     document.querySelectorAll('.sx-check:checked').forEach(function(c){ids.push(c.dataset.id)});
     if(!ids.length){toast('先勾选要删除的考试');return}
     if(!confirm('确认删除 '+ids.length+' 场考试？此操作不可恢复'))return;
-    var done=0;
+    var done=0,fail=0;
     ids.forEach(function(id){
       jsend('DELETE','/api/scores/'+id).then(function(d){
         done++;
-        if(done===ids.length){toast('已删除 '+ids.length+' 场考试');renderSx();renderLogs()}
-      });
+        if(d&&d.ok===false)fail++;
+        if(done===ids.length){
+          if(fail)toast('删除完成：成功 '+(ids.length-fail)+'，失败 '+fail);
+          else toast('已删除 '+ids.length+' 场考试');
+          renderSx();renderLogs()
+        }
+      }).catch(function(){done++;fail++;if(done===ids.length){toast('删除完成：成功 '+(ids.length-fail)+'，失败 '+fail);renderSx();renderLogs()}});
     });
     return;
   }

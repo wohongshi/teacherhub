@@ -291,9 +291,17 @@ func withETag(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		p := r.URL.Path
+		if strings.HasPrefix(p, "/api/files/") || strings.HasPrefix(p, "/api/admin/backups") || strings.HasSuffix(p, "/raw") || strings.HasSuffix(p, "/file") || strings.HasSuffix(p, "/preview") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		etag := etagRW{ResponseWriter: w}
 		next.ServeHTTP(&etag, r)
 		if !etag.wrote || etag.buf.Len() == 0 {
+			if etag.code != 0 {
+				w.WriteHeader(etag.code)
+			}
 			return
 		}
 		body := []byte(etag.buf.String())
@@ -1653,7 +1661,7 @@ func cmdServe(args []string) {
 			}
 			backups = append(backups, backupEntry{e.Name(), info.ModTime()})
 		}
-		keep := 10
+		keep := 7
 		if len(backups) <= keep {
 			writeJSON(w, 200, map[string]any{"ok": true, "removed": 0, "kept": len(backups)})
 			return
@@ -1665,7 +1673,10 @@ func cmdServe(args []string) {
 				removed++
 			}
 		}
+		st.mu.Lock()
 		st.log("备份", "清理旧备份："+strconv.Itoa(removed)+" 个（保留最近 "+strconv.Itoa(keep)+" 个）")
+		_ = st.save()
+		st.mu.Unlock()
 		writeJSON(w, 200, map[string]any{"ok": true, "removed": removed, "kept": keep})
 	})
 	mux.HandleFunc("/api/files/rename", func(w http.ResponseWriter, r *http.Request) {
@@ -1709,9 +1720,9 @@ func cmdServe(args []string) {
 		}
 		old := found.Name
 		found.Name = newName
-		st.save()
-		st.mu.Unlock()
 		st.log("更新", "文件重命名："+old+" → "+newName)
+		_ = st.save()
+		st.mu.Unlock()
 		writeJSON(w, 200, map[string]any{"ok": true, "name": newName})
 	})
 	mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
@@ -1743,9 +1754,18 @@ func cmdServe(args []string) {
 				writeJSON(w, 404, map[string]any{"ok": false, "error": "文件不存在"})
 				return
 			}
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": fname}))
+			if r.URL.Query().Get("inline") == "1" {
+				mt := mime.TypeByExtension(filepath.Ext(fname))
+				if mt == "" {
+					mt = "application/octet-stream"
+				}
+				w.Header().Set("Content-Type", mt)
+				w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": fname}))
+			} else {
+				w.Header().Set("X-Content-Type-Options", "nosniff")
+				w.Header().Set("Content-Type", "application/octet-stream")
+				w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": fname}))
+			}
 			http.ServeFile(w, r, filepath.Join(st.dir, "files", id))
 		case http.MethodDelete: // 删除（管理 key）
 			api(w, r, func(w http.ResponseWriter, r *http.Request) {

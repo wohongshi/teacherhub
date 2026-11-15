@@ -595,10 +595,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>实验</th><th>关键参数</th><th>教学建议</th><th>操作</th></tr></thead>
           <tbody>
-            <tr><td><b>钠与水</b></td><td>钠量 / 水温 / 浓度</td><td>先做「少量冷水」典型现象，再切「大块热水」看危险对比</td><td><a class="chip" href="#" onclick="event.preventDefault();go('wbs');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
-            <tr><td><b>铁丝燃烧</b></td><td>氧气浓度 / 铁丝粗细 / 温度</td><td>空气对照组先行，纯氧再做——火星四射的反差最直观</td><td><a class="chip" href="#" onclick="event.preventDefault();go('wbs');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
-            <tr><td><b>过氧化氢</b></td><td>催化剂种类 / 浓度 / 温度</td><td>无催化剂对照必做——「几乎不反应」就是教学结论</td><td><a class="chip" href="#" onclick="event.preventDefault();go('wbs');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
-            <tr><td><b>凸透镜</b></td><td>物距 / 焦距</td><td>物距从 2f 外逐步缩到 f 内，像距突变是重点讲的瞬间</td><td><a class="chip" href="#" onclick="event.preventDefault();go('wbs');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
+            <tr><td><b>钠与水</b></td><td>钠量 / 水温 / 浓度</td><td>先做「少量冷水」典型现象，再切「大块热水」看危险对比</td><td><a class="chip" href="#" onclick="event.preventDefault();go('lab');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
+            <tr><td><b>铁丝燃烧</b></td><td>氧气浓度 / 铁丝粗细 / 温度</td><td>空气对照组先行，纯氧再做——火星四射的反差最直观</td><td><a class="chip" href="#" onclick="event.preventDefault();go('lab');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
+            <tr><td><b>过氧化氢</b></td><td>催化剂种类 / 浓度 / 温度</td><td>无催化剂对照必做——「几乎不反应」就是教学结论</td><td><a class="chip" href="#" onclick="event.preventDefault();go('lab');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
+            <tr><td><b>凸透镜</b></td><td>物距 / 焦距</td><td>物距从 2f 外逐步缩到 f 内，像距突变是重点讲的瞬间</td><td><a class="chip" href="#" onclick="event.preventDefault();go('lab');toast('已切换到实验工作台');return false">🔬 去实验</a></td></tr>
           </tbody>
         </table></div>
       </div>
@@ -1114,7 +1114,11 @@ document.addEventListener("click",e=>{
   }
 });
 $("#globalSearch").addEventListener("keydown",e=>{
-  if(e.key==="Enter"){doSearch(e.target.value.trim())}
+  if(e.key==="Enter"){
+    doSearch(e.target.value.trim());
+    const ms=$("#msearch");if(ms)ms.classList.add("open");
+    setTimeout(()=>{const mi=$("#msearchInput");if(mi){mi.value=e.target.value;doSearch(e.target.value)}},50);
+  }
 });
 
 /* ============ 演示数据按钮 ============ */
@@ -1296,7 +1300,8 @@ function fmtSize(n){if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed
 function renameFile(id,oldName){
   const newName=prompt("新文件名：",oldName);
   if(!newName||newName===oldName)return;
-  fetch("/api/files/rename",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":localStorage.getItem("th_key")||""},body:JSON.stringify({id:id,name:newName})})
+  const rk=prompt("请输入管理 key：")||"";
+  fetch("/api/files/rename",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":rk},body:JSON.stringify({id:id,name:newName})})
     .then(r=>r.json()).then(d=>{
       if(d.ok){toast("已重命名");renderFiles()}
       else toast(d.error||"重命名失败");
@@ -1310,7 +1315,7 @@ function previewFile(id,name){
   const box=document.createElement("div");
   box.style.cssText="background:#fff;border-radius:16px;padding:20px;max-width:85vw;max-height:85vh;overflow:auto";
   if(isImg){
-    box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${name}</div><img src="/api/files/${encodeURIComponent(id)}" style="max-width:100%;max-height:70vh;border-radius:8px"/>`;
+    box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${esc(name)}</div><img src="/api/files/${encodeURIComponent(id)}?inline=1" style="max-width:100%;max-height:70vh;border-radius:8px"/>`;
   }else{
     fetch("/api/files/"+encodeURIComponent(id)).then(r=>r.text()).then(t=>{
       const isMd=name.toLowerCase().endsWith(".md");
@@ -1612,7 +1617,10 @@ function renderRateTrend(){
   const W=560,H=220,padL=50,padR=20,padT=20,padB=50;
   const n=sorted.length;
   const passRates=sorted.map(e=>e.pass_rate||0);
-  const excelRates=sorted.map(e=>Math.round((e.excellent_rate||0)*10)/10);
+  const excelRates=sorted.map(e=>{
+    if(e.excellent_rate!=null)return Math.round(e.excellent_rate*10)/10;
+    return 0;
+  });
   const x=i=>padL+i/Math.max(1,n-1)*(W-padL-padR);
   const y=v=>padT+(1-v/100)*(H-padT-padB);
   let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
@@ -1728,11 +1736,13 @@ function renderRadar(){
       svg+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--ink-500)">第${qs[i].name}题</text>`;
       svg+=`<text x="${lx.toFixed(1)}" y="${(ly+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--green-600)">${qs[i].rate}%</text>`;
     }
-    if(dPrev&&dPrev.questions&&dPrev.questions.length===n){
+    if(dPrev&&dPrev.questions){
+      const prevRate={};
+      dPrev.questions.forEach(q=>prevRate[q.name]=q.rate);
       const prevPts=[];
-      for(let i=0;i<n;i++){const[x,y]=pt(i,(dPrev.questions[i].rate||0)/100);prevPts.push(`${x.toFixed(1)},${y.toFixed(1)}`)}
+      for(let i=0;i<n;i++){const[x,y]=pt(i,(prevRate[qs[i].name]||0)/100);prevPts.push(`${x.toFixed(1)},${y.toFixed(1)}`)}
       svg+=`<polygon points="${prevPts.join(' ')}" fill="rgba(150,150,150,0.1)" stroke="#AAA" stroke-width="1.5" stroke-dasharray="5,3"/>`;
-      for(let i=0;i<n;i++){const[x,y]=pt(i,(dPrev.questions[i].rate||0)/100);svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#AAA"/>`}
+      for(let i=0;i<n;i++){const[x,y]=pt(i,(prevRate[qs[i].name]||0)/100);svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#AAA"/>`}
     }
     const dataPts=[];
     for(let i=0;i<n;i++){const[x,y]=pt(i,qs[i].rate/100);dataPts.push(`${x.toFixed(1)},${y.toFixed(1)}`)}
@@ -1765,7 +1775,7 @@ function renderSegTrend(){
       const x=i*step+step*0.15,bw=step*0.7;
       let yAcc=H-24;
       buckets.forEach(([lo,hi,label,color])=>{
-        const n=segs.filter(s2=>s2.lo>=lo&&s2.hi<hi).reduce((a,b)=>a+b.n,0);
+        const n=segs.filter(s2=>s2.lo>=lo&&s2.lo<hi).reduce((a,b)=>a+b.n,0);
         const h=(H-44)*(n/total);
         yAcc-=h;
         svg+=`<rect x="${x.toFixed(1)}" y="${yAcc.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,1)}" fill="${color}" opacity="0.7"><title>${esc(exams[i].name)} ${label}: ${n}人</title></rect>`;
@@ -1865,7 +1875,8 @@ function renderScore(){
         bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-12}" font-size="10" fill="#A8B2A9" text-anchor="middle">${s2.lo}</text>`;
         if(s2.n)bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-5).toFixed(1)}" font-size="10.5" fill="#2F6B45" font-weight="700" text-anchor="middle">${s2.n}</text>`;
       });
-      const norm=addNormalLines(segs,total);
+      const total4norm=segs.reduce((a,b)=>a+b.n,0)||1;
+      const norm=addNormalLines(segs,total4norm);
       if(norm.sd>0){
         const xAvg=30+Math.floor(cur.avg/10)*((W-50)/segs.length)+bw/2;
         bars+=`<line x1="${xAvg.toFixed(1)}" y1="10" x2="${xAvg.toFixed(1)}" y2="${H-30}" stroke="#C2453F" stroke-width="1.5" stroke-dasharray="6,3"/>`;

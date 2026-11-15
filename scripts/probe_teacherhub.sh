@@ -293,7 +293,7 @@ for f in d.get('files',[]):
 # 5) 备份内容断言（含 store.json + files/）
 BN=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;print(json.load(sys.stdin)['backups'][0]['name'])" 2>/dev/null)
 curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups/$BN" -o /tmp/th-bk-test.zip
-unzip -l /tmp/th-bk-test.zip 2>/dev/null | grep -q 'store.json' && ok "备份含 store.json" || bad "备份内容"
+unzip -l /tmp/th-bk-test.zip 2>/dev/null | grep -q 'store.json' && unzip -l /tmp/th-bk-test.zip 2>/dev/null | grep -q 'files/' && ok "备份含 store.json + files/" || bad "备份内容"
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"
