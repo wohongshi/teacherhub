@@ -200,6 +200,8 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         </div>
         <label class="lb">MCP 接入地址（给 AI 客户端）</label>
         <div class="mono" id="mcpUrl"></div>
+        <label class="lb">存储占用</label>
+        <div class="mono" id="diskInfo">加载中…</div>
         <label class="lb">门户与管理入口</label>
         <div class="mono" id="portalUrl"></div>
       </div>
@@ -224,6 +226,14 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
           <tbody></tbody>
         </table></div>
         <div class="empty" id="fileEmpty" style="display:none">暂无共享文件</div>
+      </div>
+      <div class="card">
+        <h3>内置实验模板</h3>
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn primary" id="seedBtn">🧪 一键上架四个实验模板</button>
+          <span style="font-size:11.5px;color:var(--ink-300)">幂等操作——已有同名产物自动跳过</span>
+        </div>
+        <div id="seedResult" style="font-size:12px;color:var(--ink-500)"></div>
       </div>
       <div class="card">
         <h3>新建产物</h3>
@@ -428,6 +438,10 @@ function renderHome(){
       var path=pts.map(function(p,i){return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)}).join(' ');
       $('#homeTrend').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px"><path d="'+path+'" stroke="#4E9A63" stroke-width="2.2" fill="none" stroke-linecap="round"/>'+pts.map(function(p){return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3" fill="#2F6B45"><title>'+esc(p[3])+': '+p[2]+'</title></circle>'}).join('')+'<text x="20" y="12" font-size="10" fill="#A8B2A9">峰值 '+mx+'</text></svg>';
     }else{$('#homeTrend').innerHTML='<div class="empty">数据积累中（至少 2 天）</div>'}
+    if(d.disk_size!=null){
+      var mb=(d.disk_size/1048576).toFixed(1);
+      $('#diskInfo').textContent='数据目录 '+mb+' MB · 共享文件 '+d.file_count+' 个 · 产物 '+d.artifact_count+' 个';
+    }
     $('#keyMask').textContent=maskKey(key());
     $('#mcpUrl').textContent=location.origin+'/mcp';
     $('#portalUrl').textContent=location.origin+'/  ·  后台 '+location.origin+'/admin';
@@ -488,6 +502,22 @@ $('#wbTable').addEventListener('click',function(e){
       jsend('POST','/api/workbenches/'+id+'/restore',{ts:ts}).then(function(r){if(r.ok){toast('已恢复历史版本');renderWb();renderLogs()}else{toast(r.error||'恢复失败')}});
     });
   }
+});
+$('#seedBtn').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='上架中…';
+  jsend('POST','/api/admin/seed-templates').then(function(d){
+    btn.disabled=false;btn.textContent='🧪 一键上架四个实验模板';
+    if(d.ok){
+      var created=d.results.filter(function(r){return r.status==='created'}).length;
+      var skipped=d.results.filter(function(r){return r.status==='skipped'}).length;
+      $('#seedResult').innerHTML=d.results.map(function(r){
+        var icon=r.status==='created'?'✅':(r.status==='skipped'?'⏭':'❌');
+        return icon+' '+r.title+' → '+r.status;
+      }).join('<br>');
+      toast('上架完成：'+created+' 个新建，'+skipped+' 个跳过');
+      renderWb();renderLogs();
+    }else{toast(d.error||'上架失败')}
+  });
 });
 $('#nwCreate').addEventListener('click',function(){
   var title=$('#nwTitle').value.trim(),content=$('#nwContent').value;

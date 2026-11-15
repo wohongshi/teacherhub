@@ -1352,6 +1352,18 @@ func cmdServe(args []string) {
 	mux.HandleFunc("/api/admin/backups/", backHandler)
 	mux.HandleFunc("/api/admin/backups", backHandler)
 
+	// 模板一键上架（管理 key，幂等）
+	mux.HandleFunc("/api/admin/seed-templates", func(w http.ResponseWriter, r *http.Request) {
+		api(w, r, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+				return
+			}
+			results := seedTemplates(st)
+			writeJSON(w, 200, map[string]any{"ok": true, "results": results})
+		})
+	})
+
 	// 立即备份（管理 key）
 	mux.HandleFunc("/api/admin/backup", func(w http.ResponseWriter, r *http.Request) {
 		api(w, r, func(w http.ResponseWriter, r *http.Request) {
@@ -1632,7 +1644,26 @@ self.addEventListener('fetch',function(e){
 		today := st.data.DailyViews[time.Now().Format("2006-01-02")]
 		st.mu.Unlock()
 		yk := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily})
+		// 存储占用
+		var dirSize int64
+		var fileCount, artifactCount int
+		_ = filepath.WalkDir(st.dir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			if info, e := d.Info(); e == nil {
+				dirSize += info.Size()
+			}
+			rel, _ := filepath.Rel(st.dir, path)
+			if strings.HasPrefix(rel, "files"+string(os.PathSeparator)) {
+				fileCount++
+			}
+			if strings.HasPrefix(rel, "artifacts"+string(os.PathSeparator)) {
+				artifactCount++
+			}
+			return nil
+		})
+		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily, "disk_size": dirSize, "file_count": fileCount, "artifact_count": artifactCount})
 	})
 
 	// 管理备份导出：zip（store.json + artifacts + files 全量）
