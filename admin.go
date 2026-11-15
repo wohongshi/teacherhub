@@ -356,6 +356,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <h3>自动备份快照（每 24h 轮转 7 份）</h3>
         <div class="row" style="margin-bottom:10px">
           <button class="btn primary" id="backupNow">⚡ 立即备份</button>
+          <button class="btn line" id="cleanupBtn">🧹 清理旧备份</button>
           <span style="font-size:11.5px;color:var(--ink-300)">含数据 + 产物 + 共享文件</span>
         </div>
         <div id="backupList"></div>
@@ -465,6 +466,15 @@ function renderScoreMini(){
     if(el)el.innerHTML=svg;
   });
 }
+document.addEventListener("click",function(e){
+  if(e.target.id==="cleanupBtn"){
+    if(!confirm("将删除 10 个以外的旧备份，确认？"))return;
+    fetch("/api/admin/cleanup-backups",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":(localStorage.getItem("th_key")||window.__admKey||"")}}).then(function(r){return r.json()}).then(function(d){
+      if(d.ok){alert("已清理 "+d.removed+" 个旧备份（保留最近 10 个）");renderBackups()}
+      else alert(d.error||"清理失败");
+    }).catch(function(){alert("清理失败")});
+  }
+});
 function renderHome(){
   Promise.all([
     jget('/api/stats').catch(function(){return {}}),

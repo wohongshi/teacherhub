@@ -250,8 +250,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 @media print{
   .sidebar,.mobile-bottom,.hero,.top-bar,.search-overlay,.fab,footer,.dock-bar{display:none!important}
   .main-wrap{margin-left:0!important;padding:0!important}
-  .view:not(#v-score){display:none!important}
-  #v-score{display:block!important}
+  .view:not(#v-score):not(#v-kb){display:none!important}
+  #v-score,#v-kb{display:block!important}
+  #v-kb .card{break-inside:avoid;box-shadow:none;border:1px solid #ddd}
+  #v-kb #kbDetail{display:none!important}
   #v-score .card{break-inside:avoid;box-shadow:none;border:1px solid #ddd}
   #v-score #reportCard,#v-score #radarCard,#v-score #segTrendCard,#v-score #cmpCard{display:none!important}
   body{background:#fff!important;color:#000!important;font-size:12px}
@@ -629,7 +631,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <button class="chip" data-kbfilter="claimed">已认领</button>
         <button class="chip" data-kbfilter="unclaimed">待认领</button>
         <input id="kbSearch" placeholder="搜索章节/模块…" style="height:32px;font-size:12px;border:1.5px solid var(--green-200);border-radius:20px;padding:0 14px;outline:none;max-width:200px"/>
-        <button class="chip" id="exportKbCsv" style="margin-left:auto">📥 导出 CSV</button>
+        <button class="chip" id="exportKbCsv">📥 导出 CSV</button>
+        <button class="chip" id="printKb" onclick="window.print()" style="margin-left:auto">🖨️ 打印</button>
       </div>
       <div class="card" id="kbDetail" style="display:none;margin-bottom:18px">
         <div class="card-head"><div><div class="card-title" id="kbDetailTitle">模块详情</div><div class="card-sub">课标条目与教材章节对应关系</div></div></div>
@@ -842,6 +845,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="card section" id="radarCard" style="display:none">
         <div class="card-head"><div><div class="card-title">能力雷达</div><div class="card-sub">各题得分率雷达图 · 强弱项一眼看出</div></div></div>
         <div id="radarChart"></div>
+      </div>
+      <div class="card section" id="rateTrendCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">及格率 / 优秀率趋势</div><div class="card-sub">多场考试率值走势 · 绿=及格率 蓝=优秀率</div></div></div>
+        <div id="rateTrendChart"></div>
       </div>
       <div class="card section" id="segTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">分数段趋势</div><div class="card-sub">多次考试分数段占比变化（不及格/及格/良好/优秀）</div></div></div>
@@ -1453,6 +1460,50 @@ function renderQCmp(){
   });
 }
 
+// 及格率/优秀率趋势图
+function renderRateTrend(){
+  if(SCORES.length<2){$("#rateTrendCard").style.display="none";return}
+  $("#rateTrendCard").style.display="block";
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  const W=560,H=220,padL=50,padR=20,padT=20,padB=50;
+  const n=sorted.length;
+  const passRates=sorted.map(e=>e.pass_rate||0);
+  const excelRates=sorted.map(e=>Math.round((e.excellent_rate||0)*10)/10);
+  const x=i=>padL+i/Math.max(1,n-1)*(W-padL-padR);
+  const y=v=>padT+(1-v/100)*(H-padT-padB);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+  // 网格线
+  for(let v=0;v<=100;v+=25){
+    svg+=`<line x1="${padL}" y1="${y(v)}" x2="${W-padR}" y2="${y(v)}" stroke="var(--green-100)" stroke-width="0.8"/>`;
+    svg+=`<text x="${padL-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--ink-400)">${v}%</text>`;
+  }
+  // 及格率（绿）
+  const passPts=passRates.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  svg+=`<polyline points="${passPts.join(' ')}" fill="none" stroke="var(--green-500)" stroke-width="2.5"/>`;
+  passRates.forEach((v,i)=>{
+    svg+=`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--green-600)"/>`;
+    svg+=`<text x="${x(i).toFixed(1)}" y="${y(v)-8}" text-anchor="middle" font-size="10" fill="var(--green-700)" font-weight="600">${v}%</text>`;
+  });
+  // 优秀率（蓝）
+  const exPts=excelRates.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  svg+=`<polyline points="${exPts.join(' ')}" fill="none" stroke="#5B9BD5" stroke-width="2.5" stroke-dasharray="6,3"/>`;
+  excelRates.forEach((v,i)=>{
+    svg+=`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="#5B9BD5"/>`;
+    svg+=`<text x="${x(i).toFixed(1)}" y="${y(v)+16}" text-anchor="middle" font-size="10" fill="#4A7FB5">${v}%</text>`;
+  });
+  // X 轴标签
+  sorted.forEach((e,i)=>{
+    svg+=`<text x="${x(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${esc(e.name.slice(0,6))}</text>`;
+  });
+  // 图例
+  svg+=`<rect x="${padL}" y="4" width="12" height="3" rx="1.5" fill="var(--green-500)"/>`;
+  svg+=`<text x="${padL+18}" y="10" font-size="10" fill="var(--green-700)">及格率</text>`;
+  svg+=`<rect x="${padL+70}" y="4" width="12" height="3" rx="1.5" fill="#5B9BD5"/>`;
+  svg+=`<text x="${padL+88}" y="10" font-size="10" fill="#4A7FB5">优秀率</text>`;
+  svg+='</svg>';
+  $("#rateTrendChart").innerHTML=svg;
+}
+
 // 得分率热力图（多场 × 多题矩阵）
 function renderHeat(){
   if(SCORES.length<2){$("#heatCard").style.display="none";return}
@@ -1724,6 +1775,7 @@ function renderScore(){
   renderRadar();
   renderHeat();
   renderQCmp();
+  renderRateTrend();
 }
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-sxtab]");

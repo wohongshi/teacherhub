@@ -1622,6 +1622,52 @@ func cmdServe(args []string) {
 			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
 		}
 	})
+	mux.HandleFunc("/api/admin/cleanup-backups", func(w http.ResponseWriter, r *http.Request) {
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if !st.keyMatches(got) {
+			writeJSON(w, 401, map[string]any{"error": "need key"})
+			return
+		}
+		if r.Method != http.MethodPost {
+			writeJSON(w, 405, map[string]any{"error": "POST only"})
+			return
+		}
+		backupMu.Lock()
+		defer backupMu.Unlock()
+		entries, _ := os.ReadDir(st.dir + "/backups")
+		type backupEntry struct {
+			name string
+			mod  time.Time
+		}
+		var backups []backupEntry
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasPrefix(e.Name(), "backup-") {
+				continue
+			}
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			backups = append(backups, backupEntry{e.Name(), info.ModTime()})
+		}
+		keep := 10
+		if len(backups) <= keep {
+			writeJSON(w, 200, map[string]any{"ok": true, "removed": 0, "kept": len(backups)})
+			return
+		}
+		sort.Slice(backups, func(i, j int) bool { return backups[i].mod.After(backups[j].mod) })
+		removed := 0
+		for _, b := range backups[keep:] {
+			if os.Remove(st.dir+"/backups/"+b.name) == nil {
+				removed++
+			}
+		}
+		st.log("备份", "清理旧备份："+strconv.Itoa(removed)+" 个（保留最近 "+strconv.Itoa(keep)+" 个）")
+		writeJSON(w, 200, map[string]any{"ok": true, "removed": removed, "kept": keep})
+	})
 	mux.HandleFunc("/api/files/rename", func(w http.ResponseWriter, r *http.Request) {
 		got := r.Header.Get("X-Access-Key")
 		if got == "" {

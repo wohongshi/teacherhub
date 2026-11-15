@@ -106,7 +106,7 @@ curl -s -X PUT "$BASE/api/workbenches/$WBID" -H 'Content-Type: application/json'
   --data-raw '{"desc":"PUT 更新测试","content":"<html><body>updated</body></html>"}' | jassert 'assert d.get("id"), d' "PUT 更新产物须 key 且成功"
 curl -s "$BASE/api/workbenches/$WBID/file" | grep -q 'updated' && ok "PUT 后内容已替换" || bad "PUT 后内容已替换"
 curl -s -X PUT "$BASE/api/workbenches/$WBID" -H 'Content-Type: application/json' --data-raw '{"desc":"x"}' | jerr key "PUT 无 key 被拒"
-curl -s "$BASE/" | grep -q 'class="lab-toolbar"' && curl -s "$BASE/" | grep -q 'id="labChips"' && ok "门户含筛选工具条" || bad "门户含筛选工具条"
+PAGE=$(curl -s "$BASE/"); [[ "$PAGE" == *'class="lab-toolbar"'* && "$PAGE" == *'id="labChips"'* ]] && ok "门户含筛选工具条" || bad "门户含筛选工具条"
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
