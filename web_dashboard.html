@@ -762,6 +762,18 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <tbody></tbody>
         </table></div>
       </div>
+      <div class="card section" id="cmpCard" style="display:none">
+        <div class="card-head">
+          <div><div class="card-title">考试对比</div><div class="card-sub">选两场考试看进步</div></div>
+          <div style="display:flex;gap:8px">
+            <select id="cmpA" class="chip" style="padding:0 12px"></select>
+            <span style="align-self:center;color:var(--ink-300)">vs</span>
+            <select id="cmpB" class="chip" style="padding:0 12px"></select>
+            <button class="chip on" id="cmpGo">对比</button>
+          </div>
+        </div>
+        <div id="cmpResult"></div>
+      </div>
       <div class="cols">
         <div class="col-l">
           <div class="card">
@@ -1208,6 +1220,38 @@ function renderRes(){
 }
 
 /* —— 成长空间贡献榜 —— */
+// 考试对比面板
+function initCompare(){
+  if(SCORES.length<2)return;
+  $("#cmpCard").style.display="block";
+  const opts=SCORES.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join("");
+  const selA=$("#cmpA"),selB=$("#cmpB");
+  if(!selA.options.length){selA.innerHTML=opts;selB.innerHTML=opts;selB.selectedIndex=1}
+  $("#cmpGo").onclick=async()=>{
+    const a=selA.value,b=selB.value;
+    if(!a||!b||a===b){toast("选两场不同的考试");return}
+    const [da,db]=await Promise.all([jget("/api/scores/"+a),jget("/api/scores/"+b)]);
+    const dAvg=(db.avg-da.avg).toFixed(1);
+    const dPass=(db.pass_rate-da.pass_rate).toFixed(1);
+    const qa=(da.questions||[]),qb=(db.questions||[]);
+    const qMap={};qa.forEach(q=>qMap[q.name]=q);
+    const qChanges=qb.map(q=>{
+      const old=qMap[q.name];
+      return old?{name:q.name,oldRate:old.rate,newRate:q.rate,delta:(q.rate-old.rate).toFixed(1)}:null;
+    }).filter(Boolean).sort((x,y)=>x.delta-y.delta);
+    $("#cmpResult").innerHTML=`
+      <div class="mini-stats" style="margin-bottom:16px">
+        <div class="mini"><div class="n" style="color:${dAvg>=0?'#2F6B45':'#C2453F'}">${dAvg>=0?'+':''}${dAvg}</div><div class="l">均分变化</div></div>
+        <div class="mini"><div class="n" style="color:${dPass>=0?'#2F6B45':'#C2453F'}">${dPass>=0?'+':''}${dPass}%</div><div class="l">及格率变化</div></div>
+        <div class="mini"><div class="n">${da.count}→${db.count}</div><div class="l">人数</div></div>
+      </div>
+      ${qChanges.length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>题号</th><th>${esc(da.name)}</th><th>${esc(db.name)}</th><th>变化</th></tr></thead><tbody>
+        ${qChanges.map(q=>`<tr><td><b>${esc(q.name)}</b></td><td>${q.oldRate}%</td><td>${q.newRate}%</td>
+          <td><span class="tag ${q.delta>=0?'g':'r'}">${q.delta>=0?'+':''}${q.delta}%</span></td></tr>`).join("")}
+      </tbody></table></div>`:'<div class="empty">两场考试都有逐题数据才能对比失分变化</div>'}`;
+  };
+}
+
 function renderGrow(){
   const byT=teacherMap();
   const arr=Object.entries(byT).map(([name,v])=>({name,n:v.count||0})).sort((a,b)=>b.n-a.n);
@@ -1386,7 +1430,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();renderKbClaims();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderKbClaims();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义

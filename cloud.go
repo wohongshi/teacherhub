@@ -1499,7 +1499,11 @@ func cmdServe(args []string) {
 			}
 			writeJSON(w, 200, map[string]any{"ok": true, "files": files})
 		case http.MethodPost: // 上传（免 key，署名 + 限速 + 大小限制）
-			ip := clientIP(r)
+			// 限速用 RemoteAddr 兜底（XFF 可伪造，只有已知反代才该被信任）
+			ip := r.RemoteAddr
+			if host, _, err := net.SplitHostPort(ip); err == nil {
+				ip = host
+			}
 			now := time.Now().Unix()
 			st.mu.Lock()
 			if st.fileQuota == nil {
@@ -1525,17 +1529,20 @@ func cmdServe(args []string) {
 			st.mu.Unlock()
 
 			r.Body = http.MaxBytesReader(w, r.Body, 50<<20) // 单文件 ≤50MB
-			if err := r.ParseMultipartForm(50 << 20); err != nil {
+			// 1MB 内存 + 磁盘临时文件，防并发上传内存膨胀
+			if err := r.ParseMultipartForm(1 << 20); err != nil {
 				writeJSON(w, 400, map[string]any{"ok": false, "error": "文件过大或格式不对（≤50MB）"})
 				return
 			}
 			fh, hdr, err := r.FormFile("file")
+			_ = hdr
 			if err != nil {
 				writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 file 字段"})
 				return
 			}
 			defer fh.Close()
-			teacher := strings.TrimSpace(r.FormValue("teacher"))
+			teacherField := strings.TrimSpace(r.FormValue("teacher"))
+			teacher := teacherField
 			if teacher == "" {
 				teacher = "匿名"
 			}
