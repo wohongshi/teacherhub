@@ -1245,6 +1245,34 @@ function renderRes(){
 }
 
 /* —— 成长空间贡献榜 —— */
+// 分数段趋势（≥2 场考试才显示）
+function renderSegTrend(){
+  if(SCORES.length<2){$("#segTrendCard").style.display="none";return}
+  $("#segTrendCard").style.display="block";
+  const exams=SCORES.slice().sort((a,b)=>(a.at||0)-(b.at||0));
+  const buckets=[[0,60,'不及格','#C2453F'],[60,75,'及格','#E5A93F'],[75,90,'良好','#8FC79B'],[90,151,'优秀','#2F6B45']];
+  const W=680,H=160,step=W/Math.max(1,exams.length);
+  const details=exams.map(e=>jget("/api/scores/"+e.id).catch(()=>({segments:[]})));
+  Promise.all(details).then(all=>{
+    let svg='';
+    all.forEach((d,i)=>{
+      const segs=d.segments||[];
+      const total=segs.reduce((a,b)=>a+b.n,0)||1;
+      const x=i*step+step*0.15,bw=step*0.7;
+      let yAcc=H-24;
+      buckets.forEach(([lo,hi,label,color])=>{
+        const n=segs.filter(s2=>s2.lo>=lo&&s2.hi<hi).reduce((a,b)=>a+b.n,0);
+        const h=(H-44)*(n/total);
+        yAcc-=h;
+        svg+=`<rect x="${x.toFixed(1)}" y="${yAcc.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,1)}" fill="${color}" opacity="0.7"><title>${esc(exams[i].name)} ${label}: ${n}人</title></rect>`;
+      });
+      svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" font-size="9" fill="#A8B2A9" text-anchor="middle">${esc(exams[i].name.slice(0,6))}</text>`;
+    });
+    svg+=buckets.map((b,i)=>`<rect x="${W-130}" y="${14+i*18}" width="12" height="12" rx="3" fill="${b[3]}" opacity="0.7"/><text x="${W-113}" y="${24+i*18}" font-size="10" fill="#7C8A7F">${b[2]}</text>`).join("");
+    $("#segTrendChart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${svg}</svg>`;
+  });
+}
+
 // 考试对比面板
 function initCompare(){
   if(SCORES.length<2)return;
@@ -1521,7 +1549,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderKbClaims();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderKbClaims();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
