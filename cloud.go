@@ -272,6 +272,54 @@ type gzipRW struct {
 
 func (w *gzipRW) Write(b []byte) (int, error) { return w.gz.Write(b) }
 
+// etagRW ETag 包装：缓冲响应体，算 hash 后设置 ETag/304。
+type etagRW struct {
+	http.ResponseWriter
+	buf   strings.Builder
+	code  int
+	wrote bool
+}
+
+func (w *etagRW) WriteHeader(code int)        { w.code = code }
+func (w *etagRW) Write(b []byte) (int, error) { w.wrote = true; return w.buf.Write(b) }
+func (w *etagRW) Flush()                      {}
+
+// withETag 对 GET 响应加 ETag + 304 缓存（gzip 路径由 withGzip 处理）。
+func withETag(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		etag := etagRW{ResponseWriter: w}
+		next.ServeHTTP(&etag, r)
+		if !etag.wrote || etag.buf.Len() == 0 {
+			return
+		}
+		body := []byte(etag.buf.String())
+		sum := fmt.Sprintf("W/\"%x-%x\"", len(body), fnvHash(body))
+		w.Header().Set("ETag", sum)
+		if match := r.Header.Get("If-None-Match"); match != "" && strings.Contains(match, sum) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		if etag.code != 0 {
+			w.WriteHeader(etag.code)
+		}
+		_, _ = w.Write(body)
+	})
+}
+
+// fnvHash 简易 FNV-1a hash 用于 ETag。
+func fnvHash(b []byte) uint32 {
+	h := uint32(2166136261)
+	for _, c := range b {
+		h ^= uint32(c)
+		h *= 16777619
+	}
+	return h
+}
+
 // wantGzip 是否值得压缩：页面/JSON/XML 压缩，大文件下载与 zip 不压。
 func wantGzip(p string) bool {
 	if strings.HasPrefix(p, "/api/files/") ||
@@ -1796,7 +1844,7 @@ self.addEventListener('fetch',function(e){
 	log.Println("教师工作台云端已启动:", addr)
 	log.Println("访问 key:", st.data.Key)
 	log.Println("统计页:", "http://<地址>"+addr+"/stats?key="+st.data.Key)
-	log.Fatal(http.ListenAndServe(addr, withGzip(mux)))
+	log.Fatal(http.ListenAndServe(addr, withGzip(withETag(mux))))
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
