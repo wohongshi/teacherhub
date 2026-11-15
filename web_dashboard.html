@@ -681,6 +681,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head">
           <div><div class="card-title">共享文件</div><div class="card-sub" id="fileCount"></div></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <button class="chip on" data-sort="time">🕐 时间</button>
+            <button class="chip" data-sort="size">📦 大小</button>
+            <button class="chip" data-sort="downloads">🔥 热度</button>
+            <span style="width:12px"></span>
             <button class="chip on" data-filetype="">全部</button>
             <button class="chip" data-filetype="image">📷 图片</button>
             <button class="chip" data-filetype="doc">📄 文档</button>
@@ -807,6 +811,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="row" style="margin-top:10px">
           <button class="btn-line" id="copyReport" style="height:36px;display:none">📋 复制报告</button>
         </div>
+      </div>
+      <div class="card section" id="heatCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">得分率热力图</div><div class="card-sub">多场考试 × 多题得分率矩阵 · 颜色越红失分越重</div></div></div>
+        <div id="heatChart" style="overflow-x:auto"></div>
       </div>
       <div class="card section" id="radarCard" style="display:none">
         <div class="card-head"><div><div class="card-title">能力雷达</div><div class="card-sub">各题得分率雷达图 · 强弱项一眼看出</div></div></div>
@@ -1227,7 +1235,10 @@ function previewFile(id,name){
 }
 function renderFiles(){
   const q=($("#fileQ").value||"").trim().toLowerCase();
-  const list=FILES.filter(x=>!q||(x.name||"").toLowerCase().includes(q));
+  let list=FILES.filter(x=>!q||(x.name||"").toLowerCase().includes(q));
+  if(__fileSort==="size")list=[...list].sort((a,b)=>(b.size||0)-(a.size||0));
+  else if(__fileSort==="downloads")list=[...list].sort((a,b)=>(b.downloads||0)-(a.downloads||0));
+  else list=[...list].sort((a,b)=>(b.at||0)-(a.at||0));
   $("#fileCount").textContent=FILES.length?`共 ${FILES.length} 个文件`:"";
   const tb=$("#fileTable").querySelector("tbody");
   $("#fileEmpty").style.display=list.length?"none":"block";
@@ -1370,6 +1381,55 @@ ${failRate>30?'不及格比例偏高，建议课后辅导或分层作业。':''}
     });
   }
 });
+
+// 得分率热力图（多场 × 多题矩阵）
+function renderHeat(){
+  if(SCORES.length<2){$("#heatCard").style.display="none";return}
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  Promise.all(sorted.map(e=>jget("/api/scores/"+e.id))).then(all=>{
+    // 收集所有题号
+    const qSet=new Set();
+    all.forEach(d=>(d.questions||[]).forEach(q=>qSet.add(q.name)));
+    const qNames=[...qSet].sort((a,b)=>{
+      const na=parseInt(a),nb=parseInt(b);
+      return isNaN(na)||isNaN(nb)?a.localeCompare(b):na-nb;
+    }).slice(0,20);
+    if(qNames.length<2||sorted.length<2){$("#heatCard").style.display="none";return}
+    $("#heatCard").style.display="block";
+    const cw=56,ch=36,padL=100,padT=70;
+    const W=padL+qNames.length*cw+20,H=padT+sorted.length*ch+40;
+    let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:${W}px;max-width:100%;height:${H}px">`;
+    // 列头（题号）
+    qNames.forEach((qn,j)=>{
+      svg+=`<text x="${padL+j*cw+cw/2}" y="${padT-10}" text-anchor="middle" font-size="11" fill="var(--ink-500)">${qn}</text>`;
+    });
+    // 行头（考试名）
+    sorted.forEach((e,i)=>{
+      svg+=`<text x="${padL-8}" y="${padT+i*ch+ch/2+4}" text-anchor="end" font-size="11" fill="var(--ink-700)">${esc(e.name.slice(0,8))}</text>`;
+    });
+    // 色块
+    sorted.forEach((e,i)=>{
+      const d=all[i];
+      const qMap={};
+      (d.questions||[]).forEach(q=>qMap[q.name]=q.rate);
+      qNames.forEach((qn,j)=>{
+        const rate=qMap[qn];
+        if(rate===undefined){svg+=`<rect x="${padL+j*cw}" y="${padT+i*ch}" width="${cw-2}" height="${ch-2}" rx="4" fill="var(--green-100)"/>`;return}
+        // 颜色：红(低分)→黄→绿(高分)
+        const t=rate/100;
+        const r=Math.round(t<0.5?200+(1-t*2)*55:200*(1-(t-0.5)*2));
+        const g=Math.round(t<0.5?80+t*2*140:200);
+        const b2=Math.round(70+(1-t)*30);
+        svg+=`<rect x="${padL+j*cw}" y="${padT+i*ch}" width="${cw-2}" height="${ch-2}" rx="4" fill="rgb(${r},${g},${b2})"><title>${esc(e.name)} 第${qn}题 ${rate}%</title></rect>`;
+        svg+=`<text x="${padL+j*cw+cw/2}" y="${padT+i*ch+ch/2+4}" text-anchor="middle" font-size="10" fill="${t>0.4?'#fff':'#333'}" font-weight="600">${rate}</text>`;
+      });
+    });
+    // 图例
+    svg+=`<text x="${padL}" y="${H-10}" font-size="10" fill="var(--ink-500)">低分(红) → 高分(绿) · 空白=该场未考此题</text>`;
+    svg+='</svg>';
+    $("#heatChart").innerHTML=svg;
+  });
+}
 
 // 能力雷达图（各题得分率，多场叠加对比）
 function renderRadar(){
@@ -1591,6 +1651,7 @@ function renderScore(){
     $("#scoreTrend").innerHTML=`<div class="empty-state" style="padding:22px 0"><div style="font-size:12.5px">至少两场考试才能看出趋势</div></div>`;
   }
   renderRadar();
+  renderHeat();
 }
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-sxtab]");
@@ -1618,7 +1679,16 @@ function renderKbClaims(){
   });
 }
 let kbTarget="";
+let __fileSort="time";
 document.addEventListener("click",e=>{
+  const sb=e.target.closest("[data-sort]");
+  if(sb){
+    $$("[data-sort]").forEach(b=>b.classList.remove("on"));
+    sb.classList.add("on");
+    __fileSort=sb.dataset.sort;
+    renderFiles();
+    return;
+  }
   const f=e.target.closest("[data-filetype]");
   if(!f)return;
   $$("[data-filetype]").forEach(b=>b.classList.remove("on"));

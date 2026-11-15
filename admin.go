@@ -368,6 +368,19 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
       <h2 class="title">操作日志</h2>
       <p class="sub">管理操作留痕（滚动保留 500 条）。</p>
       <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <select id="logFilter" style="height:32px;border:1.5px solid #ddd;border-radius:8px;padding:0 10px;font-size:12px">
+            <option value="">全部操作</option>
+            <option value="创建">创建</option>
+            <option value="更新">更新</option>
+            <option value="删除">删除</option>
+            <option value="备份">备份</option>
+            <option value="密钥">密钥</option>
+            <option value="上传">上传</option>
+            <option value="导入">导入</option>
+          </select>
+          <input id="logSearch" placeholder="搜索日志关键词…" style="height:32px;border:1.5px solid #ddd;border-radius:8px;padding:0 12px;font-size:12px;flex:1;min-width:160px"/>
+        </div>
         <div class="tbl-wrap"><table class="tbl" id="logTable">
           <thead><tr><th>时间</th><th>操作</th><th>详情</th></tr></thead>
           <tbody></tbody>
@@ -713,6 +726,21 @@ $('#backupNow').addEventListener('click',function(){
 });
 
 /* ===== 操作日志 ===== */
+function filterLogs(){
+  var fl=document.getElementById("logFilter");
+  var ls=document.getElementById("logSearch");
+  var mode=fl?fl.value:"";
+  var q=ls?ls.value.trim().toLowerCase():"";
+  var rows=document.querySelectorAll("#logTable tbody tr");
+  rows.forEach(function(tr){
+    var txt=tr.textContent;
+    var matchType=!mode||txt.indexOf(mode)>=0;
+    var matchQ=!q||txt.toLowerCase().indexOf(q)>=0;
+    tr.style.display=(matchType&&matchQ)?"":"none";
+  });
+}
+document.addEventListener("input",function(e){if(e.target.id==="logSearch")filterLogs()});
+document.addEventListener("change",function(e){if(e.target.id==="logFilter")filterLogs()});
 function renderLogs(){
   jget('/api/admin/logs').then(function(d){
     var list=d.logs||[];
