@@ -930,8 +930,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 <!-- ===== 移动搜索 overlay ===== -->
 <div class="msearch" id="msearch">
   <div class="msearch-box">
-    <input id="msearchInput" placeholder="搜课标 / 真题 / 资源 / 实验…">
-    <div class="tip">回车检索 · 点空白处关闭</div>
+    <input id="msearchInput" placeholder="搜实验 / 课标 / 资源 / 成绩…">
+    <div id="msearchResults" style="max-height:50vh;overflow-y:auto;margin-top:8px"></div>
+    <div class="tip">输入即搜 · 点结果跳转 · 点空白处关闭</div>
   </div>
 </div>
 
@@ -1043,6 +1044,7 @@ $("#msearchBtn").addEventListener("click",()=>{
 $("#msearch").addEventListener("click",e=>{
   if(e.target.id==="msearch"||!e.target.closest(".msearch-box"))$("#msearch").classList.remove("on");
 });
+$("#msearchInput").addEventListener("input",e=>{doSearch(e.target.value)});
 $("#msearchInput").addEventListener("keydown",e=>{
   if(e.key==="Enter"){
     const q=e.target.value.trim();
@@ -1055,15 +1057,47 @@ document.addEventListener("click",e=>{
   if(sb.classList.contains("open")&&!e.target.closest("#sidebar")&&!e.target.closest("#menuBtn"))sb.classList.remove("open");
 });
 
-/* ============ 全局搜索：跳实验工作台并检索 ============ */
+/* ============ 全局搜索（实验/课标/资源/成绩统一搜） ============ */
 function doSearch(q){
   const ql=(q||"").toLowerCase().trim();
-  if(!ql)return;
-  const wbHit=WBS.some(w=>!w.hidden&&[w.title,w.desc,(w.tags||[]).join(" ")].join(" ").toLowerCase().includes(ql));
-  const fHit=FILES.some(x=>(x.name||"").toLowerCase().includes(ql));
-  if(wbHit||!fHit){go("lab");$("#labQ").value=q;renderWbs();}
-  else{go("res");$("#fileQ").value=q;renderFiles();}
+  if(!ql){const r=$("#msearchResults");if(r)r.innerHTML="";return}
+  const results=[];
+  WBS.forEach(w=>{
+    if(!w.hidden&&[w.title,w.desc,(w.tags||[]).join(" ")].join(" ").toLowerCase().includes(ql))
+      results.push({type:"⚗️",label:"实验",title:w.title,view:"wbs"});
+  });
+  $$("#v-kb tbody tr").forEach(tr=>{
+    if(tr.textContent.toLowerCase().includes(ql)){
+      const mod=(tr.cells[0]||{}).textContent?.trim()||"课标";
+      results.push({type:"📋",label:"课标",title:mod,view:"kb"});
+    }
+  });
+  FILES.forEach(f=>{
+    if((f.name||"").toLowerCase().includes(ql))
+      results.push({type:"📁",label:"资源",title:f.name,view:"res"});
+  });
+  (SCORES||[]).forEach(e=>{
+    if((e.name||"").toLowerCase().includes(ql))
+      results.push({type:"📊",label:"成绩",title:e.name,view:"score"});
+  });
+  const box=$("#msearchResults");
+  if(!box)return;
+  if(!results.length){box.innerHTML='<div style="padding:12px;color:var(--ink-400);font-size:13px">没搜到相关内容</div>';return}
+  box.innerHTML=results.slice(0,20).map(r=>
+    `<div class="msearch-hit" data-view="${r.view}" style="padding:10px 12px;cursor:pointer;border-radius:10px;font-size:13px;display:flex;gap:10px;align-items:center;transition:background .15s" onmouseover="this.style.background=\'var(--green-50)\'" onmouseout="this.style.background=\'\'">
+      <span style="font-size:15px">${r.type}</span>
+      <span style="font-weight:600;flex:1">${r.title}</span>
+      <span style="font-size:11px;color:var(--ink-400)">${r.label}</span>
+    </div>`
+  ).join("");
 }
+document.addEventListener("click",e=>{
+  const hit=e.target.closest(".msearch-hit");
+  if(hit){
+    go(hit.dataset.view);
+    const ms=$("#msearch");if(ms)ms.classList.remove("open");
+  }
+});
 $("#globalSearch").addEventListener("keydown",e=>{
   if(e.key==="Enter"){doSearch(e.target.value.trim())}
 });
@@ -1392,6 +1426,27 @@ document.addEventListener("click",e=>{
       const segSummary=segs.filter(s2=>s2.n>0).map(s2=>`${s2.lo}-${s2.hi}分 ${s2.n}人`).join('，');
       const failRate=(segs.filter(s2=>s2.hi<60).reduce((a,b)=>a+b.n,0)/total*100).toFixed(1);
       const qWorst=qs.slice(0,3).map(q=>`第${q.name}题（得分率${q.rate}%）`).join('、');
+      let trendText="";
+      const sortedAll=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+      const idx=sortedAll.findIndex(e=>e.id===cur.id);
+      if(idx>0){
+        const prev=sortedAll[idx-1];
+        const avgDiff=(cur.avg-prev.avg).toFixed(1);
+        const passDiff=(cur.pass_rate-prev.pass_rate).toFixed(1);
+        trendText=`\n五、与上场对比（${prev.name}）\n均分 ${avgDiff>0?"+":""}${avgDiff} 分，及格率 ${passDiff>0?"+":""}${passDiff}%。${avgDiff>0?"有进步，继续保持。":avgDiff<0?"有所回落，需关注原因。":"基本持平。"}\n`;
+      }
+      let qAdvice="";
+      if(qs.length){
+        const worst3=qs.slice(0,3);
+        qAdvice="\n"+(trendText?"六":"五")+"、逐题建议\n"+worst3.map(q=>{
+          let tip="";
+          if(q.rate<30)tip="全班普遍失分，建议课堂重讲+专项练习";
+          else if(q.rate<50)tip="较多学生未掌握，建议增加例题讲解";
+          else if(q.rate<70)tip="部分学生薄弱，建议分层作业巩固";
+          else tip="整体尚可，注意个别后进生辅导";
+          return `第${q.name}题（得分率 ${q.rate}%）：${tip}`;
+        }).join("\n")+"\n";
+      }
       const report=`📊 ${cur.name} 考试分析报告
 
 一、总体情况
@@ -1407,7 +1462,7 @@ ${qs.length?`三、失分重点
 四、教学建议
 ${cur.avg>=80?'整体水平良好，可适当拓展提高题训练。':cur.avg>=60?'整体中等，建议加强基础题型训练，关注不及格学生。':'基础薄弱，建议回归课本，强化核心概念与基本操作。'}
 ${failRate>30?'不及格比例偏高，建议课后辅导或分层作业。':''}
-
+${trendText}${qAdvice}
 ——数据由化学学科园地自动生成`;
       $("#reportBody").style.display="block";
       $("#reportBody").textContent=report;
