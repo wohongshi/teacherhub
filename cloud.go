@@ -1622,6 +1622,52 @@ func cmdServe(args []string) {
 			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
 		}
 	})
+	mux.HandleFunc("/api/files/rename", func(w http.ResponseWriter, r *http.Request) {
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if !st.keyMatches(got) {
+			writeJSON(w, 401, map[string]any{"error": "need key"})
+			return
+		}
+		if r.Method != http.MethodPost {
+			writeJSON(w, 405, map[string]any{"error": "POST only"})
+			return
+		}
+		var req struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == "" || req.Name == "" {
+			writeJSON(w, 400, map[string]any{"error": "need id and name"})
+			return
+		}
+		newName := sanitizeFileName(req.Name)
+		if newName == "" {
+			writeJSON(w, 400, map[string]any{"error": "invalid name"})
+			return
+		}
+		st.mu.Lock()
+		var found *FileRec
+		for i := range st.data.Files {
+			if st.data.Files[i].ID == req.ID {
+				found = &st.data.Files[i]
+				break
+			}
+		}
+		if found == nil {
+			st.mu.Unlock()
+			writeJSON(w, 404, map[string]any{"error": "not found"})
+			return
+		}
+		old := found.Name
+		found.Name = newName
+		st.save()
+		st.mu.Unlock()
+		st.log("更新", "文件重命名："+old+" → "+newName)
+		writeJSON(w, 200, map[string]any{"ok": true, "name": newName})
+	})
 	mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/api/files/")
 		if id == "" || strings.Contains(id, "/") {

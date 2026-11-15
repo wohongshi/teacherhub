@@ -583,7 +583,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         </div>
       </div>
       <div class="card" id="paramGuide" style="margin-bottom:20px">
-        <div class="card-head"><div><div class="card-title">实验参数速查</div><div class="card-sub">各实验关键参数含义与教学建议</div></div></div>
+        <div class="card-head"><div><div class="card-title">实验参数速查</div><div class="card-sub">各实验关键参数含义与教学建议</div></div>
+          <div style="display:flex;gap:6px">
+            <button class="chip" id="savePreset">💾 保存预设</button>
+            <button class="chip" id="loadPresets">📋 查看预设</button>
+          </div></div>
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>实验</th><th>关键参数</th><th>教学建议</th><th>操作</th></tr></thead>
           <tbody>
@@ -607,7 +611,18 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="mod-head"><h2>课标地图</h2><p>课标条目 → 教材章节 → 真题 → 校本资源，四级映射。映射进度从备课组认领开始。</p></div>
       <div class="card" style="margin-bottom:18px">
         <div class="card-head"><div><div class="card-title">认领进度</div><div class="card-sub" id="kbProgress">0 / 5 模块已认领</div></div></div>
-        <div class="bar" style="height:12px"><i id="kbBar" style="width:0%;background:linear-gradient(90deg,var(--green-600),var(--green-400))"></i></div>
+        <div style="display:flex;align-items:center;gap:18px">
+          <svg id="kbRing" viewBox="0 0 100 100" style="width:80px;height:80px;flex:none">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--green-100)" stroke-width="10"/>
+            <circle id="kbRingArc" cx="50" cy="50" r="40" fill="none" stroke="var(--green-500)" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 251.3" transform="rotate(-90 50 50)"/>
+            <text id="kbRingPct" x="50" y="48" text-anchor="middle" font-size="18" fill="var(--green-700)" font-weight="700">0%</text>
+            <text x="50" y="64" text-anchor="middle" font-size="9" fill="var(--ink-500)">已认领</text>
+          </svg>
+          <div style="flex:1">
+            <div class="bar" style="height:12px"><i id="kbBar" style="width:0%;background:linear-gradient(90deg,var(--green-600),var(--green-400))"></i></div>
+            <div id="kbRingSub" style="font-size:11.5px;color:var(--ink-500);margin-top:6px">0 / 5 模块已认领</div>
+          </div>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:18px;align-items:center;flex-wrap:wrap">
         <button class="chip on" data-kbfilter="">全部</button>
@@ -1222,6 +1237,15 @@ function renderLabChips(){
 /* —— 校本资源文件（上传/下载） —— */
 let FILES=[];
 function fmtSize(n){if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(2)+' MB'}
+function renameFile(id,oldName){
+  const newName=prompt("新文件名：",oldName);
+  if(!newName||newName===oldName)return;
+  fetch("/api/files/rename",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":localStorage.getItem("th_key")||""},body:JSON.stringify({id:id,name:newName})})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){toast("已重命名");renderFiles()}
+      else toast(d.error||"重命名失败");
+    }).catch(()=>toast("重命名失败"));
+}
 function previewFile(id,name){
   const ext=(name||"").split(".").pop().toLowerCase();
   const isImg=["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext);
@@ -1257,7 +1281,8 @@ function renderFiles(){
     <td class="file-size">${fmtTs(x.at)}</td>
     <td>${x.downloads||0}</td>
     <td><a class="btn-line" href="/api/files/${encodeURIComponent(x.id)}" style="height:32px;padding:0 12px;font-size:11.5px">下载</a>
-      <button class="chip" onclick="previewFile('${x.id}','${(x.name||"").replace(/'/g,"")}')">预览</button></td>
+      <button class="chip" onclick="previewFile('${x.id}','${(x.name||"").replace(/'/g,"")}')">预览</button>
+      <button class="chip" onclick="renameFile('${x.id}','${(x.name||"").replace(/'/g,"")}')">✏️</button></td>
   </tr>`).join("");
 }
 $("#fileQ").addEventListener("input",()=>{clearTimeout(window.__fT);window.__fT=setTimeout(renderFiles,180)});
@@ -1707,12 +1732,23 @@ document.addEventListener("click",e=>{
 
 /* —— 课标认领 —— */
 let KB_CLAIMS={};
+function updateKbRing(claimed,total){
+  const pct=total?Math.round(claimed/total*100):0;
+  const C=2*Math.PI*40;
+  const arc=document.getElementById("kbRingArc");
+  const pctEl=document.getElementById("kbRingPct");
+  const sub=document.getElementById("kbRingSub");
+  if(arc)arc.setAttribute("stroke-dasharray",(C*pct/100).toFixed(1)+" "+C.toFixed(1));
+  if(pctEl)pctEl.textContent=pct+"%";
+  if(sub)sub.textContent=claimed+" / "+total+" 模块已认领";
+}
 function renderKbClaims(){
   const totalMods=$$("#v-kb tbody tr").length;
   const claimed=Object.keys(KB_CLAIMS).length;
   const kbProg=$("#kbProgress"),kbBar=$("#kbBar");
   if(kbProg)kbProg.textContent=`${claimed} / ${totalMods} 模块已认领`;
   if(kbBar)kbBar.style.width=Math.min(100,claimed/Math.max(1,totalMods)*100)+"%";
+  updateKbRing(claimed,totalMods);
   $$("#v-kb tbody tr").forEach(tr=>{
     const mod=(tr.cells[0]||{}).textContent?.trim();
     const badge=tr.querySelector(".td-tag");
@@ -1726,6 +1762,26 @@ function renderKbClaims(){
   });
 }
 let kbTarget="";
+// 实验参数预设（localStorage）
+document.addEventListener("click",e=>{
+  if(e.target.id==="savePreset"){
+    const name=prompt("预设名称（如：钠少量冷水对照）");
+    if(!name)return;
+    const presets=JSON.parse(localStorage.getItem("th_param_presets")||"[]");
+    presets.push({name:name,at:Date.now()});
+    localStorage.setItem("th_param_presets",JSON.stringify(presets.slice(-20)));
+    toast("预设「"+name+"」已保存");
+    return;
+  }
+  if(e.target.id==="loadPresets"){
+    const presets=JSON.parse(localStorage.getItem("th_param_presets")||"[]");
+    if(!presets.length){toast("还没有保存过预设");return}
+    const names=presets.map((p,i)=>(i+1)+". "+p.name).join("\n");
+    alert("已保存的预设：\n\n"+names+"\n\n（点击「保存预设」可新增，最多 20 个）");
+    return;
+  }
+});
+
 // 课标进度导出 CSV
 document.addEventListener("click",e=>{
   if(e.target.id!=="exportKbCsv")return;
