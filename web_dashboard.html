@@ -613,7 +613,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <button class="chip on" data-kbfilter="">全部</button>
         <button class="chip" data-kbfilter="claimed">已认领</button>
         <button class="chip" data-kbfilter="unclaimed">待认领</button>
-        <input id="kbSearch" placeholder="搜索章节/模块…" style="height:32px;font-size:12px;border:1.5px solid var(--green-200);border-radius:20px;padding:0 14px;outline:none;margin-left:auto;max-width:200px"/>
+        <input id="kbSearch" placeholder="搜索章节/模块…" style="height:32px;font-size:12px;border:1.5px solid var(--green-200);border-radius:20px;padding:0 14px;outline:none;max-width:200px"/>
+        <button class="chip" id="exportKbCsv" style="margin-left:auto">📥 导出 CSV</button>
       </div>
       <div class="card" id="kbDetail" style="display:none;margin-bottom:18px">
         <div class="card-head"><div><div class="card-title" id="kbDetailTitle">模块详情</div><div class="card-sub">课标条目与教材章节对应关系</div></div></div>
@@ -811,6 +812,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="row" style="margin-top:10px">
           <button class="btn-line" id="copyReport" style="height:36px;display:none">📋 复制报告</button>
         </div>
+      </div>
+      <div class="card section" id="qCmpCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">逐题对比表</div><div class="card-sub">多场考试各题得分率精确数值对比</div></div></div>
+        <div class="tbl-wrap"><table class="tbl" id="qCmpTable">
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table></div>
       </div>
       <div class="card section" id="heatCard" style="display:none">
         <div class="card-head"><div><div class="card-title">得分率热力图</div><div class="card-sub">多场考试 × 多题得分率矩阵 · 颜色越红失分越重</div></div></div>
@@ -1382,6 +1390,44 @@ ${failRate>30?'不及格比例偏高，建议课后辅导或分层作业。':''}
   }
 });
 
+// 逐题对比表（多场精确数值）
+function renderQCmp(){
+  if(SCORES.length<2){$("#qCmpCard").style.display="none";return}
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  Promise.all(sorted.map(e=>jget("/api/scores/"+e.id))).then(all=>{
+    const qSet=new Set();
+    all.forEach(d=>(d.questions||[]).forEach(q=>qSet.add(q.name)));
+    const qNames=[...qSet].sort((a,b)=>{
+      const na=parseInt(a),nb=parseInt(b);
+      return isNaN(na)||isNaN(nb)?a.localeCompare(b):na-nb;
+    }).slice(0,20);
+    if(qNames.length<2){$("#qCmpCard").style.display="none";return}
+    $("#qCmpCard").style.display="block";
+    const thead=$("#qCmpTable").querySelector("thead tr");
+    thead.innerHTML=`<th>题号</th>`+sorted.map(e=>`<th>${esc(e.name.slice(0,6))}</th>`).join("")+`<th>变化</th>`;
+    const tbody=$("#qCmpTable").querySelector("tbody");
+    tbody.innerHTML=qNames.map(qn=>{
+      const cells=sorted.map((e,i)=>{
+        const qMap={};
+        (all[i].questions||[]).forEach(q=>qMap[q.name]=q.rate);
+        const r=qMap[qn];
+        if(r===undefined)return `<td style="color:var(--ink-400)">—</td>`;
+        const sev=r<50?"#C2453F":r<70?"#E5A93F":"#4E9A63";
+        return `<td style="font-weight:600;color:${sev}">${r}%</td>`;
+      }).join("");
+      const first=all[0],last=all[all.length-1];
+      const fq=(first.questions||[]).find(q=>q.name===qn);
+      const lq=(last.questions||[]).find(q=>q.name===qn);
+      let change="—";
+      if(fq&&lq){
+        const diff=lq.rate-fq.rate;
+        change=diff>0?`<span style="color:#4E9A63">↑ +${diff}</span>`:diff<0?`<span style="color:#C2453F">↓ ${diff}</span>`:`<span style="color:var(--ink-400)">→ 0</span>`;
+      }
+      return `<tr><td><b>第${qn}题</b></td>${cells}<td>${change}</td></tr>`;
+    }).join("");
+  });
+}
+
 // 得分率热力图（多场 × 多题矩阵）
 function renderHeat(){
   if(SCORES.length<2){$("#heatCard").style.display="none";return}
@@ -1652,6 +1698,7 @@ function renderScore(){
   }
   renderRadar();
   renderHeat();
+  renderQCmp();
 }
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-sxtab]");
@@ -1679,6 +1726,22 @@ function renderKbClaims(){
   });
 }
 let kbTarget="";
+// 课标进度导出 CSV
+document.addEventListener("click",e=>{
+  if(e.target.id!=="exportKbCsv")return;
+  const rows=$$("#v-kb tbody tr");
+  let csv="\ufeff模块,课标条目,教材章节,已映射真题,配套资源,认领状态\n";
+  rows.forEach(tr=>{
+    const tds=tr.querySelectorAll("td");
+    if(tds.length>=6){
+      const cells=[...tds].map(td=>td.textContent.trim().replace(/"/g,'""')).join('","');
+      csv+='"'+cells+'"\n';
+    }
+  });
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="课标认领进度.csv";a.click();URL.revokeObjectURL(a.href);
+  toast("课标进度已导出");
+});
 let __fileSort="time";
 document.addEventListener("click",e=>{
   const sb=e.target.closest("[data-sort]");

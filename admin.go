@@ -192,6 +192,10 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <div id="homeTrend"></div>
       </div>
       <div class="card">
+        <h3>成绩趋势</h3>
+        <div id="scoreMiniTrend"><div style="font-size:12px;color:#7C8A7F">录入 ≥2 场考试后显示趋势</div></div>
+      </div>
+      <div class="card">
         <h3>系统信息</h3>
         <label class="lb">当前管理 key</label>
         <div class="row">
@@ -437,6 +441,30 @@ document.addEventListener('click',function(e){
 $('#backPortal').addEventListener('click',function(){location.href='/'});
 
 /* ===== 总览 ===== */
+function renderScoreMini(){
+  jget('/api/scores').then(function(sc){
+    if(!sc||sc.length<2){return}
+    var sorted=sc.sort(function(a,b){return (a.at||0)-(b.at||0)});
+    var W=560,H=130;
+    var avgs=sorted.map(function(e){return e.avg});
+    var mn=Math.min.apply(null,avgs),mx=Math.max.apply(null,avgs),span=Math.max(1,mx-mn);
+    var pts=sorted.map(function(e,i){
+      var x=20+i/Math.max(1,sorted.length-1)*(W-40);
+      var y=H-25-((e.avg-mn)/span)*(H-55);
+      return [x,y,e];
+    });
+    var path=pts.map(function(p,i){return (i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)}).join(" ");
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px">';
+    svg+='<path d="'+path+'" stroke="#4E9A63" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+    pts.forEach(function(p){
+      svg+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4" fill="#fff" stroke="#2F6B45" stroke-width="2"/>';
+      svg+='<text x="'+p[0].toFixed(1)+'" y="'+(p[1]-10).toFixed(1)+'" font-size="10.5" fill="#2F6B45" text-anchor="middle" font-weight="700">'+p[2].avg+'</text>';
+    });
+    svg+='</svg>';
+    var el=document.getElementById('scoreMiniTrend');
+    if(el)el.innerHTML=svg;
+  });
+}
 function renderHome(){
   Promise.all([
     jget('/api/stats').catch(function(){return {}}),
@@ -753,7 +781,7 @@ function renderLogs(){
 
 /* ===== 启动 ===== */
 function boot(){
-  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();
+  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();
 }
 </script>
 </body>
