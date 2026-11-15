@@ -596,6 +596,14 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
     <!-- ===== 课标地图 ===== -->
     <section class="view" id="v-kb">
       <div class="mod-head"><h2>课标地图</h2><p>课标条目 → 教材章节 → 真题 → 校本资源，四级映射。映射进度从备课组认领开始。</p></div>
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head"><div><div class="card-title">认领进度</div><div class="card-sub" id="kbProgress">0 / 5 模块已认领</div></div></div>
+        <div class="bar" style="height:12px"><i id="kbBar" style="width:0%;background:linear-gradient(90deg,var(--green-600),var(--green-400))"></i></div>
+      </div>
+      <div class="card" id="kbDetail" style="display:none;margin-bottom:18px">
+        <div class="card-head"><div><div class="card-title" id="kbDetailTitle">模块详情</div><div class="card-sub">课标条目与教材章节对应关系</div></div></div>
+        <div id="kbDetailBody"></div>
+      </div>
       <div class="card" style="padding:18px 22px">
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>模块</th><th>课标条目</th><th>教材章节</th><th>已映射真题</th><th>配套资源</th><th>认领状态</th></tr></thead>
@@ -1363,6 +1371,11 @@ document.addEventListener("click",e=>{
 /* —— 课标认领 —— */
 let KB_CLAIMS={};
 function renderKbClaims(){
+  const totalMods=$$("#v-kb tbody tr").length;
+  const claimed=Object.keys(KB_CLAIMS).length;
+  const kbProg=$("#kbProgress"),kbBar=$("#kbBar");
+  if(kbProg)kbProg.textContent=`${claimed} / ${totalMods} 模块已认领`;
+  if(kbBar)kbBar.style.width=Math.min(100,claimed/Math.max(1,totalMods)*100)+"%";
   $$("#v-kb tbody tr").forEach(tr=>{
     const mod=(tr.cells[0]||{}).textContent?.trim();
     const badge=tr.querySelector(".td-tag");
@@ -1376,6 +1389,26 @@ function renderKbClaims(){
   });
 }
 let kbTarget="";
+document.addEventListener("click",e=>{
+  const tr=e.target.closest("#v-kb tbody tr");
+  if(!tr||e.target.closest("[data-kbmod]"))return;
+  const mod=(tr.cells[0]||{}).textContent?.trim();
+  if(!mod)return;
+  const kbDetails={
+    "化学实验基础":"<b>课标条目：</b>实验安全与操作 · 物质的量与溶液配制 · 物质分离提纯<br><b>教材章节：</b>必修一 第1章<br><b>教学建议：</b>安全操作先行，溶液配制是实验基本功",
+    "物质结构与元素周期律":"<b>课标条目：</b>原子结构与元素周期表 · 元素周期律 · 化学键<br><b>教材章节：</b>必修一 第2章<br><b>教学建议：</b>周期表是骨架，化学键是脉络，模型+动画配合讲解",
+    "化学反应与能量":"<b>课标条目：</b>离子反应 · 氧化还原反应 · 化学反应与能量变化 · 原电池原理<br><b>教材章节：</b>必修二 第1章<br><b>教学建议：</b>离子反应是基础工具，原电池配合实验演示效果佳",
+    "有机化合物":"<b>课标条目：</b>烃与卤代烃 · 烃的衍生物 · 有机高分子与生物大分子<br><b>教材章节：</b>必修二 第3章<br><b>教学建议：</b>官能团决定性质，结构→性质→用途三段式推进",
+    "化学反应原理":"<b>课标条目：</b>化学反应速率与平衡 · 电化学 · 水溶液中的离子反应与平衡<br><b>教材章节：</b>选择性必修1<br><b>教学建议：</b>速率与平衡是核心，电化学配合实验演示"
+  };
+  const det=kbDetails[mod];
+  if(det){
+    $("#kbDetail").style.display="block";
+    $("#kbDetailTitle").textContent=mod;
+    $("#kbDetailBody").innerHTML=`<div style="font-size:13px;line-height:2;color:var(--ink-700)">${det}</div>`;
+    $("#kbDetail").scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+});
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-kbmod]");
   if(!b)return;
