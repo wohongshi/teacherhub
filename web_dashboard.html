@@ -1092,6 +1092,7 @@ function safeLS(key,fallback){
   try{return JSON.parse(localStorage.getItem(key)||fallback)}catch(e){return JSON.parse(fallback)}
 }
 function doSearch(q){
+  window.__searchQ=(q||"").trim();
   const ql=(q||"").toLowerCase().trim();
   if(!ql){const r=$("#msearchResults");if(r)r.innerHTML="";return}
   const results=[];
@@ -1119,7 +1120,7 @@ function doSearch(q){
   box.innerHTML=results.slice(0,20).map(r=>
     `<div class="msearch-hit" data-view="${r.view}" style="padding:10px 12px;cursor:pointer;border-radius:10px;font-size:13px;display:flex;gap:10px;align-items:center;transition:background .15s" onmouseover="this.style.background=\'var(--green-50)\'" onmouseout="this.style.background=\'\'">
       <span style="font-size:15px">${r.type}</span>
-      <span style="font-weight:600;flex:1">${esc(r.title)}</span>
+      <span style="font-weight:600;flex:1">${esc(r.title).replace(new RegExp("(" + (window.__searchQ||"").replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + ")","gi"),"<mark style=\"background:var(--green-100);color:var(--green-900);padding:1px 3px;border-radius:3px\">$1</mark>")}</span>
       <span style="font-size:11px;color:var(--ink-400)">${esc(r.label)}</span>
     </div>`
   ).join("");
@@ -1502,6 +1503,7 @@ document.addEventListener("click",e=>{
           return `第${q.name}题（得分率 ${q.rate}%）：${tip}`;
         }).join("\n")+"\n";
       }
+      const segPct=segs.filter(x=>x.n>0).map(x=>`${x.lo}-${x.hi}分占${(x.n/total*100).toFixed(0)}%`).join('，');
       const report=`📊 ${cur.name} 考试分析报告
 
 一、总体情况
@@ -1509,6 +1511,7 @@ document.addEventListener("click",e=>{
 
 二、分数段分布
 ${segSummary}。
+占比：${segPct}。
 不及格占比 ${failRate}%。
 
 ${qs.length?`三、失分重点
@@ -1518,7 +1521,7 @@ ${qs.length?`三、失分重点
 ${cur.avg>=80?'整体水平良好，可适当拓展提高题训练。':cur.avg>=60?'整体中等，建议加强基础题型训练，关注不及格学生。':'基础薄弱，建议回归课本，强化核心概念与基本操作。'}
 ${failRate>30?'不及格比例偏高，建议课后辅导或分层作业。':''}
 ${trendText}${qAdvice}
-——数据由化学学科园地自动生成`;
+——数据由化学学科园地自动生成，均分精确到 0.1，得分率精确到 0.1%`;
       $("#reportBody").style.display="block";
       $("#reportBody").textContent=report;
       $("#copyReport").style.display="inline-flex";

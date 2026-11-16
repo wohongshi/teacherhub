@@ -199,6 +199,10 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <div id="scoreMiniTrend"><div style="font-size:12px;color:#7C8A7F">录入 ≥2 场考试后显示趋势</div></div>
       </div>
       <div class="card">
+        <h3>文件分类统计</h3>
+        <div id="fileMiniChart"><div style="font-size:12px;color:#7C8A7F">暂无文件</div></div>
+      </div>
+      <div class="card">
         <h3>系统信息</h3>
         <label class="lb">当前管理 key</label>
         <div class="row">
@@ -449,6 +453,30 @@ document.addEventListener('click',function(e){
 $('#backPortal').addEventListener('click',function(){location.href='/'});
 
 /* ===== 总览 ===== */
+function renderFileMini(){
+  jget('/api/files').then(function(d){
+    var files=d.files||[];
+    if(!files.length)return;
+    var cats={"图片":0,"文档":0,"表格":0,"其他":0};
+    files.forEach(function(f){
+      var ext=(f.name||"").split(".").pop().toLowerCase();
+      if(["png","jpg","jpeg","gif","webp","svg","bmp"].indexOf(ext)>=0)cats["图片"]++;
+      else if(["doc","docx","pdf","txt","md","ppt","pptx"].indexOf(ext)>=0)cats["文档"]++;
+      else if(["xls","xlsx","csv"].indexOf(ext)>=0)cats["表格"]++;
+      else cats["其他"]++;
+    });
+    var colors={"图片":"#5B9BD5","文档":"#4E9A63","表格":"#E5A93F","其他":"#A8B2A9"};
+    var html='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">';
+    Object.keys(cats).forEach(function(k){
+      if(!cats[k])return;
+      var pct=Math.round(cats[k]/files.length*100);
+      html+='<div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:3px;background:'+colors[k]+'"></div><span style="font-size:12px">'+k+' '+cats[k]+'个('+pct+'%)</span></div>';
+    });
+    html+='</div>';
+    var el=document.getElementById('fileMiniChart');
+    if(el)el.innerHTML=html;
+  });
+}
 function renderScoreMini(){
   jget('/api/scores').then(function(sc){
     var list=(sc&&sc.exams)||[];
@@ -823,7 +851,7 @@ function renderLogs(){
 
 /* ===== 启动 ===== */
 function boot(){
-  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();
+  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();renderFileMini();
 }
 </script>
 </body>
