@@ -934,6 +934,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">及格率 / 优秀率趋势</div><div class="card-sub">多场考试率值走势 · 绿=及格率 蓝=优秀率</div></div></div>
         <div id="rateTrendChart"></div>
       </div>
+      <div class="card section" id="diffTrendCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">难度系数趋势</div><div class="card-sub">难度系数 = 均分 / 150 · 绿带 0.55-0.75 为适中区</div></div></div>
+        <div id="diffTrendChart"></div>
+      </div>
       <div class="card section" id="segStackCard">
         <div class="card-head"><div><div class="card-title">分数段堆叠图</div><div class="card-sub">当前考试五档占比一目了然</div></div></div>
         <div id="segStackChart"></div>
@@ -1463,6 +1467,96 @@ document.addEventListener("click",e=>{
     try{localStorage.setItem("th_wb_hot",JSON.stringify(hot))}catch(_){}
   }
 });
+// ===== 文件备注（localStorage）=====
+function renderFileNotes(){
+  const notes=safeLS("th_file_notes","{}");
+  $$("#fileTable tbody tr").forEach(tr=>{
+    const cb=tr.querySelector(".file-check");if(!cb)return;
+    const id=cb.dataset.id,cell=tr.cells[1];if(!cell)return;
+    let sp=cell.querySelector(".file-note");
+    if(!sp){
+      sp=document.createElement("div");sp.className="file-note";
+      sp.addEventListener("click",()=>{
+        const cur=safeLS("th_file_notes","{}");
+        const v=prompt("文件备注（留空删除）",cur[sp.dataset.nid]||"");
+        if(v===null)return;
+        const ns=safeLS("th_file_notes","{}");
+        if(v.trim())ns[sp.dataset.nid]=v.trim();else delete ns[sp.dataset.nid];
+        try{localStorage.setItem("th_file_notes",JSON.stringify(ns))}catch(_){}
+        renderFileNotes();
+      });
+      cell.appendChild(sp);
+    }
+    sp.dataset.nid=id;
+    const n=notes[id];
+    sp.style.cssText="font-size:11px;margin-top:2px;cursor:pointer;color:"+(n?"var(--green-700)":"var(--ink-400)");
+    sp.textContent=n?"📝 "+n:"📝 加备注";
+  });
+}
+// ===== 实验对比视图 =====
+const __cmpSet=new Set();
+function renderWbCompareBar(){
+  let bar=$("#wbCmpBar");
+  if(!bar){
+    bar=document.createElement("div");bar.id="wbCmpBar";
+    bar.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:90;background:var(--surface);border:1.5px solid var(--green-300);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px 16px;display:none;align-items:center;gap:10px";
+    document.body.appendChild(bar);
+  }
+  if(__cmpSet.size<1){bar.style.display="none";return}
+  bar.style.display="flex";
+  bar.innerHTML=`<span style="font-size:12px;color:var(--ink-500)">已选 ${__cmpSet.size} 个实验</span><button class="chip" id="wbCmpGo">⚖️ 对比</button><button class="chip" id="wbCmpClear">清空</button>`;
+}
+function injectWbCmpBtns(){
+  $$("#wbGrid .wb-card").forEach(card=>{
+    if(card.querySelector(".wb-cmp-btn"))return;
+    const acts=card.querySelector(".wb-actions");if(!acts)return;
+    const b=document.createElement("button");
+    b.className="chip wb-cmp-btn";b.dataset.cmpid=card.dataset.id||"";
+    b.textContent=__cmpSet.has(b.dataset.cmpid)?"✅ 已选":"⚖️ 对比";
+    acts.appendChild(b);
+  });
+}
+function showWbCompare(){
+  const ids=[...__cmpSet];
+  if(ids.length<2){toast("选两个实验再对比");return}
+  const ws=ids.map(id=>(window.__wbs||WBS).find(w=>w.id===id)).filter(Boolean).slice(0,2);
+  if(ws.length<2){toast("实验数据没找全");return}
+  let m=$("#wbCmpModal");
+  if(!m){
+    m=document.createElement("div");m.id="wbCmpModal";
+    m.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px";
+    document.body.appendChild(m);
+    m.addEventListener("click",e=>{if(e.target===m||e.target.id==="wbCmpClose")m.style.display="none"});
+  }
+  const rows=[["简介",w=>w.desc||"—"],["标签",w=>(w.tags||[]).join("、")||"—"],["作者",w=>w.teacher||"教研组"],["浏览",w=>String(w.views||0)],["下载",w=>String(w.downloads||0)],["评分",w=>w.rate_num?(w.rate||0).toFixed(1)+"（"+w.rate_num+" 人）":"暂无"],["收录时间",w=>fmtTs(w.created_at)]];
+  m.style.display="flex";
+  m.innerHTML=`<div style="background:var(--surface);border-radius:16px;max-width:640px;width:100%;max-height:80vh;overflow:auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b>⚖️ 实验对比</b><button class="chip" id="wbCmpClose">关闭</button></div>
+    <table style="width:100%;font-size:12.5px;border-collapse:collapse">
+      <tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)"></th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line);color:var(--green-700)">${esc(ws[0].title)}</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line);color:#5B9BD5">${esc(ws[1].title)}</th></tr>
+      ${rows.map(r=>`<tr><td style="padding:7px 8px;color:var(--ink-500);white-space:nowrap">${r[0]}</td><td style="padding:7px 8px">${esc(String(r[1](ws[0])))}</td><td style="padding:7px 8px">${esc(String(r[1](ws[1])))}</td></tr>`).join("")}
+    </table>
+  </div>`;
+}
+document.addEventListener("click",e=>{
+  const cb=e.target.closest(".wb-cmp-btn");
+  if(cb){
+    const id=cb.dataset.cmpid;
+    if(__cmpSet.has(id)){__cmpSet.delete(id);cb.textContent="⚖️ 对比"}
+    else if(__cmpSet.size>=2){toast("对比最多选 2 个，先清空");return}
+    else{__cmpSet.add(id);cb.textContent="✅ 已选"}
+    renderWbCompareBar();return;
+  }
+  if(e.target.id==="wbCmpGo"){showWbCompare();return}
+  if(e.target.id==="wbCmpClear"){__cmpSet.clear();$$("#wbGrid .wb-cmp-btn").forEach(b=>b.textContent="⚖️ 对比");renderWbCompareBar();return}
+});
+// 注入观察器
+(function(){
+  const wg=$("#wbGrid");
+  if(wg){new MutationObserver(injectWbCmpBtns).observe(wg,{childList:true});injectWbCmpBtns()}
+  const ft=$("#fileTable")&&$("#fileTable").querySelector("tbody");
+  if(ft){new MutationObserver(renderFileNotes).observe(ft,{childList:true});renderFileNotes()}
+})();
 document.addEventListener("click",e=>{
   const rt=e.target.closest("[data-rt]");
   if(rt){go("lab");labTag="";$("#labQ").value=rt.dataset.rt;renderWbs();
@@ -2221,6 +2315,37 @@ function renderQBox(){
   });
 }
 
+// 难度系数趋势（均分/150）
+function renderDiffTrend(){
+  const el=$("#diffTrendCard");if(!el)return;
+  const exams=SCORES||[];
+  if(exams.length<2){el.style.display="none";return}
+  el.style.display="block";
+  const pts=exams.map(e=>({name:e.name||"",d:(Number(e.avg)||0)/150,avg:Number(e.avg)||0}));
+  const W=560,H=210,padL=55,padR=20,padT=20,padB=42;
+  const x=i=>padL+i*((W-padL-padR)/Math.max(1,pts.length-1));
+  const y=v=>padT+(1-v)*(H-padT-padB);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+  svg+=`<rect x="${padL}" y="${y(0.75).toFixed(1)}" width="${W-padL-padR}" height="${(y(0.55)-y(0.75)).toFixed(1)}" fill="rgba(78,154,99,0.12)"/>`;
+  svg+=`<text x="${W-padR-4}" y="${(y(0.75)-5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-400)">适中带 0.55-0.75</text>`;
+  [0,0.25,0.5,0.75,1].forEach(v=>{
+    svg+=`<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W-padR}" y2="${y(v).toFixed(1)}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"/>`;
+    svg+=`<text x="${padL-8}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-400)">${v.toFixed(2)}</text>`;
+  });
+  const path=pts.map((p,i)=>`${i?"L":"M"}${x(i).toFixed(1)} ${y(p.d).toFixed(1)}`).join(" ");
+  svg+=`<path d="${path}" fill="none" stroke="#5B9BD5" stroke-width="2.5"/>`;
+  pts.forEach((p,i)=>{
+    svg+=`<circle cx="${x(i).toFixed(1)}" cy="${y(p.d).toFixed(1)}" r="5" fill="#5B9BD5" stroke="#fff" stroke-width="2"><title>${esc(p.name)}：难度系数 ${p.d.toFixed(2)}（均分 ${p.avg}）</title></circle>`;
+    svg+=`<text x="${x(i).toFixed(1)}" y="${H-20}" text-anchor="middle" font-size="9" fill="var(--ink-500)">${esc(p.name.slice(0,6))}</text>`;
+    svg+=`<text x="${x(i).toFixed(1)}" y="${(y(p.d)-10).toFixed(1)}" text-anchor="middle" font-size="9" fill="#5B9BD5" font-weight="600">${p.d.toFixed(2)}</text>`;
+  });
+  svg+='</svg>';
+  const last=pts[pts.length-1];
+  const advice=last.d<0.55?"偏难：建议适当降低难度或加强针对性训练":(last.d>0.75?"偏易：建议增加区分度、提高拔高题比例":"难度适中：保持命题结构");
+  svg+=`<div style="margin-top:8px;font-size:12px;color:var(--ink-500)">最新一场难度系数 <b style="color:#5B9BD5">${last.d.toFixed(2)}</b>（均分 ${last.avg}/150）—— ${advice}</div>`;
+  $("#diffTrendChart").innerHTML=svg;
+}
+
 // 单题目标偏差表
 function renderQGoal(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
@@ -2969,7 +3094,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderKbClaims();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderKbClaims();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
