@@ -293,6 +293,14 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         </div>
         <label class="lb">题目数据（可选 · 逐题失分分析）</label>
         <input class="f" id="sxQs" placeholder="格式 题号:满分:均分，分号分隔，如 1:12:9.5; 2:10:6.2; 3:8:3.1">
+        <label class="lb">关联课标模块（可选 · 生成模块对照分析）</label>
+        <div id="sxMods" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="chip" data-mod="化学实验基础">化学实验基础</button>
+          <button type="button" class="chip" data-mod="物质结构与元素周期律">物质结构与元素周期律</button>
+          <button type="button" class="chip" data-mod="化学反应与能量">化学反应与能量</button>
+          <button type="button" class="chip" data-mod="有机化合物">有机化合物</button>
+          <button type="button" class="chip" data-mod="化学反应原理">化学反应原理</button>
+        </div>
         <div class="row" style="margin-top:12px">
           <button class="btn primary" id="sxAdd">录入</button>
           <span style="font-size:11.5px;color:var(--ink-300)">分数 0—150，最多 500 个</span>
@@ -788,6 +796,12 @@ function renderSx(){
     }).join('');
   });
 }
+$('#sxMods').addEventListener('click',function(e){
+  var b=e.target.closest('[data-mod]');if(!b)return;
+  if(b.classList.contains('on')){b.classList.remove('on');return}
+  if(document.querySelectorAll('#sxMods .on').length>=5){toast('最多关联 5 个模块');return}
+  b.classList.add('on');
+});
 $('#sxAdd').addEventListener('click',function(){
   var name=$('#sxName').value.trim(),txt=$('#sxScores').value.trim();
   if(!name||!txt){toast('填考试名和分数');return}
@@ -809,8 +823,9 @@ $('#sxAdd').addEventListener('click',function(){
     if(bad){toast('题目格式不对（题号:满分:均分）');return}
     if(qs.length>50){toast('题目最多 50 题');return}
   }
-  jsend('POST','/api/scores',{name:name,scores:arr,questions:qs}).then(function(d){
-    if(d.ok){toast('已录入 '+arr.length+' 个分数'+(qs.length?'（含 '+qs.length+' 题统计）':''));$('#sxName').value='';$('#sxScores').value='';$('#sxQs').value='';renderSx();renderLogs()}
+  var mods=[];document.querySelectorAll('#sxMods .on').forEach(function(b){mods.push(b.dataset.mod)});
+  jsend('POST','/api/scores',{name:name,scores:arr,questions:qs,modules:mods}).then(function(d){
+    if(d.ok){toast('已录入 '+arr.length+' 个分数'+(qs.length?'（含 '+qs.length+' 题统计）':''));$('#sxName').value='';$('#sxScores').value='';$('#sxQs').value='';document.querySelectorAll('#sxMods .on').forEach(function(b){b.classList.remove('on')});renderSx();renderLogs()}
     else{toast(d.error||'失败')}
   });
 });

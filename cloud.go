@@ -62,16 +62,146 @@ type ScoreExam struct {
 	At        int64          `json:"at"`
 	Scores    []float64      `json:"scores"`
 	Questions []QuestionStat `json:"questions,omitempty"`
+	Modules   []string       `json:"modules,omitempty"`
+}
+
+// FileComment 资源文件评论（免 key 发表，管理 key 删除）。
+type FileComment struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
 }
 
 // FileRec 校本资源文件元数据（磁盘名用 id，展示名净化后存元数据）。
 type FileRec struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Size      int64  `json:"size"`
-	Teacher   string `json:"teacher"`
-	At        int64  `json:"at"`
-	Downloads int    `json:"downloads"`
+	ID        string        `json:"id"`
+	Name      string        `json:"name"`
+	Size      int64         `json:"size"`
+	Teacher   string        `json:"teacher"`
+	At        int64         `json:"at"`
+	Downloads int           `json:"downloads"`
+	Comments  []FileComment `json:"comments,omitempty"`
+}
+
+// fileCommentAPI 文件评论三路由：GET 列表（免 key）/ POST 发表（免 key 限速）/ DELETE 删（管理 key）。
+func fileCommentAPI(w http.ResponseWriter, r *http.Request, st *cloudStore, fid, cid string) {
+	switch r.Method {
+	case http.MethodGet:
+		st.mu.Lock()
+		var out []FileComment
+		for i := range st.data.Files {
+			if st.data.Files[i].ID == fid {
+				out = st.data.Files[i].Comments
+				break
+			}
+		}
+		st.mu.Unlock()
+		if out == nil {
+			out = []FileComment{}
+		}
+		writeJSON(w, 200, map[string]any{"ok": true, "comments": out})
+	case http.MethodPost:
+		if cid != "" {
+			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+			return
+		}
+		var in FileComment
+		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+		if err != nil || json.Unmarshal(body, &in) != nil {
+			writeJSON(w, 400, map[string]any{"ok": false, "error": "参数错误"})
+			return
+		}
+		in.Name = strings.TrimSpace(in.Name)
+		in.Text = strings.TrimSpace(in.Text)
+		if in.Name == "" || in.Text == "" {
+			writeJSON(w, 400, map[string]any{"ok": false, "error": "缺昵称或内容"})
+			return
+		}
+		if nr := []rune(in.Name); len(nr) > 16 {
+			writeJSON(w, 400, map[string]any{"ok": false, "error": "昵称太长（16 字内）"})
+			return
+		}
+		if tr := []rune(in.Text); len(tr) > 200 {
+			writeJSON(w, 400, map[string]any{"ok": false, "error": "评论太长（200 字内）"})
+			return
+		}
+		ip := clientIP(r)
+		now := time.Now().Unix()
+		st.mu.Lock()
+		if st.commentLast == nil {
+			st.commentLast = map[string]int64{}
+		}
+		if now-st.commentLast[ip] < 60 {
+			st.mu.Unlock()
+			writeJSON(w, 429, map[string]any{"ok": false, "error": "评论太快，歇一分钟再来"})
+			return
+		}
+		st.commentLast[ip] = now
+		found := false
+		for i := range st.data.Files {
+			if st.data.Files[i].ID == fid {
+				c := FileComment{ID: "fc_" + randToken()[:12], Name: in.Name, Text: in.Text, At: now}
+				st.data.Files[i].Comments = append(st.data.Files[i].Comments, c)
+				if len(st.data.Files[i].Comments) > 100 {
+					st.data.Files[i].Comments = st.data.Files[i].Comments[len(st.data.Files[i].Comments)-100:]
+				}
+				found = true
+				break
+			}
+		}
+		_ = st.save()
+		st.mu.Unlock()
+		if !found {
+			writeJSON(w, 404, map[string]any{"ok": false, "error": "文件不存在"})
+			return
+		}
+		writeJSON(w, 200, map[string]any{"ok": true})
+	case http.MethodDelete:
+		if cid == "" {
+			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+			return
+		}
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if !st.keyMatches(got) {
+			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
+			return
+		}
+		{
+			st.mu.Lock()
+			found := false
+			for i := range st.data.Files {
+				if st.data.Files[i].ID != fid {
+					continue
+				}
+				nc := st.data.Files[i].Comments[:0]
+				for _, c := range st.data.Files[i].Comments {
+					if c.ID == cid {
+						found = true
+						continue
+					}
+					nc = append(nc, c)
+				}
+				if found {
+					st.data.Files[i].Comments = nc
+					st.log("评论删除", st.data.Files[i].Name)
+				}
+				break
+			}
+			_ = st.save()
+			st.mu.Unlock()
+			if !found {
+				writeJSON(w, 404, map[string]any{"ok": false, "error": "评论不存在"})
+				return
+			}
+			writeJSON(w, 200, map[string]any{"ok": true})
+		}
+	default:
+		writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
+	}
 }
 
 // sanitizeFileName 文件名净化：拦路径分隔符与控制字符（点号是合法字符不拦）。
@@ -128,6 +258,9 @@ type QuestionStat struct {
 func scoreSummary(e ScoreExam) map[string]any {
 	n := len(e.Scores)
 	out := map[string]any{"id": e.ID, "name": e.Name, "at": e.At, "count": n}
+	if len(e.Modules) > 0 {
+		out["modules"] = e.Modules
+	}
 	if n == 0 {
 		return out
 	}
@@ -197,7 +330,8 @@ type cloudStore struct {
 		Logs        []LogEntry         `json:"logs,omitempty"`
 		Files       []FileRec          `json:"files,omitempty"`
 	}
-	boardLast  map[string]int64   // IP → 上次留言时间（内存限速）
+	boardLast    map[string]int64 // IP → 上次留言时间（内存限速）
+	commentLast  map[string]int64 // IP → 上次评论时间（内存限速）
 	boardLikes map[string]bool    // ip|msgID → 已赞
 	fileQuota  map[string][]int64 // IP → 上传时间戳列表（每小时 10 个限速）
 }
@@ -209,7 +343,7 @@ func openStore(dir, key string) (*cloudStore, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "artifacts"), 0o755); err != nil {
 		return nil, err
 	}
-	s := &cloudStore{dir: dir, boardLast: map[string]int64{}, boardLikes: map[string]bool{}, fileQuota: map[string][]int64{}}
+	s := &cloudStore{dir: dir, boardLast: map[string]int64{}, commentLast: map[string]int64{}, boardLikes: map[string]bool{}, fileQuota: map[string][]int64{}}
 	b, err := os.ReadFile(filepath.Join(dir, "store.json"))
 	if err == nil {
 		_ = json.Unmarshal(b, &s.data)
@@ -1043,6 +1177,7 @@ func cmdServe(args []string) {
 						Max  float64 `json:"max"`
 						Avg  float64 `json:"avg"`
 					} `json:"questions"`
+					Modules []string `json:"modules"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Name == "" || len(in.Scores) == 0 {
 					writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 name/scores"})
@@ -1071,7 +1206,20 @@ func cmdServe(args []string) {
 					}
 					qs = append(qs, QuestionStat{Name: q.Name, Max: q.Max, Avg: q.Avg})
 				}
-				e := ScoreExam{ID: "sx_" + randToken()[:12], Name: in.Name, At: time.Now().Unix(), Scores: in.Scores, Questions: qs}
+				var mods []string
+				if len(in.Modules) > 5 {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "modules ≤5 个"})
+					return
+				}
+				for _, m := range in.Modules {
+					m = strings.TrimSpace(m)
+					if m == "" || len([]rune(m)) > 20 {
+						writeJSON(w, 400, map[string]any{"ok": false, "error": "modules 每项 ≤20 字"})
+						return
+					}
+					mods = append(mods, m)
+				}
+				e := ScoreExam{ID: "sx_" + randToken()[:12], Name: in.Name, At: time.Now().Unix(), Scores: in.Scores, Questions: qs, Modules: mods}
 				st.mu.Lock()
 				st.data.Scores = append(st.data.Scores, e)
 				st.log("成绩录入", fmt.Sprintf("%s（%d 人）", e.Name, len(e.Scores)))
@@ -1739,7 +1887,18 @@ func cmdServe(args []string) {
 		writeJSON(w, 200, map[string]any{"ok": true, "name": newName})
 	})
 	mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/api/files/")
+		rest := strings.TrimPrefix(r.URL.Path, "/api/files/")
+		// 评论路由：/api/files/{id}/comments[/{cid}]
+		if ci := strings.Index(rest, "/comments"); ci > 0 && (len(rest) == ci+9 || rest[ci+9] == '/') {
+			fid := rest[:ci]
+			cid := ""
+			if len(rest) > ci+10 {
+				cid = strings.TrimPrefix(rest[ci+10:], "/")
+			}
+			fileCommentAPI(w, r, st, fid, cid)
+			return
+		}
+		id := rest
 		if id == "" || strings.Contains(id, "/") {
 			writeJSON(w, 404, map[string]any{"ok": false, "error": "not found"})
 			return

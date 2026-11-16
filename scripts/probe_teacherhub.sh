@@ -318,6 +318,18 @@ assert len(dat)==6, dat
 assert dat[0]==chr(39)+'=危,险'+chr(34)+'名', dat
 q=[r for r in rows if r and r[0]=='Q,1']
 assert q and len(q[0])==4, rows" 2>/dev/null && ok "CSV 注入防护（公式前缀+引号翻倍+列齐）" || bad "CSV 注入防护"
+# 8) 文件评论（长度 400 / 发表 200 / 限速 429 / 回读 / 删除 401-200-404）
+FC=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=评论测试.docx" -F "teacher=探针" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+LONGT=$(python3 -c "print('x'*201)")
+curl -s -X POST "$BASE/api/files/$FC/comments" -H 'Content-Type: application/json' --data-raw "$(python3 -c "import json;print(json.dumps({'name':'探针','text':'x'*201}))")" -o /dev/null -w '%{http_code}' | grep -q 400 && curl -s -X POST "$BASE/api/files/$FC/comments" -H 'Content-Type: application/json' --data-raw '{"name":"探针","text":"好资料"}' -o /dev/null -w '%{http_code}' | grep -q 200 && ok "评论发表（长度 400 拒 + 正常 200）" || bad "评论发表"
+curl -s -X POST "$BASE/api/files/$FC/comments" -H 'Content-Type: application/json' --data-raw '{"name":"探针","text":"再发"}' -o /dev/null -w '%{http_code}' | grep -q 429 && ok "评论限速（60s 内 429）" || bad "评论限速"
+curl -s "$BASE/api/files/$FC/comments" | python3 -c "import json,sys;d=json.load(sys.stdin);cs=d.get('comments',[]);assert len(cs)==1 and cs[0]['text']=='好资料' and cs[0]['name']=='探针',cs" 2>/dev/null && ok "评论回读（1 条内容一致）" || bad "评论回读"
+CID=$(curl -s "$BASE/api/files/$FC/comments" | python3 -c "import json,sys;print(json.load(sys.stdin)['comments'][0]['id'])" 2>/dev/null)
+curl -s -X DELETE "$BASE/api/files/$FC/comments/$CID" -o /dev/null -w '%{http_code}' | grep -q 401 && curl -s -X DELETE "$BASE/api/files/$FC/comments/$CID" -H "X-Access-Key: $NK" -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s -X DELETE "$BASE/api/files/$FC/comments/$CID" -H "X-Access-Key: $NK" -o /dev/null -w '%{http_code}' | grep -q 404 && ok "评论删除（401/200/404）" || bad "评论删除"
+# 9) 成绩模块关联（modules 录入回读 / 越界 400）
+MX=$(curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"模块对照测试","scores":[70,80],"modules":["化学实验基础","有机化合物"]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+curl -s "$BASE/api/scores/$MX" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('modules')==['化学实验基础','有机化合物'],d" 2>/dev/null && ok "成绩模块关联（录入回读一致）" || bad "成绩模块关联"
+curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"模块越界","scores":[70],"modules":["a","b","c","d","e","f"]}' -o /dev/null -w '%{http_code}' | grep -q 400 && ok "成绩模块越界拒（>5 个 400）" || bad "成绩模块越界"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

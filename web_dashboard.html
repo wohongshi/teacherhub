@@ -972,6 +972,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">难度系数趋势</div><div class="card-sub">难度系数 = 均分 / 150 · 绿带 0.55-0.75 为适中区</div></div></div>
         <div id="diffTrendChart"></div>
       </div>
+      <div class="card section" id="kbScoreCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">课标模块对照</div><div class="card-sub">教研认领进度 × 教学效果（考试均分）· 录入成绩时勾选模块即可生成</div></div></div>
+        <div id="kbScoreBody"></div>
+      </div>
       <div class="card section" id="dispTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">成绩离散度趋势</div><div class="card-sub">变异系数 CV = 标准差 / 均分 · 看班级成绩分化程度</div></div></div>
         <div id="dispTrendChart"></div>
@@ -1837,6 +1841,41 @@ function renameFile(id,oldName){
       else toast(d.error||"重命名失败");
     }).catch(()=>toast("重命名失败"));
 }
+function openComments(fid,name){
+  const overlay=document.createElement("div");
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer";
+  const box=document.createElement("div");
+  box.style.cssText="background:#fff;border-radius:16px;padding:20px;max-width:85vw;max-height:80vh;overflow:auto;min-width:300px;cursor:default";
+  box.addEventListener("click",e=>e.stopPropagation());
+  overlay.addEventListener("click",()=>overlay.remove());
+  box.innerHTML=`<div style="font-size:15px;font-weight:700;margin-bottom:12px">💬 ${esc(name)} 的评论</div>
+    <div id="cmtList" style="min-height:60px"><div style="color:var(--ink-500);font-size:13px">加载中…</div></div>
+    <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <input id="cmtName" placeholder="昵称" maxlength="16" style="width:110px;height:36px;border:1.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px"/>
+        <input id="cmtText" placeholder="说点什么…（200 字内）" maxlength="200" style="flex:1;min-width:160px;height:36px;border:1.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px"/>
+        <button class="btn primary" id="cmtSend" style="height:36px;padding:0 14px">发表</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const load=()=>{
+    fetch("/api/files/"+encodeURIComponent(fid)+"/comments").then(r=>r.json()).then(d=>{
+      const list=d.comments||[];
+      const el=box.querySelector("#cmtList");
+      el.innerHTML=list.length?list.map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <div style="font-size:12px;color:var(--ink-500)"><b style="color:var(--green-700)">${esc(c.name)}</b> · ${fmtTs(c.at)}</div>
+        <div style="font-size:13px;line-height:1.7">${esc(c.text)}</div></div>`).join(""):'<div style="color:var(--ink-500);font-size:13px;padding:12px 0">还没有评论，来说第一句 🧪</div>';
+    }).catch(()=>{box.querySelector("#cmtList").innerHTML='<div style="color:var(--ink-500);font-size:13px;padding:12px 0">评论加载失败</div>'});
+  };
+  load();
+  box.querySelector("#cmtSend").onclick=()=>{
+    const nm=box.querySelector("#cmtName").value.trim()||"匿名";
+    const tx=box.querySelector("#cmtText").value.trim();
+    if(!tx){toast("写点内容再发呀");return}
+    fetch("/api/files/"+encodeURIComponent(fid)+"/comments",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:nm,text:tx})})
+      .then(r=>r.json()).then(d=>{if(d.ok){box.querySelector("#cmtText").value="";load();toast("已发表");renderFiles()}else toast(d.error||"发表失败")}).catch(()=>toast("发表失败"));
+  };
+}
 function previewFile(id,name){
   const ext=(name||"").split(".").pop().toLowerCase();
   const isImg=["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext);
@@ -1903,6 +1942,7 @@ function renderFiles(){
     <td>${x.downloads||0}</td>
     <td><a class="btn-line" href="/api/files/${encodeURIComponent(x.id)}" style="height:32px;padding:0 12px;font-size:11.5px">下载</a>
       <button class="chip" data-fid="${esc(x.id)}" data-fname="${esc(x.name||"")}" onclick="previewFile(this.dataset.fid,this.dataset.fname)">预览</button>
+      <button class="chip" data-fid="${esc(x.id)}" data-fname="${esc(x.name||"")}" onclick="openComments(this.dataset.fid,this.dataset.fname)">💬${(x.comments||[]).length?" "+(x.comments||[]).length:""}</button>
       <button class="chip" data-fid="${esc(x.id)}" data-fname="${esc(x.name||"")}" onclick="renameFile(this.dataset.fid,this.dataset.fname)">✏️</button></td>
   </tr>`).join("");
 }
@@ -2405,6 +2445,33 @@ function jgetExam(id){
   return p;
 }
 // ===== 成绩波动预警（多场均分环比）=====
+function renderKbScore(){
+  const el=$("#kbScoreCard");if(!el)return;
+  const claims=(function(){try{return (typeof KB_CLAIMS!=="undefined"&&KB_CLAIMS)||{}}catch(e){return {}}})();
+  const MODS=["化学实验基础","物质结构与元素周期律","化学反应与能量","有机化合物","化学反应原理"];
+  if(typeof SCORES==="undefined"||!SCORES.length){el.style.display="none";return}
+  const withMods=SCORES.filter(e=>(e.modules||[]).length);
+  if(!withMods.length){el.style.display="block";$("#kbScoreBody").innerHTML='<div class="empty-state" style="padding:18px 0"><div style="font-size:12.5px">暂无关联课标模块的考试 —— 录入成绩时勾选模块即可生成对照分析</div></div>';return}
+  el.style.display="block";
+  const rows=MODS.map(m=>{
+    const exams=withMods.filter(e=>(e.modules||[]).includes(m));
+    const n=exams.length;
+    const avg=n?Math.round(exams.reduce((a,e)=>a+(e.avg||0),0)/n*10)/10:0;
+    const claimed=!!claims[m];
+    let advice="";
+    if(n&&avg<70&&!claimed)advice="⚠ 成绩薄弱且缺教研支撑，建议优先认领复盘";
+    else if(n&&avg<70)advice="📖 已认领，重点复盘教学设计";
+    else if(n&&!claimed)advice="✨ 教学效果好，可补教研档案";
+    else if(n)advice="✅ 双优，保持";
+    else advice="—";
+    return {m,n,avg,claimed,advice};
+  });
+  $("#kbScoreBody").innerHTML=`<div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>课标模块</th><th>关联考试</th><th>平均均分</th><th>教研认领</th><th>建议</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td style="font-weight:600">${esc(r.m)}</td><td>${r.n}</td><td style="font-variant-numeric:tabular-nums;color:${r.n?(r.avg<70?"#C0563E":"#2D7D4F"):"var(--ink-300)"}">${r.n?r.avg:"—"}</td><td>${r.claimed?'<span style="color:#2D7D4F">已认领</span>':'<span style="color:var(--ink-500)">待认领</span>'}</td><td style="font-size:12px">${esc(r.advice)}</td></tr>`).join("")}</tbody>
+  </table></div>
+  <div style="margin-top:10px;font-size:12px;color:var(--ink-500)">共 ${withMods.length} 场考试关联了课标模块 · 认领数据来自课标地图</div>`;
+}
 function renderVolWarn(){
   const el=document.querySelector("#volWarnCard");if(!el)return;
   if(typeof SCORES==="undefined"||SCORES.length<2){el.style.display="none";return}
@@ -3296,6 +3363,7 @@ function renderScore(){
   renderQDist();
   renderQBox();
   renderVolWarn();
+  renderKbScore();
   renderQGoal();
   renderHealth();
   renderPotential();
@@ -3661,7 +3729,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
