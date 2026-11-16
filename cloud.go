@@ -95,6 +95,15 @@ func sanitizeFileName(s string) string {
 	return s
 }
 
+// csvCell CSV 单元格：引号包裹 + 双引号翻倍 + 公式注入防护（=+-@ 开头加 ' 前缀）。
+func csvCell(s string) string {
+	t := s
+	if t != "" && (t[0] == '=' || t[0] == '+' || t[0] == '-' || t[0] == '@') {
+		t = "'" + t
+	}
+	return `"` + strings.ReplaceAll(t, `"`, `""`) + `"`
+}
+
 // LogEntry 管理操作日志。
 type LogEntry struct {
 	At     int64  `json:"at"`
@@ -1168,7 +1177,7 @@ func cmdServe(args []string) {
 			buf.WriteString("\xEF\xBB\xBF") // BOM 中文兼容
 			buf.WriteString("成绩,人数,均分,最高,最低,及格率\r\n")
 			su := scoreSummary(*found)
-			buf.WriteString(fmt.Sprintf("%s,%d,%v,%v,%v,%v%%\r\n\r\n", found.Name, su["count"], su["avg"], su["max"], su["min"], su["pass_rate"]))
+			buf.WriteString(fmt.Sprintf("%s,%d,%v,%v,%v,%v%%\r\n\r\n", csvCell(found.Name), su["count"], su["avg"], su["max"], su["min"], su["pass_rate"]))
 			buf.WriteString("序号,分数\r\n")
 			for i, v := range found.Scores {
 				buf.WriteString(fmt.Sprintf("%d,%g\r\n", i+1, v))
@@ -1176,7 +1185,11 @@ func cmdServe(args []string) {
 			if len(found.Questions) > 0 {
 				buf.WriteString("\r\n题号,满分,平均分,得分率\r\n")
 				for _, q := range found.Questions {
-					buf.WriteString(fmt.Sprintf("%s,%g,%g,%.1f%%\r\n", q.Name, q.Max, q.Avg, q.Avg/q.Max*100))
+					rate := 0.0
+					if q.Max > 0 {
+						rate = q.Avg / q.Max * 100
+					}
+					buf.WriteString(fmt.Sprintf("%s,%g,%g,%.1f%%\r\n", csvCell(q.Name), q.Max, q.Avg, rate))
 				}
 			}
 		}

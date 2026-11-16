@@ -307,6 +307,17 @@ assert d['logs'][0]['op']=='key 轮换', d['logs'][:1]" 2>/dev/null && ok "新 k
 curl -s -X POST "$BASE/api/admin/reset" -H 'Content-Type: application/json' --data-raw '{}' -o /dev/null -w '%{http_code}' | grep -q 401 && ok "数据重置无 key 拒绝（401）" || bad "重置鉴权"
 curl -s -X POST "$BASE/api/admin/reset" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and 'cleared' in d,d" 2>/dev/null && ok "数据重置执行（ok+cleared）" || bad "数据重置"
 curl -s "$BASE/api/scores" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('exams'),d" 2>/dev/null && curl -s "$BASE/api/files" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('files'),d" 2>/dev/null && ok "重置后成绩/文件清空" || bad "重置未清空"
+# 7) CSV 注入防护（考试名含 =,," 破列+公式字符 → 转义+前缀；题名含逗号 → 列齐）
+CX=$(curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"=危,险\"名","subject":"化学","date":"2026-11-17","scores":[60,80],"questions":[{"name":"Q,1","max":10,"avg":5}]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+curl -s -H "X-Access-Key: $NK" "$BASE/api/scores/csv/$CX" -o /tmp/th-csv-inj.csv
+python3 -c "
+import csv,io
+rows=list(csv.reader(io.open('/tmp/th-csv-inj.csv',encoding='utf-8-sig')))
+dat=rows[1]
+assert len(dat)==6, dat
+assert dat[0]==chr(39)+'=危,险'+chr(34)+'名', dat
+q=[r for r in rows if r and r[0]=='Q,1']
+assert q and len(q[0])==4, rows" 2>/dev/null && ok "CSV 注入防护（公式前缀+引号翻倍+列齐）" || bad "CSV 注入防护"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

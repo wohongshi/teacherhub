@@ -590,8 +590,8 @@ document.addEventListener("click",function(e){
       });
       var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
       var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="成绩汇总.csv";a.click();URL.revokeObjectURL(a.href);
-    });
-  });
+    }).catch(function(){alert("导出失败，请稍后重试")});
+  }).catch(function(){alert("成绩数据加载失败，请稍后重试")});
 });
 
 function renderSysStatus(){

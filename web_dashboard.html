@@ -1867,10 +1867,10 @@ function previewFile(id,name){
           .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
           .replace(/\n\n/g,"</p><p style='margin:8px 0'>")
           .replace(/\n/g,"<br/>");
-        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">📝 ${name}（Markdown 预览）</div><div style="font-size:13px;line-height:1.8;max-height:60vh;overflow:auto;padding:4px 0"><p style='margin:8px 0'>${html}</p></div>`;
+        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">📝 ${esc(name)}（Markdown 预览）</div><div style="font-size:13px;line-height:1.8;max-height:60vh;overflow:auto;padding:4px 0"><p style='margin:8px 0'>${html}</p></div>`;
       }else{
         const preview=t.length>2000?t.slice(0,2000)+"\u2026":t;
-        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${name}（前 2000 字）</div><pre style="font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto">${preview.replace(/</g,"&lt;")}</pre>`;
+        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${esc(name)}（前 2000 字）</div><pre style="font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto">${preview.replace(/</g,"&lt;")}</pre>`;
       }
     });
   }
