@@ -189,6 +189,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <button class="btn line" data-goto="social">📢 发公告</button>
         <button class="btn line" data-goto="content">📚 管内容</button>
         <button class="btn line" id="exportBtn">📦 导出全量 zip</button>
+        <button class="btn line" id="bigScreenBtn">📺 数据大屏</button>
       </div>
       <div class="card" style="margin-top:18px">
         <h3>近 7 天浏览</h3>
@@ -478,6 +479,34 @@ function renderFileMini(){
     if(el)el.innerHTML=html;
   });
 }
+document.addEventListener("click",function(e){
+  if(e.target.id!=="bigScreenBtn")return;
+  var overlay=document.createElement("div");
+  overlay.id="bigScreenOverlay";
+  overlay.style.cssText="position:fixed;inset:0;background:linear-gradient(135deg,#0F172A,#1E293B);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:auto;padding:40px";
+  overlay.innerHTML='<div style="text-align:center;max-width:900px;width:100%"><div style="font-size:28px;color:#E2E8F0;font-weight:700;margin-bottom:30px;letter-spacing:2px">📊 教研数据大屏</div><div id="bigScreenData" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px"></div><div style="color:#475569;font-size:12px;margin-top:30px">点击任意处退出</div></div>';
+  overlay.addEventListener("click",function(){overlay.remove()});
+  document.body.appendChild(overlay);
+  Promise.all([jget('/api/stats'),jget('/api/workbenches?all=1'),jget('/api/scores'),jget('/api/files')]).then(function(results){
+    var st=results[0],wbs=results[1].workbenches||[],sc=results[2].exams||[],files=results[3].files||[];
+    var totalViews=wbs.reduce(function(a,b){return a+(b.views||0)},0);
+    var totalDl=wbs.reduce(function(a,b){return a+(b.downloads||0)},0);
+    var avgScore=sc.length?sc[sc.length-1].avg:0;
+    var items=[
+      ["实验模块",wbs.length+" 个","#34D399"],
+      ["考试场次",sc.length+" 场","#60A5FA"],
+      ["共享文件",files.length+" 个","#FBBF24"],
+      ["总浏览量",totalViews+" 次","#A78BFA"],
+      ["总下载量",totalDl+" 次","#F472B6"],
+      ["最新均分",avgScore+" 分","#FB923C"]
+    ];
+    var el=document.getElementById("bigScreenData");
+    if(!el)return;
+    el.innerHTML=items.map(function(it){
+      return '<div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:28px;text-align:center"><div style="font-size:42px;font-weight:800;color:'+it[2]+'">'+it[1]+'</div><div style="font-size:14px;color:#94A3B8;margin-top:8px;letter-spacing:1px">'+it[0]+'</div></div>';
+    }).join("");
+  });
+});
 function renderScoreMini(){
   jget('/api/scores').then(function(sc){
     var list=(sc&&sc.exams)||[];

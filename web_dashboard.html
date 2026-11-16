@@ -1308,7 +1308,12 @@ function renderWbs(){
     // 模糊降级
     list=WBS.filter(w=>!w.hidden&&levenshtein(q.slice(0,6),w.title.toLowerCase().slice(0,Math.max(6,q.length)))<=Math.max(2,Math.floor(q.length/2)));
   }
-  list.sort((a,b)=>labSort==="hot"?((b.views||0)-(a.views||0)):((Number(b.created_at)||0)-(Number(a.created_at)||0)));
+  const favsSet=new Set(safeLS("th_favs","[]"));
+  list.sort((a,b)=>{
+    const fa=favsSet.has(a.id)?1:0,fb=favsSet.has(b.id)?1:0;
+    if(fa!==fb)return fb-fa;
+    return labSort==="hot"?((b.views||0)-(a.views||0)):((Number(b.created_at)||0)-(Number(a.created_at)||0));
+  });
   const grid=$("#wbGrid"),empty=$("#labEmpty");
   if(!list.length){
     grid.innerHTML="";empty.style.display="block";
@@ -1690,6 +1695,46 @@ function renderFilePie(){
   if(box)box.innerHTML=svg;
 }
 
+// 考试对比增强：分数段对比 + 最大进退步
+function renderCmpEnhance(){
+  const cmpA=$("#cmpA"),cmpB=$("#cmpB");
+  if(!cmpA||!cmpB||SCORES.length<2)return;
+  const aId=cmpA.value,bId=cmpB.value;
+  if(!aId||!bId)return;
+  Promise.all([jget("/api/scores/"+aId),jget("/api/scores/"+bId)]).then(([dA,dB])=>{
+    const box=$("#cmpResult");
+    if(!box)return;
+    // 分数段对比
+    const segsA=dA.segments||[],segsB=dB.segments||[];
+    const labels=["不及格","及格","中等","良好","优秀"];
+    let segHtml='<div style="margin-top:14px"><div style="font-size:12px;font-weight:600;color:var(--ink-700);margin-bottom:8px">📊 分数段对比</div>';
+    segHtml+='<div style="display:flex;gap:10px;align-items:flex-end;height:100px">';
+    segsA.forEach((sg,i)=>{
+      const totalA=segsA.reduce((a,b)=>a+b.n,0)||1;
+      const totalB=segsB.reduce((a,b)=>a+b.n,0)||1;
+      const pctA=(sg.n/totalA*100).toFixed(0);
+      const pctB=((segsB[i]||{n:0}).n/totalB*100).toFixed(0);
+      const hA=Math.max(4,Number(pctA)),hB=Math.max(4,Number(pctB));
+      segHtml+=`<div style="flex:1;text-align:center"><div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:70px"><div style="width:18px;height:${hA}%;background:var(--green-400);border-radius:4px 4px 0 0" title="A:${pctA}%"></div><div style="width:18px;height:${hB}%;background:#5B9BD5;border-radius:4px 4px 0 0" title="B:${pctB}%"></div></div><div style="font-size:9px;color:var(--ink-500);margin-top:3px">${labels[i]||""}</div></div>`;
+    });
+    segHtml+='</div></div>';
+    // 最大进步/退步题
+    const qsA={},qsB={};
+    (dA.questions||[]).forEach(q=>qsA[q.name]=q.rate);
+    (dB.questions||[]).forEach(q=>qsB[q.name]=q.rate);
+    const diffs=[];
+    Object.keys(qsA).forEach(qn=>{
+      if(qsB[qn]!==undefined)diffs.push({qn,diff:qsB[qn]-qsA[qn]});
+    });
+    diffs.sort((a,b)=>b.diff-a.diff);
+    const best=diffs[0],worst=diffs[diffs.length-1];
+    let tipHtml="";
+    if(best&&best.diff>0)tipHtml+=`<div style="font-size:12px;color:#4E9A63;margin-top:8px">📈 最大进步：第${best.qn}题（+${best.diff}%）</div>`;
+    if(worst&&worst.diff<0)tipHtml+=`<div style="font-size:12px;color:#C2453F;margin-top:4px">📉 最大退步：第${worst.qn}题（${worst.diff}%）</div>`;
+    box.innerHTML+=segHtml+tipHtml;
+  });
+}
+
 // 分数段堆叠柱状图（单场五档占比）
 function renderSegStack(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
@@ -1905,7 +1950,8 @@ function initCompare(){
   const opts=SCORES.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join("");
   const selA=$("#cmpA"),selB=$("#cmpB");
   if(!selA.options.length){selA.innerHTML=opts;selB.innerHTML=opts;selB.selectedIndex=1}
-  $("#cmpGo").onclick=async()=>{
+  document.addEventListener("click",e=>{if(e.target.id==="cmpGo")setTimeout(renderCmpEnhance,300)});
+$("#cmpGo").onclick=async()=>{
     const a=selA.value,b=selB.value;
     if(!a||!b||a===b){toast("选两场不同的考试");return}
     const [da,db]=await Promise.all([jget("/api/scores/"+a),jget("/api/scores/"+b)]);
