@@ -396,6 +396,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
             <option value="导入">导入</option>
           </select>
           <input id="logSearch" placeholder="搜索日志关键词…" style="height:32px;border:1.5px solid #ddd;border-radius:8px;padding:0 12px;font-size:12px;flex:1;min-width:160px"/>
+          <button class="btn line sm" id="exportLogs">📥 导出 CSV</button>
         </div>
         <div class="tbl-wrap"><table class="tbl" id="logTable">
           <thead><tr><th>时间</th><th>操作</th><th>详情</th></tr></thead>
@@ -824,6 +825,20 @@ $('#backupNow').addEventListener('click',function(){
 });
 
 /* ===== 操作日志 ===== */
+document.addEventListener("click",function(e){
+  if(e.target.id!=="exportLogs")return;
+  var rows=document.querySelectorAll("#logTable tbody tr");
+  if(!rows.length){toast("暂无日志");return}
+  var csv="\ufeff时间,操作,详情\n";
+  rows.forEach(function(tr){
+    var tds=tr.querySelectorAll("td");
+    if(tds.length>=3){
+      csv+='"'+tds[0].textContent.trim()+'","'+tds[1].textContent.trim().replace(/"/g,'""')+'","'+tds[2].textContent.trim().replace(/"/g,'""')+'"\n';
+    }
+  });
+  var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="操作日志.csv";a.click();URL.revokeObjectURL(a.href);
+});
 function filterLogs(){
   var fl=document.getElementById("logFilter");
   var ls=document.getElementById("logSearch");

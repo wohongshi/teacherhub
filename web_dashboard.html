@@ -866,6 +866,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">及格率 / 优秀率趋势</div><div class="card-sub">多场考试率值走势 · 绿=及格率 蓝=优秀率</div></div></div>
         <div id="rateTrendChart"></div>
       </div>
+      <div class="card section" id="segStackCard">
+        <div class="card-head"><div><div class="card-title">分数段堆叠图</div><div class="card-sub">当前考试五档占比一目了然</div></div></div>
+        <div id="segStackChart"></div>
+      </div>
       <div class="card section" id="segTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">分数段趋势</div><div class="card-sub">多次考试分数段占比变化（不及格/及格/良好/优秀）</div></div></div>
         <div id="segTrendChart"></div>
@@ -1091,10 +1095,29 @@ document.addEventListener("click",e=>{
 function safeLS(key,fallback){
   try{return JSON.parse(localStorage.getItem(key)||fallback)}catch(e){return JSON.parse(fallback)}
 }
+function saveSearchHistory(q){
+  if(!q||q.length<2)return;
+  try{
+    let h=JSON.parse(localStorage.getItem("th_search_hist")||"[]");
+    h=h.filter(x=>x!==q);
+    h.unshift(q);
+    if(h.length>10)h.length=10;
+    localStorage.setItem("th_search_hist",JSON.stringify(h));
+  }catch(e){}
+}
 function doSearch(q){
   window.__searchQ=(q||"").trim();
   const ql=(q||"").toLowerCase().trim();
-  if(!ql){const r=$("#msearchResults");if(r)r.innerHTML="";return}
+  if(!ql){
+    const r=$("#msearchResults");
+    if(r){
+      let hist=[];
+      try{hist=JSON.parse(localStorage.getItem("th_search_hist")||"[]")}catch(e){}
+      r.innerHTML=hist.length?`<div style="padding:8px 12px;font-size:11px;color:var(--ink-400)">最近搜索</div>`+hist.map(h=>`<div class="msearch-hit" data-q="${esc(h)}" style="padding:8px 12px;cursor:pointer;border-radius:8px;font-size:13px;display:flex;gap:8px;align-items:center" onmouseover="this.style.background=\'var(--green-50)\'" onmouseout="this.style.background=\'\'"><span style="font-size:13px">🕐</span><span>${esc(h)}</span></div>`).join(""):"";
+    }
+    return
+  }
+  saveSearchHistory(ql);
   const results=[];
   WBS.forEach(w=>{
     if(!w.hidden&&[w.title,w.desc,(w.tags||[]).join(" ")].join(" ").toLowerCase().includes(ql))
@@ -1126,6 +1149,12 @@ function doSearch(q){
   ).join("");
 }
 document.addEventListener("click",e=>{
+  const histHit=e.target.closest("[data-q]");
+  if(histHit&&histHit.classList.contains("msearch-hit")){
+    const mi=$("#msearchInput");
+    if(mi){mi.value=histHit.dataset.q;doSearch(histHit.dataset.q)}
+    return;
+  }
   const hit=e.target.closest(".msearch-hit");
   if(hit){
     go(hit.dataset.view);
@@ -1630,6 +1659,36 @@ function renderFilePie(){
   if(box)box.innerHTML=svg;
 }
 
+// 分数段堆叠柱状图（单场五档占比）
+function renderSegStack(){
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){$("#segStackCard").style.display="none";return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const segs=d.segments||[];
+    const total=segs.reduce((a,b)=>a+b.n,0)||1;
+    const colors=["#C2453F","#E5A93F","#5B9BD5","#4E9A63","#2D7D4F"];
+    const labels=["不及格","及格","中等","良好","优秀"];
+    const W=560,H=80,padL=80,padR=30;
+    const barW=W-padL-padR;
+    let x=padL;
+    let svg=`<svg viewBox="0 0 ${W} ${H+40}" style="width:100%;height:${H+40}px">`;
+    segs.forEach((s2,i)=>{
+      const w=barW*(s2.n/total);
+      if(w>0){
+        svg+=`<rect x="${x.toFixed(1)}" y="10" width="${w.toFixed(1)}" height="${H-20}" fill="${colors[i]}" rx="4"><title>${labels[i]}: ${s2.n}人(${(s2.n/total*100).toFixed(1)}%)</title></rect>`;
+        if(w>30){
+          svg+=`<text x="${(x+w/2).toFixed(1)}" y="${H/2+5}" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">${s2.n}</text>`;
+        }
+        svg+=`<text x="${(x+w/2).toFixed(1)}" y="${H+22}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${labels[i]}</text>`;
+        svg+=`<text x="${(x+w/2).toFixed(1)}" y="${H+35}" text-anchor="middle" font-size="9" fill="var(--ink-400)">${(s2.n/total*100).toFixed(0)}%</text>`;
+      }
+      x+=w;
+    });
+    svg+='</svg>';
+    $("#segStackChart").innerHTML=svg;
+  });
+}
+
 // 及格率/优秀率趋势图
 function renderRateTrend(){
   if(SCORES.length<2){$("#rateTrendCard").style.display="none";return}
@@ -1964,6 +2023,7 @@ function renderScore(){
   renderHeat();
   renderQCmp();
   renderRateTrend();
+  renderSegStack();
 }
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-sxtab]");
