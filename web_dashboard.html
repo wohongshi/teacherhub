@@ -905,6 +905,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">成绩分位数</div><div class="card-sub">P10/P25/P50/P75/P90 分位数统计</div></div></div>
         <div id="pctChart"></div>
       </div>
+      <div class="card section" id="qRankCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">单题难度排名</div><div class="card-sub">各题按得分率从低到高排列（难→易）</div></div></div>
+        <div id="qRankChart"></div>
+      </div>
       <div class="card section" id="heatCard" style="display:none">
         <div class="card-head"><div><div class="card-title">得分率热力图</div><div class="card-sub">多场考试 × 多题得分率矩阵 · 颜色越红失分越重</div></div></div>
         <div id="heatChart" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
@@ -2217,6 +2221,34 @@ function renderPct(){
   });
 }
 
+// 单题难度排名
+function renderQRank(){
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){$("#qRankCard").style.display="none";return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const qs=(d.questions||[]).slice().sort((a,b)=>a.rate-b.rate);
+    if(qs.length<3){$("#qRankCard").style.display="none";return}
+    $("#qRankCard").style.display="block";
+    const colors=["#C2453F","#E5A93F","#5B9BD5","#4E9A63","#2D7D4F"];
+    let html='<div style="display:flex;flex-direction:column;gap:8px">';
+    qs.forEach((q,i)=>{
+      const pct=q.rate;
+      const ci=Math.min(4,Math.floor(pct/20));
+      const label=pct<20?"很难":pct<40?"较难":pct<60?"中等":pct<80?"较易":"容易";
+      html+=`<div style="display:flex;align-items:center;gap:12px">
+        <div style="width:50px;font-size:12px;font-weight:600;color:var(--ink-700);text-align:right">第${q.name}题</div>
+        <div style="flex:1;height:20px;background:var(--green-50);border-radius:10px;overflow:hidden;position:relative">
+          <div style="width:${pct}%;height:100%;background:${colors[ci]};border-radius:10px;transition:width .5s"></div>
+          <div style="position:absolute;right:8px;top:2px;font-size:10px;color:var(--ink-500)">${pct}%</div>
+        </div>
+        <div style="width:40px;font-size:10px;font-weight:600;color:${colors[ci]}">${label}</div>
+      </div>`;
+    });
+    html+='</div>';
+    $("#qRankChart").innerHTML=html;
+  });
+}
+
 // 得分率热力图（多场 × 多题矩阵）
 function renderHeat(){
   if(SCORES.length<2){$("#heatCard").style.display="none";return}
@@ -2521,6 +2553,7 @@ function renderScore(){
   renderQDist();
   renderQBox();
   renderPct();
+  renderQRank();
   renderRateTrend();
   renderSegStack();
   renderSegFlow();
@@ -2581,6 +2614,8 @@ document.addEventListener("click",e=>{
   if(e.target.id==="loadPresets"){
     const presets=safeLS("th_param_presets","[]");
     if(!presets.length){toast("还没有保存过预设");return}
+    const favs=safeLS("th_favs","[]");
+    const wbs=window.__wbs||[];
     // 弹窗可点击列表
     const overlay=document.createElement("div");
     overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer";

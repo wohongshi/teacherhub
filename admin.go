@@ -591,6 +591,14 @@ document.addEventListener("click",function(e){
     exams.forEach(function(x){
       csv+='"'+x.name+'","'+x.count+'","'+x.avg+'","'+x.max+'","'+x.min+'","'+x.pass_rate+'%","'+fmtTs(x.at)+'"\n';
     });
+    csv+="\n分数段,人数\n";
+    exams.forEach(function(x){
+      if(x.segments){
+        x.segments.forEach(function(sg){
+          if(sg.n>0)csv+='"'+x.name+' '+sg.lo+'-'+sg.hi+'分","'+sg.n+'"\n';
+        });
+      }
+    });
     var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
     var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="成绩汇总.csv";a.click();URL.revokeObjectURL(a.href);
   });
