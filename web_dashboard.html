@@ -475,7 +475,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
       <div class="hero">
         <div class="hero-text">
-          <h1>让每一节课，<br>都像一次好反应</h1>
+          <h1 id="heroMotto">让每一节课，<br>都像一次好反应</h1>
           <p>这学期我们把四件事做扎实：课标落到章节、真题进到单元、实验留在组里、成绩看得出问题。<br>一群人，一条心，一年下来就是一套属于我们化学组自己的东西。</p>
           <div class="hero-tags">
             <div class="htag">课标条目 <b>15 条</b></div>
@@ -1070,6 +1070,20 @@ document.addEventListener("click",e=>{
 });
 
 /* ============ 全局搜索（实验/课标/资源/成绩统一搜） ============ */
+// 每日轮换标语（五句化学隐喻按日期循环）
+(function(){
+  const mottos=[
+    "让每一节课都像一次<b>可逆反应</b>，<br>在思辨里慢慢趋向<b>平衡</b>。",
+    "让每一节课都像一次<b>催化</b>，<br>悄悄点燃思维的<b>活化能</b>。",
+    "让每一节课都像一枚<b>晶核</b>，<br>生长出有序的<b>知识晶体</b>。",
+    "让每一节课都像<b>萃取</b>，<br>从现象里萃取出<b>本质</b>。",
+    "让每一节课都像<b>焰色试验</b>，<br>绽放独属于化学的<b>光彩</b>。"
+  ];
+  const day=Math.floor(Date.now()/86400000);
+  const el=document.getElementById("heroMotto");
+  if(el)el.innerHTML=mottos[day%mottos.length];
+})();
+
 function safeLS(key,fallback){
   try{return JSON.parse(localStorage.getItem(key)||fallback)}catch(e){return JSON.parse(fallback)}
 }
