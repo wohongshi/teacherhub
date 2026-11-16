@@ -196,6 +196,23 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <div id="homeTrend"></div>
       </div>
       <div class="card">
+        <h3>系统状态</h3>
+        <div id="sysStatus" style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--green-50,var(--green-100));border-radius:12px">
+            <div style="font-size:22px;font-weight:700;color:var(--green-700)" id="sysUptime">—</div>
+            <div style="font-size:11px;color:var(--ink-500);margin-top:2px">运行状态</div>
+          </div>
+          <div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--green-50,var(--green-100));border-radius:12px">
+            <div style="font-size:22px;font-weight:700;color:var(--green-700)" id="sysStorage">—</div>
+            <div style="font-size:11px;color:var(--ink-500);margin-top:2px">存储占用</div>
+          </div>
+          <div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--green-50,var(--green-100));border-radius:12px">
+            <div style="font-size:22px;font-weight:700;color:var(--green-700)" id="sysApi">—</div>
+            <div style="font-size:11px;color:var(--ink-500);margin-top:2px">API 状态</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
         <h3>成绩趋势</h3>
         <div id="scoreMiniTrend"><div style="font-size:12px;color:#7C8A7F">录入 ≥2 场考试后显示趋势</div></div>
       </div>
@@ -526,6 +543,24 @@ document.addEventListener("click",function(e){
     }).join("");
   });
 });
+function renderSysStatus(){
+  var start=Date.now();
+  jget('/api/ping').then(function(d){
+    var ms=Date.now()-start;
+    var el=document.getElementById('sysApi');
+    if(el)el.textContent=ms+'ms';
+    var up=document.getElementById('sysUptime');
+    if(up)up.textContent='正常';
+  }).catch(function(){
+    var el=document.getElementById('sysApi');
+    if(el)el.textContent='异常';
+  });
+  jget('/api/admin/stats').then(function(d){
+    var sz=d.disk_size||0;
+    var el=document.getElementById('sysStorage');
+    if(el)el.textContent=sz>1048576?(sz/1048576).toFixed(1)+'MB':(sz/1024).toFixed(0)+'KB';
+  });
+}
 function renderScoreMini(){
   jget('/api/scores').then(function(sc){
     var list=(sc&&sc.exams)||[];
@@ -914,7 +949,7 @@ function renderLogs(){
 
 /* ===== 启动 ===== */
 function boot(){
-  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();renderFileMini();
+  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();renderFileMini();renderSysStatus();
 }
 </script>
 </body>

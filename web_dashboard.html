@@ -841,6 +841,27 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">分数段分布</div><div class="card-sub" id="scoreBarsSub">10 分一档</div></div></div>
         <div id="scoreBars"></div>
       </div>
+      <div class="card section" id="targetCard">
+        <div class="card-head">
+          <div><div class="card-title">目标达成追踪</div><div class="card-sub">设定目标均分与及格率，跟踪达成进度</div></div>
+          <button class="chip" id="setTarget">🎯 设定目标</button>
+        </div>
+        <div id="targetBody" style="display:none">
+          <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div style="font-size:12px;color:var(--ink-500);margin-bottom:6px">目标均分 <b id="targetAvgVal" style="color:var(--green-700)">80</b> 分</div>
+              <div class="bar" style="height:14px"><i id="targetAvgBar" style="width:0%;background:linear-gradient(90deg,var(--green-600),var(--green-400));transition:width .6s"></i></div>
+              <div style="font-size:11px;color:var(--ink-400);margin-top:4px">当前 <span id="targetAvgCur">0</span> / <span id="targetAvgGoal">80</span></div>
+            </div>
+            <div style="flex:1;min-width:200px">
+              <div style="font-size:12px;color:var(--ink-500);margin-bottom:6px">目标及格率 <b id="targetPassVal" style="color:var(--green-700)">85</b>%</div>
+              <div class="bar" style="height:14px"><i id="targetPassBar" style="width:0%;background:linear-gradient(90deg,#5B9BD5,#93C5FD);transition:width .6s"></i></div>
+              <div style="font-size:11px;color:var(--ink-400);margin-top:4px">当前 <span id="targetPassCur">0</span>% / <span id="targetPassGoal">85</span>%</div>
+            </div>
+          </div>
+          <div id="targetTip" style="margin-top:12px;font-size:12px"></div>
+        </div>
+      </div>
       <div class="card section" id="reportCard">
         <div class="card-head">
           <div><div class="card-title">一键生成报告</div><div class="card-sub">自动文字版分析，可复制发群</div></div>
@@ -1516,6 +1537,46 @@ function renderRes(){
 }
 
 /* —— 成长空间贡献榜 —— */
+// 目标达成追踪
+function renderTarget(){
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur){$("#targetBody").style.display="none";return}
+  let goals={avg:80,pass:85};
+  try{goals=Object.assign(goals,JSON.parse(localStorage.getItem("th_target")||"{}"))}catch(e){}
+  $("#targetBody").style.display="block";
+  $("#targetAvgVal").textContent=goals.avg;
+  $("#targetAvgGoal").textContent=goals.avg;
+  $("#targetPassVal").textContent=goals.pass;
+  $("#targetPassGoal").textContent=goals.pass;
+  const avgPct=Math.min(100,(cur.avg/goals.avg*100)).toFixed(0);
+  const passPct=Math.min(100,(cur.pass_rate/goals.pass*100)).toFixed(0);
+  $("#targetAvgBar").style.width=avgPct+"%";
+  $("#targetPassBar").style.width=passPct+"%";
+  $("#targetAvgCur").textContent=cur.avg;
+  $("#targetPassCur").textContent=cur.pass_rate;
+  const avgOk=cur.avg>=goals.avg,passOk=cur.pass_rate>=goals.pass;
+  let tip="";
+  if(avgOk&&passOk)tip='<span style="color:#4E9A63">🎉 双目标达成！继续保持</span>';
+  else if(avgOk)tip='<span style="color:#E5A93F">✅ 均分达标，及格率还差 '+(goals.pass-cur.pass_rate).toFixed(1)+'%</span>';
+  else if(passOk)tip='<span style="color:#E5A93F">✅ 及格率达标，均分还差 '+(goals.avg-cur.avg).toFixed(1)+' 分</span>';
+  else tip='<span style="color:#C2453F">📊 均分差 '+(goals.avg-cur.avg).toFixed(1)+' 分，及格率差 '+(goals.pass-cur.pass_rate).toFixed(1)+'%</span>';
+  $("#targetTip").innerHTML=tip;
+}
+document.addEventListener("click",e=>{
+  if(e.target.id!=="setTarget")return;
+  let goals={avg:80,pass:85};
+  try{goals=Object.assign(goals,JSON.parse(localStorage.getItem("th_target")||"{}"))}catch(e){}
+  const avg=prompt("目标均分（0-150）：",goals.avg);
+  if(avg===null)return;
+  const pass=prompt("目标及格率（0-100）：",goals.pass);
+  if(pass===null)return;
+  goals.avg=Math.max(0,Math.min(150,Number(avg)||80));
+  goals.pass=Math.max(0,Math.min(100,Number(pass)||85));
+  localStorage.setItem("th_target",JSON.stringify(goals));
+  renderTarget();
+  toast("目标已更新");
+});
+
 // 一键教研周报
 document.addEventListener("click",e=>{
   if(e.target.id!=="weeklyReport")return;
@@ -2154,6 +2215,7 @@ function renderScore(){
   renderQCmp();
   renderRateTrend();
   renderSegStack();
+  renderTarget();
 }
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-sxtab]");
