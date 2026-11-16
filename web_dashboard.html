@@ -621,6 +621,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         </table></div>
       </div>
       <div class="wb-grid" id="wbGrid"></div>
+      <div class="card section" id="usageRankCard" style="margin-top:18px">
+        <div class="card-head"><div><div class="card-title">我的使用足迹</div><div class="card-sub">打开热榜与最近使用 · 数据仅存本浏览器，不上传</div></div></div>
+        <div id="usageRankChart"></div>
+      </div>
       <div class="card section" id="wbStatsCard" style="margin-top:18px">
         <div class="card-head"><div><div class="card-title">实验使用统计</div><div class="card-sub">浏览 / 下载 / 评分汇总 · TOP 热度榜</div></div></div>
         <div id="wbStatsChart"></div>
@@ -972,6 +976,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">成绩离散度趋势</div><div class="card-sub">变异系数 CV = 标准差 / 均分 · 看班级成绩分化程度</div></div></div>
         <div id="dispTrendChart"></div>
       </div>
+      <div class="card section" id="volWarnCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">成绩波动预警</div><div class="card-sub">多场均分环比波动监控 · 超出阈值自动预警，绿色带内为平稳区</div></div>
+          <div style="display:flex;gap:6px;align-items:center"><input id="volThresh" type="number" min="1" max="30" value="5" style="width:58px;padding:5px 7px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-700);font-size:12px"/><button class="chip" id="volThreshBtn">设阈值（分）</button></div>
+        </div>
+        <div id="volWarnChart"></div>
+      </div>
       <div class="card section" id="segStackCard">
         <div class="card-head"><div><div class="card-title">分数段堆叠图</div><div class="card-sub">当前考试五档占比一目了然</div></div></div>
         <div id="segStackChart"></div>
@@ -1029,6 +1039,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <button class="chip" id="exportMyData">📤 导出我的数据</button>
           <label class="chip" style="cursor:pointer">📥 导入备份<input type="file" id="importMyData" accept="application/json" style="display:none"/></label>
         </div>
+      </div>
+      <div class="card" id="personaCard" style="margin-bottom:18px">
+        <div class="card-head"><div><div class="card-title">我的使用画像</div><div class="card-sub">搜索热词 / 收藏分组 / 实验偏好 · 基于本地数据统计</div></div></div>
+        <div id="personaChart"></div>
       </div>
       <div class="mod-head"><h2>建设方案</h2><p>化学学科园地怎么建、怎么用、怎么长。</p></div>
       <div class="card about-body">
@@ -1568,6 +1582,7 @@ document.addEventListener("click",e=>{
     const hot=safeLS("th_wb_hot","{}");const id=card.dataset.id;
     hot[id]=(hot[id]||0)+1;
     try{localStorage.setItem("th_wb_hot",JSON.stringify(hot))}catch(_){}
+    try{const rec=safeLS("th_wb_recent","[]");const arr=Array.isArray(rec)?rec:[];arr.unshift({id:id,ts:Date.now()});localStorage.setItem("th_wb_recent",JSON.stringify(arr.slice(0,20)))}catch(_){}
   }
 });
 // ===== 文件备注（localStorage）=====
@@ -2379,6 +2394,132 @@ function renderSegFlow(){
 }
 
 // 及格率/优秀率趋势图
+// ===== 成绩波动预警（多场均分环比）=====
+function renderVolWarn(){
+  const el=document.querySelector("#volWarnCard");if(!el)return;
+  if(typeof SCORES==="undefined"||SCORES.length<2){el.style.display="none";return}
+  el.style.display="block";
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  const th=Math.max(1,Math.min(30,Number(safeLS("th_vol_thresh","5"))||5));
+  const tv=document.querySelector("#volThresh");if(tv)tv.value=th;
+  const rows=[];
+  for(let i=1;i<sorted.length;i++){
+    const a=Number(sorted[i-1].avg)||0,b=Number(sorted[i].avg)||0;
+    rows.push({name:sorted[i].name||("第"+(i+1)+"场"),prev:a,cur:b,d:+(b-a).toFixed(1),
+      dp:+((Number(sorted[i].pass_rate)||0)-(Number(sorted[i-1].pass_rate)||0)).toFixed(1)});
+  }
+  const warns=rows.filter(r=>Math.abs(r.d)>=th);
+  const W=560,H=150,padL=42,padR=16,padT=16,padB=34;
+  const maxAbs=Math.max(th*2,...rows.map(r=>Math.abs(r.d)),1);
+  const bw=Math.min(46,(W-padL-padR)/Math.max(1,rows.length)-12);
+  const cx=i=>padL+(i+0.5)*((W-padL-padR)/Math.max(1,rows.length));
+  const y0=padT+(H-padT-padB)/2;
+  const y=v=>y0-(v/maxAbs)*((H-padT-padB)/2);
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px">';
+  svg+='<rect x="'+padL+'" y="'+y(th).toFixed(1)+'" width="'+(W-padL-padR)+'" height="'+(y(-th)-y(th)).toFixed(1)+'" fill="rgba(78,154,99,0.10)"/>';
+  svg+='<line x1="'+padL+'" y1="'+y0.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y0.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>';
+  [th,-th].forEach(v=>{
+    svg+='<line x1="'+padL+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--green-500)" stroke-width="1" stroke-dasharray="4 3"/>';
+    svg+='<text x="'+(padL-6)+'" y="'+(y(v)+3).toFixed(1)+'" text-anchor="end" font-size="9" fill="var(--green-700)">'+(v>0?"+":"")+v+'</text>';
+  });
+  rows.forEach((r,i)=>{
+    const warn=Math.abs(r.d)>=th;
+    const col=r.d>=0?(warn?"#4E9A63":"#8FBF9F"):(warn?"#C2453F":"#D99A96");
+    const h=Math.abs(y(r.d)-y0);
+    svg+='<rect x="'+(cx(i)-bw/2).toFixed(1)+'" y="'+(r.d>=0?y(r.d):y0).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(1.5,h).toFixed(1)+'" rx="2.5" fill="'+col+'"><title>'+esc(r.name)+'：'+(r.d>0?"+":"")+r.d+' 分</title></rect>';
+    svg+='<text x="'+cx(i).toFixed(1)+'" y="'+(r.d>=0?y(r.d)-6:y(r.d)+13).toFixed(1)+'" text-anchor="middle" font-size="9.5" font-weight="600" fill="'+col+'">'+(r.d>0?"+":"")+r.d+'</text>';
+    svg+='<text x="'+cx(i).toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" font-size="9" fill="var(--ink-500)">'+esc(r.name.slice(0,6))+'</text>';
+  });
+  svg+='</svg>';
+  const list=warns.length?warns.map(r=>{
+    const sev=Math.abs(r.d)>=th*2;
+    const tip=sev?(r.d>0?"均分大幅跃升，建议核对评分口径与试题难度，避免高分虚高":"均分大幅下滑，建议逐题定位失分点并安排讲评课"):(r.d>0?"均分上扬，保持当前教学节奏":"均分回落，建议关注临界生与新增失分题");
+    return '<div style="display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border-radius:10px;margin-top:7px;background:'+(sev?"rgba(194,69,63,0.09)":"rgba(229,169,63,0.13)")+';border:1px solid '+(sev?"rgba(194,69,63,0.28)":"rgba(229,169,63,0.32)")+'">'
+      +'<span style="font-size:15px;line-height:1.35">'+(sev?"🔴":"🟡")+'</span>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:12.5px;font-weight:600;color:var(--ink-700)">'+esc(r.name)+' <span style="color:'+(r.d>0?"#4E9A63":"#C2453F")+'">均分 '+(r.d>0?"+":"")+r.d+' 分</span>（'+r.prev+' → '+r.cur+'）</div>'
+      +'<div style="font-size:11.5px;color:var(--ink-500);margin-top:2px">'+tip+(Math.abs(r.dp)>=5?("；及格率 "+(r.dp>0?"+":"")+r.dp+"%"):"")+'</div>'
+      +'</div></div>';
+  }).join(""):'<div class="empty-state" style="padding:16px 0"><div style="font-size:12.5px">✅ 各场均分环比波动均在 ±'+th+' 分以内，教学节奏平稳</div></div>';
+  const box=document.querySelector("#volWarnChart");if(box)box.innerHTML=svg+list;
+}
+// ===== 实验使用排行与最近打开 =====
+function thRelTime(ts){
+  if(!ts)return "";
+  const s=Math.max(0,Math.floor((Date.now()-ts)/1000));
+  if(s<60)return "刚刚";
+  if(s<3600)return Math.floor(s/60)+" 分钟前";
+  if(s<86400)return Math.floor(s/3600)+" 小时前";
+  return Math.floor(s/86400)+" 天前";
+}
+function renderUsageRank(){
+  const el=document.querySelector("#usageRankChart");if(!el)return;
+  const hot=safeLS("th_wb_hot","{}"),recent=safeLS("th_wb_recent","[]");
+  const pool=(typeof WBS!=="undefined"&&Array.isArray(WBS))?WBS:[];
+  const nameOf=id=>{const w=pool.find(x=>x.id===id);return w?w.title:id};
+  const ent=Object.entries(hot).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const max=ent.length?ent[0][1]:1;
+  const hotHtml=ent.length?ent.map((e,i)=>{
+    const id=e[0],c=e[1];
+    return '<div style="display:flex;align-items:center;gap:9px;padding:6px 0">'
+      +'<span style="width:20px;font-size:12px;font-weight:700;color:'+(i<3?"#E5A93F":"var(--ink-400)")+'">'+(i+1)+'</span>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:12px;color:var(--ink-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(nameOf(id))+'</div>'
+      +'<div style="height:6px;border-radius:3px;background:var(--green-100);margin-top:4px"><div style="height:6px;border-radius:3px;background:linear-gradient(90deg,#4E9A63,#7FBF8F);width:'+Math.round(c/max*100)+'%"></div></div>'
+      +'</div><span style="font-size:11.5px;color:var(--ink-500);white-space:nowrap">🔥 '+c+' 次</span></div>';
+  }).join(""):'<div class="empty-state" style="padding:12px 0"><div style="font-size:12px">还没有打开记录，去实验工作台逛逛吧</div></div>';
+  const rec=(Array.isArray(recent)?recent:[]).filter(r=>r&&r.id).slice(0,8);
+  const recHtml=rec.length?rec.map(r=>
+    '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line)">'
+    +'<span style="font-size:11px">🕐</span>'
+    +'<div style="flex:1;min-width:0;font-size:12px;color:var(--ink-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(nameOf(r.id))+'</div>'
+    +'<span style="font-size:11px;color:var(--ink-400);white-space:nowrap">'+thRelTime(r.ts)+'</span></div>'
+  ).join(""):'<div class="empty-state" style="padding:12px 0"><div style="font-size:12px">暂无最近打开</div></div>';
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px">'
+    +'<div><div style="font-size:12px;font-weight:600;color:var(--ink-600);margin-bottom:6px">🏆 打开热榜 TOP5</div>'+hotHtml+'</div>'
+    +'<div><div style="font-size:12px;font-weight:600;color:var(--ink-600);margin-bottom:6px">🕘 最近打开</div>'+recHtml+'</div></div>';
+}
+// ===== 我的使用画像 =====
+function renderPersona(){
+  const el=document.querySelector("#personaChart");if(!el)return;
+  const hist=safeLS("th_search_hist","[]");
+  const wc={};
+  (Array.isArray(hist)?hist:[]).forEach(x=>{
+    const w=(typeof x==="string")?x:((x&&(x.q||x.word))||"");
+    if(w)wc[w]=(wc[w]||0)+1;
+  });
+  const words=Object.entries(wc).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const favs=safeLS("th_favs","[]"),tags=safeLS("th_fav_tags","{}");
+  const tc={};
+  (Array.isArray(favs)?favs:[]).forEach(id=>{const t=(tags&&tags[id])||"未分组";tc[t]=(tc[t]||0)+1});
+  const tagEnt=Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const hot=safeLS("th_wb_hot","{}");
+  const hotEnt=Object.entries(hot).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const pool=(typeof WBS!=="undefined"&&Array.isArray(WBS))?WBS:[];
+  const nameOf=id=>{const w=pool.find(x=>x.id===id);return w?w.title:id};
+  const bars=(arr,fmt,color)=>{
+    const m=arr.length?arr[0][1]:1;
+    return arr.length?arr.map(e=>
+      '<div style="margin-top:7px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-600)"><span style="max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(fmt(e[0]))+'</span><span>'+e[1]+'</span></div>'
+      +'<div style="height:6px;border-radius:3px;background:var(--green-100);margin-top:3px"><div style="height:6px;border-radius:3px;background:'+color+';width:'+Math.round(e[1]/m*100)+'%"></div></div></div>'
+    ).join(""):'<div style="font-size:11.5px;color:var(--ink-400);margin-top:8px">暂无数据</div>';
+  };
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px">'
+    +'<div><div style="font-size:12px;font-weight:600;color:var(--ink-600)">🔍 搜索热词 TOP5</div>'+bars(words,x=>x,"linear-gradient(90deg,#5B9BD5,#8FB8E0)")+'</div>'
+    +'<div><div style="font-size:12px;font-weight:600;color:var(--ink-600)">⭐ 收藏分组分布</div>'+bars(tagEnt,x=>x,"linear-gradient(90deg,#E5A93F,#F0C878)")+'</div>'
+    +'<div><div style="font-size:12px;font-weight:600;color:var(--ink-600)">🧪 实验偏好 TOP3</div>'+bars(hotEnt,x=>nameOf(x),"linear-gradient(90deg,#4E9A63,#8FBF9F)")+'</div></div>';
+}
+// 波动阈值设置
+document.addEventListener("click",function(e){
+  if(e.target&&e.target.id==="volThreshBtn"){
+    const inp=document.querySelector("#volThresh");
+    const v=Math.max(1,Math.min(30,Number(inp&&inp.value)||5));
+    if(inp)inp.value=v;
+    localStorage.setItem("th_vol_thresh",String(v));
+    renderVolWarn();toast("波动预警阈值已设为 ±"+v+" 分");
+  }
+});
 function renderRateTrend(){
   if(SCORES.length<2){$("#rateTrendCard").style.display="none";return}
   $("#rateTrendCard").style.display="block";
@@ -3144,11 +3285,14 @@ function renderScore(){
   renderQTrend();
   renderQDist();
   renderQBox();
+  renderVolWarn();
   renderQGoal();
   renderHealth();
   renderPotential();
   renderCum();
   renderPct();
+  renderUsageRank();
+  renderPersona();
   renderQRank();
   renderRateTrend();
   renderSegStack();
