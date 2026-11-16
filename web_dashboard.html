@@ -625,6 +625,16 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">实验使用统计</div><div class="card-sub">浏览 / 下载 / 评分汇总 · TOP 热度榜</div></div></div>
         <div id="wbStatsChart"></div>
       </div>
+      <div class="card section" id="timerCard" style="margin-top:18px">
+        <div class="card-head"><div><div class="card-title">实验演示计时器</div><div class="card-sub">课堂演示秒表 · 记圈 · 反应时间观察</div></div></div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div id="timerDisp" style="font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--green-700)">00:00.0</div>
+          <button class="chip" id="timerToggle">▶ 开始</button>
+          <button class="chip" id="timerLap">⏺ 记圈</button>
+          <button class="chip" id="timerReset">↺ 清零</button>
+        </div>
+        <div id="timerLaps" style="margin-top:8px;font-size:12px;color:var(--ink-500)"></div>
+      </div>
       <div class="empty-state" id="labEmpty" style="display:none">
         <div class="big">⚗️</div>
         <div style="font-size:13px">这次没搜到沉淀，换个关键词再反应一次：</div>
@@ -920,6 +930,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">成绩分位数</div><div class="card-sub">P10/P25/P50/P75/P90 分位数统计</div></div></div>
         <div id="pctChart"></div>
       </div>
+      <div class="card section" id="cumCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">成绩累积百分位曲线</div><div class="card-sub">每个分数约超过百分之多少同学 · 输入分数查位次</div></div></div>
+        <div id="cumChart"></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><input id="cumScore" type="number" min="0" max="150" placeholder="输入分数" style="width:90px;height:30px;border:1.5px solid var(--green-200);border-radius:8px;padding:0 8px;font-size:12px"/><button class="chip" id="cumGo">查位次</button><span id="cumOut" style="font-size:12px;color:var(--ink-500)"></span></div>
+      </div>
       <div class="card section" id="qRankCard" style="display:none">
         <div class="card-head"><div><div class="card-title">单题难度排名</div><div class="card-sub">各题按得分率从低到高排列（难→易）</div></div></div>
         <div id="qRankChart"></div>
@@ -1008,6 +1023,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
     <!-- ===== 建设方案 ===== -->
     <section class="view" id="v-about">
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head"><div><div class="card-title">个人数据备份</div><div class="card-sub">收藏 / 备注 / 评分 / 目标等本地数据一键导出导入</div></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="chip" id="exportMyData">📤 导出我的数据</button>
+          <label class="chip" style="cursor:pointer">📥 导入备份<input type="file" id="importMyData" accept="application/json" style="display:none"/></label>
+        </div>
+      </div>
       <div class="mod-head"><h2>建设方案</h2><p>化学学科园地怎么建、怎么用、怎么长。</p></div>
       <div class="card about-body">
         <h3>一句话</h3>
@@ -1618,6 +1640,77 @@ function renderWbStats(){
   html+='</table>';
   el.innerHTML=html;
 }
+// 实验演示计时器
+(function(){
+  let running=false,startAt=0,acc=0,timerInt=null,laps=[];
+  const fmt=ms=>{const m=Math.floor(ms/60000),sec=Math.floor(ms%60000/1000),c=Math.floor(ms%1000/100);return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec+"."+c};
+  const paint=()=>{const d=document.getElementById("timerDisp");if(d)d.textContent=fmt(acc+(running?Date.now()-startAt:0))};
+  const btn=(id)=>document.getElementById(id);
+  if(btn("timerToggle"))btn("timerToggle").addEventListener("click",()=>{
+    running=!running;
+    if(running){startAt=Date.now();btn("timerToggle").textContent="⏸ 暂停";timerInt=setInterval(paint,100)}
+    else{acc+=Date.now()-startAt;btn("timerToggle").textContent="▶ 开始";clearInterval(timerInt);paint()}
+  });
+  if(btn("timerLap"))btn("timerLap").addEventListener("click",()=>{
+    if(!running&&!acc){toast("先开始计时");return}
+    laps.push(acc+(running?Date.now()-startAt:0));
+    const el=btn("timerLaps");
+    if(el)el.innerHTML=laps.map((t,i)=>`<div>圈 ${i+1}：<b style="font-variant-numeric:tabular-nums">${fmt(t)}</b>${i>0?` <span style="color:var(--ink-400)">(+${fmt(t-laps[i-1])})</span>`:""}</div>`).join("");
+  });
+  if(btn("timerReset"))btn("timerReset").addEventListener("click",()=>{
+    running=false;acc=0;laps=[];clearInterval(timerInt);
+    const t=btn("timerToggle");if(t)t.textContent="▶ 开始";
+    const l=btn("timerLaps");if(l)l.innerHTML="";
+    paint();
+  });
+})();
+// 个人数据备份（localStorage th_* 全量）
+(function(){
+  const exp=document.getElementById("exportMyData");
+  if(exp)exp.addEventListener("click",()=>{
+    const data={};
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf("th_")===0)try{data[k]=JSON.parse(localStorage.getItem(k))}catch(_){data[k]=localStorage.getItem(k)}}
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="teacherhub-mydata.json";a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    toast("已导出 "+Object.keys(data).length+" 项个人数据");
+  });
+  const imp=document.getElementById("importMyData");
+  if(imp)imp.addEventListener("change",()=>{
+    const f=imp.files[0];if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      try{
+        const d=JSON.parse(rd.result);
+        let n=0;
+        Object.keys(d).forEach(k=>{if(k.indexOf("th_")===0){localStorage.setItem(k,typeof d[k]==="string"?d[k]:JSON.stringify(d[k]));n++}});
+        toast("已导入 "+n+" 项，即将刷新");
+        setTimeout(()=>location.reload(),800);
+      }catch(_){toast("文件格式不对")}
+    };
+    rd.readAsText(f);
+  });
+})();
+// 查位次按钮
+document.addEventListener("click",e=>{
+  if(e.target.id!=="cumGo")return;
+  const inp=document.getElementById("cumScore"),out=document.getElementById("cumOut");
+  if(!out)return;
+  const v=Number(inp&&inp.value);
+  const cd=window.__cumData;
+  if(!cd||!isFinite(v)||v<0||v>150){out.textContent="输入 0-150 的分数";return}
+  let pct=0;
+  const pts=cd.pts;
+  if(v>=150)pct=0;
+  else if(v<=0)pct=100;
+  else{
+    const i=Math.floor(v/5);
+    const a=pts[Math.min(i,pts.length-1)],b2=pts[Math.min(i+1,pts.length-1)];
+    const frac=(v-a.x)/5;
+    pct=a.p+(b2.p-a.p)*frac;
+  }
+  out.innerHTML=`约超过 <b style="color:#2D7D4F">${pct.toFixed(1)}%</b> 的同学`;
+});
 // ===== 实验对比视图 =====
 const __cmpSet=new Set();
 function renderWbCompareBar(){
@@ -2520,6 +2613,43 @@ function renderDispTrend(){
   });
 }
 
+// 成绩累积百分位曲线
+function renderCum(){
+  const el=$("#cumCard");if(!el)return;
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){el.style.display="none";return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const segs=d.segments||[];
+    const N=segs.reduce((a,b)=>a+b.n,0);
+    if(N<5){el.style.display="none";return}
+    el.style.display="block";
+    const above=x=>segs.filter(sg=>Number(sg.lo)>x).reduce((a,b)=>a+b.n,0)+segs.filter(sg=>Number(sg.lo)<=x&&Number(sg.hi)>=x).reduce((a,b)=>a+b.n,0)*0.5;
+    const pts=[];
+    for(let x=0;x<=150;x+=5)pts.push({x:x,p:above(x)/N*100});
+    window.__cumData={pts:pts,N:N};
+    const W=560,H=210,padL=55,padR=20,padT=20,padB=42;
+    const x=v=>padL+(v/150)*(W-padL-padR);
+    const y=v=>padT+(1-v/100)*(H-padT-padB);
+    let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+    [0,25,50,75,100].forEach(v=>{
+      svg+=`<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W-padR}" y2="${y(v).toFixed(1)}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"/>`;
+      svg+=`<text x="${padL-8}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-400)">${v}%</text>`;
+    });
+    [0,30,60,90,120,150].forEach(v=>{
+      svg+=`<text x="${x(v).toFixed(1)}" y="${H-20}" text-anchor="middle" font-size="9" fill="var(--ink-400)">${v}</text>`;
+    });
+    const path=pts.map((p,i)=>`${i?"L":"M"}${x(p.x).toFixed(1)} ${y(p.p).toFixed(1)}`).join(" ");
+    svg+=`<path d="${path}" fill="none" stroke="#2D7D4F" stroke-width="2.5"/>`;
+    [[60,"#E5A93F","及格线"],[90,"#5B9BD5","优秀线"],[Number(d.avg)||0,"#C2453F","均分"]].forEach(m=>{
+      if(!m[0])return;
+      svg+=`<line x1="${x(m[0]).toFixed(1)}" y1="${padT}" x2="${x(m[0]).toFixed(1)}" y2="${H-padB}" stroke="${m[1]}" stroke-width="1.5" stroke-dasharray="5 3"/>`;
+      svg+=`<text x="${x(m[0]).toFixed(1)}" y="${padT-4}" text-anchor="middle" font-size="9" fill="${m[1]}">${m[2]} ${Number(m[0]).toFixed(m[2]==="均分"?1:0)}</text>`;
+    });
+    svg+='</svg>';
+    $("#cumChart").innerHTML=svg;
+  });
+}
+
 // 成绩健康度综合评分
 function renderHealth(){
   const el=$("#healthCard");if(!el)return;
@@ -3017,6 +3147,7 @@ function renderScore(){
   renderQGoal();
   renderHealth();
   renderPotential();
+  renderCum();
   renderPct();
   renderQRank();
   renderRateTrend();
