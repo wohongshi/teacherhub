@@ -393,6 +393,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <svg viewBox="0 0 24 24"><path d="M9 3h6"/><path d="M10 3v6.2L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.5 15h9"/></svg>
           实验工作台
         </div>
+        <div class="nav-item" data-view="lab" data-favjump="1" style="margin-top:2px">
+          <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          我的收藏
+        </div>
         <div class="nav-item" data-view="kb">
           <svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z"/><path d="M8 7h7"/><path d="M8 11h7"/></svg>
           课标地图
@@ -917,6 +921,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">分数段趋势</div><div class="card-sub">多次考试分数段占比变化（不及格/及格/良好/优秀）</div></div></div>
         <div id="segTrendChart"></div>
       </div>
+      <div class="card section" id="segFlowCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">分数段流转图</div><div class="card-sub">两场考试之间学生在各分数段之间的流动方向</div></div></div>
+        <div id="segFlowChart"></div>
+      </div>
       <div class="card section" id="qCard" style="display:none">
         <div class="card-head"><div><div class="card-title">题目失分排行</div><div class="card-sub">得分率越低失分越重 · 点击题号看教学建议</div></div></div>
         <div class="tbl-wrap"><table class="tbl" id="qTable">
@@ -1192,6 +1200,14 @@ function doSearch(q){
   ).join("");
 }
 document.addEventListener("click",e=>{
+  const favJump=e.target.closest("[data-favjump]");
+  if(favJump){
+    go("lab");
+    __favOnly=true;
+    const ff=$("#favFilter");if(ff)ff.classList.add("on");
+    renderWbs();
+    return;
+  }
   const histHit=e.target.closest("[data-q]");
   if(histHit&&histHit.classList.contains("msearch-hit")){
     const mi=$("#msearchInput");
@@ -1927,6 +1943,60 @@ function renderSegStack(){
   });
 }
 
+// 分数段流转图（两场考试之间人数流动）
+function renderSegFlow(){
+  if(SCORES.length<2){$("#segFlowCard").style.display="none";return}
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  const a=sorted[sorted.length-2],b=sorted[sorted.length-1];
+  if(!a||!b){$("#segFlowCard").style.display="none";return}
+  Promise.all([jget("/api/scores/"+a.id),jget("/api/scores/"+b.id)]).then(([dA,dB])=>{
+    const segsA=dA.segments||[],segsB=dB.segments||[];
+    const labels=["不及格","及格","中等","良好","优秀"];
+    const colors=["#C2453F","#E5A93F","#5B9BD5","#4E9A63","#2D7D4F"];
+    const totalA=segsA.reduce((x,y)=>x+y.n,0)||1;
+    const totalB=segsB.reduce((x,y)=>x+y.n,0)||1;
+    const W=560,H=300,padT=40,padB=30;
+    const xA=120,xB=W-120;
+    const yH=(H-padT-padB)/5;
+    let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+    svg+=`<text x="${xA}" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink-700)">${esc(a.name.slice(0,8))}</text>`;
+    svg+=`<text x="${xB}" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink-700)">${esc(b.name.slice(0,8))}</text>`;
+    // 左侧节点
+    segsA.forEach((sg,i)=>{
+      const h=(sg.n/totalA)*(H-padT-padB);
+      const y=padT+i*yH;
+      if(h>0)svg+=`<rect x="${xA-30}" y="${y.toFixed(1)}" width="20" height="${Math.max(h,2).toFixed(1)}" rx="4" fill="${colors[i]}" opacity=".7"><title>${labels[i]}: ${sg.n}人</title></rect>`;
+    });
+    // 右侧节点
+    segsB.forEach((sg,i)=>{
+      const h=(sg.n/totalB)*(H-padT-padB);
+      const y=padT+i*yH;
+      if(h>0)svg+=`<rect x="${xB+10}" y="${y.toFixed(1)}" width="20" height="${Math.max(h,2).toFixed(1)}" rx="4" fill="${colors[i]}" opacity=".7"><title>${labels[i]}: ${sg.n}人</title></rect>`;
+    });
+    // 流转带（按比例近似：同段→同段为主，相邻段次之）
+    segsA.forEach((sgA,i)=>{
+      const hA=(sgA.n/totalA)*(H-padT-padB);
+      if(hA<=0)return;
+      const yA=padT+i*yH;
+      segsB.forEach((sgB,j)=>{
+        const hB=(sgB.n/totalB)*(H-padT-padB);
+        if(hB<=0)return;
+        const flow=Math.min(hA,hB)*Math.max(0.2,1-Math.abs(i-j)*0.25);
+        const yB=padT+j*yH;
+        svg+=`<path d="M${xA-10},${(yA+hA/2).toFixed(1)} C${(xA+xB)/2},${(yA+hA/2).toFixed(1)} ${(xA+xB)/2},${(yB+hB/2).toFixed(1)} ${xB+10},${(yB+hB/2).toFixed(1)}" fill="none" stroke="${colors[i]}" stroke-width="${Math.max(1,flow).toFixed(1)}" opacity=".25"/>`;
+      });
+    });
+    // 标签
+    labels.forEach((lb,i)=>{
+      svg+=`<text x="${xA-40}" y="${(padT+i*yH+yH/2+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--ink-500)">${lb}</text>`;
+      svg+=`<text x="${xB+40}" y="${(padT+i*yH+yH/2+4).toFixed(1)}" font-size="10" fill="var(--ink-500)">${lb}</text>`;
+    });
+    svg+='</svg>';
+    $("#segFlowChart").innerHTML=svg;
+    $("#segFlowCard").style.display="block";
+  });
+}
+
 // 及格率/优秀率趋势图
 function renderRateTrend(){
   if(SCORES.length<2){$("#rateTrendCard").style.display="none";return}
@@ -2384,6 +2454,7 @@ function renderScore(){
   renderQBox();
   renderRateTrend();
   renderSegStack();
+  renderSegFlow();
   renderTarget();
 }
 document.addEventListener("click",e=>{
