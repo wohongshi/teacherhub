@@ -267,6 +267,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   #v-score #reportCard .chip{display:none!important}
   body::before{content:"化学学科园地 · 教研报告";display:block;text-align:center;font-size:16px;font-weight:700;color:#2D7D4F;margin-bottom:12px}
   @page{margin:1.5cm}
+  #v-score #reportCard .chip{display:none!important}
+  body::before{content:"化学学科园地 · 教研报告";display:block;text-align:center;font-size:16px;font-weight:700;color:#2D7D4F;margin-bottom:12px}
+  @page{margin:1.5cm}
   body{background:#fff!important;color:#000!important;font-size:12px}
 }
 @media (max-width:820px){
@@ -878,6 +881,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <button class="chip" id="exportExcel">📊 Excel</button>
           <button class="chip" id="weeklyReport">📋 周报</button>
           <button class="chip" id="exportHtml">🌐 报告</button>
+          <button class="chip" id="shareReport">🔗 分享</button>
         </div>
         <div id="reportBody" class="report-body" style="font-size:13px;line-height:2;color:var(--ink-700);white-space:pre-wrap;border-radius:12px;padding:16px;display:none"></div>
         <div class="row" style="margin-top:10px">
@@ -1645,6 +1649,17 @@ document.addEventListener("click",e=>{
   localStorage.setItem("th_target",JSON.stringify(goals));
   renderTarget();
   toast("目标已更新");
+});
+
+// 一键分享链接
+document.addEventListener("click",e=>{
+  if(e.target.id!=="shareReport")return;
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){toast("还没有成绩数据");return}
+  const url=location.origin+"/?exam="+cur.id;
+  (navigator.clipboard?.writeText(url)||Promise.reject()).then(()=>toast("分享链接已复制")).catch(()=>{
+    prompt("复制此链接分享：",url);
+  });
 });
 
 // 教研报告 HTML 导出
@@ -2699,6 +2714,36 @@ document.addEventListener("click",e=>{
       }).catch(()=>{done++;fail++;if(done===ids.length)toast("成功 "+(ids.length-fail)+"，失败 "+fail)});
     });
     return;
+  }
+});
+// 文件拖拽排序
+let __dragFile=null;
+document.addEventListener("dragstart",e=>{
+  const row=e.target.closest("tr[data-fid]");
+  if(row){__dragFile=row.dataset.fid;row.style.opacity="0.5"}
+});
+document.addEventListener("dragend",e=>{
+  const row=e.target.closest("tr[data-fid]");
+  if(row){row.style.opacity="1"}
+  __dragFile=null;
+});
+document.addEventListener("dragover",e=>{
+  if(__dragFile)e.preventDefault();
+});
+document.addEventListener("drop",e=>{
+  if(!__dragFile)return;
+  e.preventDefault();
+  const target=e.target.closest("tr[data-fid]");
+  if(target&&target.dataset.fid!==__dragFile){
+    // 交换 localStorage 顺序
+    try{
+      let order=JSON.parse(localStorage.getItem("th_file_order")||"[]");
+      const from=order.indexOf(__dragFile),to=order.indexOf(target.dataset.fid);
+      if(from>=0&&to>=0){order.splice(from,1);order.splice(to,0,__dragFile)}
+      else{order=[__dragFile,target.dataset.fid]}
+      localStorage.setItem("th_file_order",JSON.stringify(order));
+    }catch(err){}
+    renderFiles();
   }
 });
 let __fileSort="time";
