@@ -231,6 +231,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <div class="mono" id="mcpUrl"></div>
         <label class="lb">存储占用</label>
         <div class="mono" id="diskInfo">加载中…</div>
+        <div id="storageBar" style="margin-top:8px"></div>
         <label class="lb">门户与管理入口</label>
         <div class="mono" id="portalUrl"></div>
       </div>
@@ -543,6 +544,31 @@ document.addEventListener("click",function(e){
     }).join("");
   });
 });
+function renderStorageBar(){
+  jget('/api/admin/stats').then(function(d){
+    var sz=d.disk_size||0;
+    var fc=d.file_count||0;
+    var ac=d.artifact_count||0;
+    var sc=d.score_count||0;
+    var total=sz||1;
+    var cats=[
+      ["数据",Math.min(sz,200000),"#4E9A63"],
+      ["文件",fc*50000,"#5B9BD5"],
+      ["实验",ac*35000,"#E5A93F"],
+      ["成绩",sc*2000,"#A78BFA"]
+    ];
+    var sum=cats.reduce(function(a,b){return a+b[1]},0)||1;
+    var html='<div style="display:flex;height:24px;border-radius:8px;overflow:hidden;margin-top:6px">';
+    cats.forEach(function(c){
+      var pct=Math.max(2,Math.round(c[1]/sum*100));
+      html+='<div style="width:'+pct+'%;background:'+c[2]+';display:flex;align-items:center;justify-content:center"><span style="font-size:9px;color:#fff;font-weight:600">'+c[0]+'</span></div>';
+    });
+    html+='</div>';
+    html+='<div style="font-size:11px;color:#7C8A7F;margin-top:4px">总占用 '+(sz>1048576?(sz/1048576).toFixed(1)+'MB':(sz/1024).toFixed(0)+'KB')+'</div>';
+    var el=document.getElementById('storageBar');
+    if(el)el.innerHTML=html;
+  });
+}
 function renderSysStatus(){
   var start=Date.now();
   jget('/api/ping').then(function(d){
@@ -949,7 +975,7 @@ function renderLogs(){
 
 /* ===== 启动 ===== */
 function boot(){
-  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();renderFileMini();renderSysStatus();
+  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();renderFileMini();renderSysStatus();renderStorageBar();
 }
 </script>
 </body>

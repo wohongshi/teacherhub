@@ -591,6 +591,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <button class="chip" id="sortNew">最新</button>
           <button class="chip" id="sortHot">最热</button>
           <button class="chip" id="sortRate">⭐ 评分</button>
+          <button class="chip" id="favFilter">⭐ 只看收藏</button>
         </div>
       </div>
       <div class="card" id="paramGuide" style="margin-bottom:20px">
@@ -882,6 +883,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <thead><tr></tr></thead>
           <tbody></tbody>
         </table></div>
+      </div>
+      <div class="card section" id="qTrendCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">单题得分率趋势</div><div class="card-sub">每道题在多场考试中的得分率变化折线</div></div></div>
+        <div id="qTrendChart" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
       </div>
       <div class="card section" id="heatCard" style="display:none">
         <div class="card-head"><div><div class="card-title">得分率热力图</div><div class="card-sub">多场考试 × 多题得分率矩阵 · 颜色越红失分越重</div></div></div>
@@ -1336,6 +1341,7 @@ function renderWbs(){
     list=WBS.filter(w=>!w.hidden&&levenshtein(q.slice(0,6),w.title.toLowerCase().slice(0,Math.max(6,q.length)))<=Math.max(2,Math.floor(q.length/2)));
   }
   const favsSet=new Set(safeLS("th_favs","[]"));
+  if(__favOnly)list=list.filter(w=>favsSet.has(w.id));
   list.sort((a,b)=>{
     const fa=favsSet.has(a.id)?1:0,fb=favsSet.has(b.id)?1:0;
     if(fa!==fb)return fb-fa;
@@ -1401,6 +1407,12 @@ document.addEventListener("click",e=>{
 $("#sortNew").addEventListener("click",()=>{labSort="new";$("#sortNew").classList.add("on");$("#sortHot").classList.remove("on");renderWbs()});
 $("#sortHot").addEventListener("click",()=>{labSort="hot";$("#sortHot").classList.add("on");$("#sortNew").classList.remove("on");$("#sortRate").classList.remove("on");renderWbs()});
 $("#sortRate").addEventListener("click",()=>{labSort="rate";$("#sortRate").classList.add("on");$("#sortNew").classList.remove("on");$("#sortHot").classList.remove("on");renderWbs()});
+let __favOnly=false;
+$("#favFilter").addEventListener("click",()=>{
+  __favOnly=!__favOnly;
+  $("#favFilter").classList.toggle("on",__favOnly);
+  renderWbs();
+});
 
 function renderLabChips(){
   const tags=[...new Set(WBS.flatMap(w=>w.tags||[]))];
@@ -1916,6 +1928,48 @@ function renderRateTrend(){
   $("#rateTrendChart").innerHTML=svg;
 }
 
+// 单题得分率趋势图（每题多场变化）
+function renderQTrend(){
+  if(SCORES.length<2){$("#qTrendCard").style.display="none";return}
+  const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
+  Promise.all(sorted.map(e=>jget("/api/scores/"+e.id))).then(all=>{
+    const qSet=new Set();
+    all.forEach(d=>(d.questions||[]).forEach(q=>qSet.add(q.name)));
+    const qNames=[...qSet].sort((a,b)=>{const na=parseInt(a),nb=parseInt(b);return isNaN(na)||isNaN(nb)?a.localeCompare(b):na-nb}).slice(0,15);
+    if(qNames.length<2||sorted.length<2){$("#qTrendCard").style.display="none";return}
+    $("#qTrendCard").style.display="block";
+    const W=560,H=300,padL=50,padR=20,padT=30,padB=50;
+    const n=sorted.length;
+    const colors=["#4E9A63","#E5A93F","#5B9BD5","#C2453F","#8B5CF6","#F472B6","#14B8A6","#F97316","#84CC16","#EC4899","#6366F1","#14B8A6","#F59E0B","#EF4444","#8B5CF6"];
+    const x=i=>padL+i/Math.max(1,n-1)*(W-padL-padR);
+    const y=v=>padT+(1-v/100)*(H-padT-padB);
+    let svg=`<svg viewBox="0 0 ${W} ${H+20}" style="width:100%;min-width:${Math.max(W,n*80)}px;height:${H+20}px">`;
+    for(let v=0;v<=100;v+=25){
+      svg+=`<line x1="${padL}" y1="${y(v)}" x2="${W-padR}" y2="${y(v)}" stroke="var(--green-100)" stroke-width="0.8"/>`;
+      svg+=`<text x="${padL-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--ink-400)">${v}%</text>`;
+    }
+    sorted.forEach((e,i)=>{
+      svg+=`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${esc(e.name.slice(0,6))}</text>`;
+    });
+    qNames.forEach((qn,qi)=>{
+      const rates=[];
+      all.forEach(d=>{
+        const q=(d.questions||[]).find(q=>q.name===qn);
+        rates.push(q?q.rate:null);
+      });
+      const pts=[];
+      rates.forEach((r,i)=>{if(r!==null)pts.push([x(i),y(r)])});
+      if(pts.length<2)return;
+      const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+      svg+=`<path d="${path}" fill="none" stroke="${colors[qi%colors.length]}" stroke-width="2"/>`;
+      pts.forEach(p=>{svg+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${colors[qi%colors.length]}"/>`});
+      svg+=`<text x="${(pts[pts.length-1][0]+6).toFixed(1)}" y="${(pts[pts.length-1][1]+4).toFixed(1)}" font-size="9" fill="${colors[qi%colors.length]}">第${qn}题</text>`;
+    });
+    svg+='</svg>';
+    $("#qTrendChart").innerHTML=svg;
+  });
+}
+
 // 得分率热力图（多场 × 多题矩阵）
 function renderHeat(){
   if(SCORES.length<2){$("#heatCard").style.display="none";return}
@@ -2213,6 +2267,7 @@ function renderScore(){
   renderRadar();
   renderHeat();
   renderQCmp();
+  renderQTrend();
   renderRateTrend();
   renderSegStack();
   renderTarget();
