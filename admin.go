@@ -79,7 +79,7 @@ input.f,textarea.f,select.f{background:#222D25;border-color:var(--line);color:va
 .side-brand b{font-size:14px;color:var(--ink-900)}
 .side-brand small{display:block;font-size:10.5px;color:var(--ink-300)}
 .side-nav{padding:0 10px;flex:1}
-.side-item{display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;border-radius:10px;color:#5C6A5F;font-size:13px;cursor:pointer;user-select:none;margin-bottom:2px}
+.side-item{display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;border-radius:10px;color:var(--ink-700);font-size:13px;cursor:pointer;user-select:none;margin-bottom:2px;transition:background .15s,color .15s}
 .side-item:hover{background:#F4F7F3}
 .side-item.on{background:var(--green-100);color:var(--green-900);font-weight:600}
 .side-item .ic{width:18px;text-align:center;font-size:14px}
@@ -92,14 +92,17 @@ input.f,textarea.f,select.f{background:#222D25;border-color:var(--line);color:va
 @keyframes vIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 h2.title{font-size:19px;color:var(--ink-900);margin-bottom:4px}
 p.sub{font-size:12px;color:var(--ink-500);margin-bottom:18px}
-.card{background:var(--surface);border:1px solid var(--line2);border-radius:16px;padding:20px 22px;box-shadow:0 1px 2px rgba(31,42,34,.04),0 4px 12px rgba(31,42,34,.03);margin-bottom:18px}
+.card{background:var(--surface);border:1px solid var(--line2);border-radius:16px;padding:20px 22px;box-shadow:0 1px 2px rgba(31,42,34,.04),0 4px 12px rgba(31,42,34,.03);margin-bottom:18px;transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 16px rgba(31,42,34,.06)}
 .card h3{font-size:14px;color:var(--ink-900);margin-bottom:12px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .stat{background:var(--green-50);border:1px solid var(--green-100);border-radius:13px;padding:16px 18px}
 .stat .l{font-size:11.5px;color:var(--ink-500)}
 .stat .n{font-size:23px;font-weight:700;color:var(--ink-900);margin-top:3px}
 .quick{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
-.btn{height:40px;padding:0 18px;border-radius:11px;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.btn{height:40px;padding:0 18px;border-radius:11px;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
 .btn.primary{background:var(--green-700);color:#fff}
 .btn.primary:hover{background:var(--green-900)}
 .btn.line{background:#fff;border:1px solid var(--line);color:var(--ink-700)}
