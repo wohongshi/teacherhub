@@ -27,7 +27,9 @@ a{color:var(--green-900);text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
 /* ===== 布局：侧边栏 + 主区 ===== */
 .layout{display:flex;min-height:100vh}
-.sidebar{width:224px;flex:none;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:20px 0 16px}
+.sidebar{width:224px;flex:none;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:20px 0 16px;transition:width .22s,padding .22s}
+@media(min-width:769px){body.side-collapsed .sidebar{width:0;padding:0;overflow:hidden;border-right:none}}
+@media(max-width:768px){#sideToggle{display:none}}
 .brand{display:flex;align-items:center;gap:10px;padding:0 18px 12px}
 .brand-logo{width:38px;height:38px;border-radius:11px;background:var(--green-100);display:flex;align-items:center;justify-content:center;flex:none}
 .brand-name{font-size:15px;font-weight:700;color:var(--ink-900);letter-spacing:.3px}
@@ -456,6 +458,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
     <header class="topbar">
       <div style="display:flex;align-items:center;gap:10px">
         <button class="menu-btn" id="menuBtn" aria-label="菜单"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg></button>
+        <button id="sideToggle" aria-label="收起/展开侧边栏" style="width:36px;height:36px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-size:15px;flex:none;margin-right:10px">⫸</button>
         <div class="top-title"><span id="topTitle">总览</span><span class="term">2026—2027 学年 第一学期</span></div>
       </div>
       <div class="top-right">
@@ -1115,6 +1118,35 @@ function plantSVG(leafPairs,hasBud,h){
 
 /* ============ 视图切换 ============ */
 const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",res:"资源库",grow:"成长空间",board:"实验与安全",data:"数据看板",plan:"计划与制度",score:"成绩分析",about:"建设方案"};
+// 手机手势滑动切换视图
+(function(){
+  const ORDER=["overview","lab","kb","exam","res","grow","board","data","plan","score","about"];
+  let x0=0,y0=0,t0=0,ok=false;
+  document.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1)return;
+    if(e.target.closest("input,textarea,select,.tbl-wrap,#segTrendChart,#heatChart,#qTrendChart,#qCmpChart,#wbGrid,#elemGrid,#globalSearch"))return;
+    ok=true;x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();
+  },{passive:true});
+  document.addEventListener("touchend",e=>{
+    if(!ok)return;ok=false;
+    const dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;
+    if(Date.now()-t0>600||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx)*0.6)return;
+    const cur=document.querySelector(".view.on");
+    const id=cur?cur.id.replace("v-",""):"overview";
+    const i=ORDER.indexOf(id);if(i<0)return;
+    const j=dx<0?i+1:i-1;
+    if(j>=0&&j<ORDER.length)go(ORDER[j]);
+  },{passive:true});
+})();
+// 侧边栏折叠（桌面）
+(function(){
+  const btn=document.getElementById("sideToggle");
+  if(localStorage.getItem("th_side_collapsed")==="1")document.body.classList.add("side-collapsed");
+  if(btn)btn.addEventListener("click",()=>{
+    document.body.classList.toggle("side-collapsed");
+    localStorage.setItem("th_side_collapsed",document.body.classList.contains("side-collapsed")?"1":"0");
+  });
+})();
 function go(view){
   $$(".view").forEach(v=>v.classList.remove("on"));
   const el=$("#v-"+view); if(!el)return;
@@ -2573,7 +2605,11 @@ function renderSegTrend(){
       svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" font-size="9" fill="#A8B2A9" text-anchor="middle">${esc(exams[i].name.slice(0,6))}</text>`;
     });
     svg+=buckets.map((b,i)=>`<rect x="${W-130}" y="${14+i*18}" width="12" height="12" rx="3" fill="${b[3]}" opacity="0.7"/><text x="${W-113}" y="${24+i*18}" font-size="10" fill="#7C8A7F">${b[2]}</text>`).join("");
-    $("#segTrendChart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${svg}</svg>`;
+    const segLast=all.length-1,calcP=d=>{const sgs=d.segments||[];const t2=sgs.reduce((a,b)=>a+b.n,0)||1;return buckets.map(b2=>sgs.filter(s3=>s3.lo>=b2[0]&&s3.lo<b2[1]).reduce((a,b)=>a+b.n,0)/t2*100)};
+    const curP=calcP(all[segLast]),prevP=segLast>0?calcP(all[segLast-1]):null;
+    let mom="";
+    if(prevP)mom='<div style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:8px;font-size:11.5px;color:var(--ink-500)"><span style="font-weight:600;color:var(--ink-700)">较上场环比</span>'+buckets.map((b2,i)=>{const df=curP[i]-prevP[i];const ar=df>0.5?"▲":df<-0.5?"▼":"─";const good=i===0?df<0:df>0;const cl=Math.abs(df)<=0.5?"#7C8A7F":(good?"#2F6B45":"#C2453F");return `<span><b style="color:${b2[3]}">${b2[2]}</b> ${curP[i].toFixed(0)}% <span style="color:${cl};font-weight:600">${ar} ${Math.abs(df).toFixed(1)}pp</span></span>`}).join("")+"</div>";
+    $("#segTrendChart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">${svg}</svg>`+mom;
   });
 }
 
