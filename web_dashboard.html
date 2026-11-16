@@ -621,6 +621,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         </table></div>
       </div>
       <div class="wb-grid" id="wbGrid"></div>
+      <div class="card section" id="wbStatsCard" style="margin-top:18px">
+        <div class="card-head"><div><div class="card-title">实验使用统计</div><div class="card-sub">浏览 / 下载 / 评分汇总 · TOP 热度榜</div></div></div>
+        <div id="wbStatsChart"></div>
+      </div>
       <div class="empty-state" id="labEmpty" style="display:none">
         <div class="big">⚗️</div>
         <div style="font-size:13px">这次没搜到沉淀，换个关键词再反应一次：</div>
@@ -919,6 +923,14 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="card section" id="qRankCard" style="display:none">
         <div class="card-head"><div><div class="card-title">单题难度排名</div><div class="card-sub">各题按得分率从低到高排列（难→易）</div></div></div>
         <div id="qRankChart"></div>
+      </div>
+      <div class="card section" id="healthCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">成绩健康度</div><div class="card-sub">及格率 × 难度适中 × 分化控制 · 综合评分一眼看状态</div></div></div>
+        <div id="healthChart"></div>
+      </div>
+      <div class="card section" id="potentialCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">提分潜力测算</div><div class="card-sub">弱项提分空间排序 · 把弱题拉到 60% 能提多少分</div></div></div>
+        <div id="potentialChart"></div>
       </div>
       <div class="card section" id="qGoalCard" style="display:none">
         <div class="card-head"><div><div class="card-title">单题目标偏差</div><div class="card-sub">每题得分率与目标的差距 · 红=未达标</div></div></div>
@@ -1586,6 +1598,26 @@ function renderFileNotes(){
     sp.textContent=n?"📝 "+n:"📝 加备注";
   });
 }
+// ===== 实验使用统计 =====
+function renderWbStats(){
+  const el=$("#wbStatsChart");if(!el)return;
+  const ws=(window.__wbs||WBS||[]);
+  if(!ws.length){el.innerHTML='<div style="font-size:12px;color:var(--ink-400)">暂无实验数据</div>';return}
+  const views=ws.reduce((a,w)=>a+(Number(w.views)||0),0);
+  const dls=ws.reduce((a,w)=>a+(Number(w.downloads)||0),0);
+  const rated=ws.filter(w=>Number(w.rate_num)>0);
+  const avgRate=rated.length?(rated.reduce((a,w)=>a+(Number(w.rate)||0),0)/rated.length).toFixed(1):"—";
+  const top=ws.slice().sort((a,b)=>(Number(b.views)||0)-(Number(a.views)||0)).slice(0,8);
+  const maxV=Math.max(1,...top.map(w=>Number(w.views)||0));
+  let html=`<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"><div class="mini" style="flex:1;min-width:110px;text-align:center"><div class="n">${views}</div><div class="l">总浏览</div></div><div class="mini" style="flex:1;min-width:110px;text-align:center"><div class="n">${dls}</div><div class="l">总下载</div></div><div class="mini" style="flex:1;min-width:110px;text-align:center"><div class="n">${avgRate}</div><div class="l">均分</div></div></div>`;
+  html+='<table style="width:100%;font-size:12px;border-collapse:collapse">';
+  top.forEach((w,i)=>{
+    const v=Number(w.views)||0;
+    html+=`<tr><td style="padding:5px 6px;width:22px;color:var(--ink-400);font-weight:600">${i+1}</td><td style="padding:5px 6px">${esc(w.title||"")}</td><td style="padding:5px 6px"><div class="bar" style="height:8px"><i style="width:${(v/maxV*100).toFixed(0)}%;background:linear-gradient(90deg,#5B9BD5,#2D7D4F)"></i></div></td><td style="padding:5px 6px;width:70px;text-align:right;font-weight:600">👁 ${v}</td><td style="padding:5px 6px;width:70px;text-align:right;color:var(--ink-500)">⬇ ${Number(w.downloads)||0}</td></tr>`;
+  });
+  html+='</table>';
+  el.innerHTML=html;
+}
 // ===== 实验对比视图 =====
 const __cmpSet=new Set();
 function renderWbCompareBar(){
@@ -1646,7 +1678,7 @@ document.addEventListener("click",e=>{
 // 注入观察器
 (function(){
   const wg=$("#wbGrid");
-  if(wg){new MutationObserver(injectWbCmpBtns).observe(wg,{childList:true});injectWbCmpBtns()}
+  if(wg){new MutationObserver(()=>{injectWbCmpBtns();renderWbStats()}).observe(wg,{childList:true});injectWbCmpBtns();renderWbStats()}
   const ft=$("#fileTable")&&$("#fileTable").querySelector("tbody");
   if(ft){new MutationObserver(()=>{renderFileNotes();renderFileRatings()}).observe(ft,{childList:true});renderFileNotes();renderFileRatings()}
 })();
@@ -2488,6 +2520,93 @@ function renderDispTrend(){
   });
 }
 
+// 成绩健康度综合评分
+function renderHealth(){
+  const el=$("#healthCard");if(!el)return;
+  const list=(SCORES||[]).slice().sort((a,b)=>(a.at||0)-(b.at||0));
+  const cur=window.__scoreSel?list.find(e=>e.id===window.__scoreSel):list[list.length-1];
+  if(!cur||!cur.id){el.style.display="none";return}
+  el.style.display="block";
+  jget("/api/scores/"+cur.id).then(d=>{
+    const segs=d.segments||[];
+    const N=segs.reduce((a,b)=>a+b.n,0);
+    if(N<3){el.style.display="none";return}
+    const mean=Number(d.avg)||0;
+    let vs=0;
+    segs.forEach(sg=>{const m=(Number(sg.lo)+Number(sg.hi)+1)/2;vs+=sg.n*Math.pow(m-mean,2)});
+    const cv=mean>0?Math.sqrt(vs/N)/mean*100:0;
+    const pass=Number(d.pass_rate)||0;
+    const diff=mean/150;
+    const fPass=Math.min(100,pass*1.1);
+    const fDiff=Math.max(0,100-Math.abs(diff-0.65)*250);
+    const fCv=Math.max(0,100-cv*3);
+    const score=Math.round(fPass*0.4+fDiff*0.3+fCv*0.3);
+    const color=score>=75?"#2D7D4F":(score>=55?"#E5A93F":"#C2453F");
+    const W=340,H=170,cx=110,cy=85,R=58;
+    const circ=2*Math.PI*R;
+    let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+    svg+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--line)" stroke-width="12"/>`;
+    svg+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(circ*score/100).toFixed(1)} ${circ.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    svg+=`<text x="${cx}" y="${cy+2}" text-anchor="middle" font-size="30" fill="${color}" font-weight="700">${score}</text>`;
+    svg+=`<text x="${cx}" y="${cy+22}" text-anchor="middle" font-size="10" fill="var(--ink-500)">健康度</text>`;
+    const rows=[["及格率",fPass,pass.toFixed(1)+"%"],["难度适中",fDiff,diff.toFixed(2)],["分化控制",fCv,"CV "+cv.toFixed(1)+"%"]];
+    rows.forEach((r,i)=>{
+      const y=42+i*36;
+      svg+=`<text x="195" y="${y-4}" font-size="11" fill="var(--ink-600)">${r[0]}</text>`;
+      svg+=`<text x="330" y="${y-4}" font-size="10" fill="var(--ink-500)" text-anchor="end">${r[2]}</text>`;
+      svg+=`<rect x="195" y="${y}" width="135" height="8" rx="4" fill="var(--line)"/>`;
+      svg+=`<rect x="195" y="${y}" width="${(135*Math.min(100,r[1])/100).toFixed(1)}" height="8" rx="4" fill="${r[1]>=75?"#2D7D4F":(r[1]>=50?"#E5A93F":"#C2453F")}"/>`;
+    });
+    svg+='</svg>';
+    const idx=list.findIndex(e=>e.id===cur.id);
+    if(idx>0){
+      const prev=list[idx-1];
+      jget("/api/scores/"+prev.id).catch(()=>null).then(pd=>{
+        let extra="";
+        if(pd){
+          const psegs=pd.segments||[],pN=psegs.reduce((a,b)=>a+b.n,0);
+          const pmean=Number(pd.avg)||0;
+          let pvs=0;
+          psegs.forEach(sg=>{const m=(Number(sg.lo)+Number(sg.hi)+1)/2;pvs+=sg.n*Math.pow(m-pmean,2)});
+          const pcv=pmean>0?Math.sqrt(pvs/Math.max(1,pN))/pmean*100:0;
+          const pScore=Math.round(Math.min(100,(Number(pd.pass_rate)||0)*1.1)*0.4+Math.max(0,100-Math.abs(pmean/150-0.65)*250)*0.3+Math.max(0,100-pcv*3)*0.3);
+          const df=score-pScore;
+          const ar=df>0.5?"▲":df<-0.5?"▼":"─";
+          const cl=Math.abs(df)<=0.5?"#7C8A7F":(df>0?"#2F6B45":"#C2453F");
+          extra=`<span style="color:${cl};font-weight:600"> ${ar} ${Math.abs(df)} 分</span>（较上场）`;
+        }
+        $("#healthChart").innerHTML=svg+`<div style="font-size:12px;color:var(--ink-500);margin-top:4px">综合健康度 <b style="color:${color}">${score} 分</b>${extra}</div>`;
+      });
+    }else{
+      $("#healthChart").innerHTML=svg+`<div style="font-size:12px;color:var(--ink-500);margin-top:4px">综合健康度 <b style="color:${color}">${score} 分</b>（首场，无对比）</div>`;
+    }
+  });
+}
+
+// 提分潜力测算
+function renderPotential(){
+  const el=$("#potentialCard");if(!el)return;
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){el.style.display="none";return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const qs=d.questions||[];
+    const weak=qs.filter(q=>q.rate<60).map(q=>({name:q.name,gain:(60-q.rate)/100*(Number(q.max)||0),rate:q.rate}));
+    if(!weak.length){el.style.display="none";return}
+    el.style.display="block";
+    weak.sort((a,b)=>b.gain-a.gain);
+    const total=weak.reduce((a,b)=>a+b.gain,0);
+    let html=`<div style="font-size:12.5px;color:var(--ink-600);margin-bottom:10px">共 <b style="color:#C2453F">${weak.length}</b> 题得分率低于 60%，全部拉到 60% 预计总分 <b style="color:#2D7D4F">+${total.toFixed(1)} 分</b></div>`;
+    html+='<table style="width:100%;font-size:12px;border-collapse:collapse"><tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--line)">弱项题</th><th style="text-align:right;padding:6px;border-bottom:1px solid var(--line)">得分率</th><th style="text-align:right;padding:6px;border-bottom:1px solid var(--line)">可提分</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--line)">空间</th></tr>';
+    weak.slice(0,8).forEach(w=>{
+      const bar=Math.min(100,w.gain/Math.max(0.1,weak[0].gain)*100);
+      html+=`<tr><td style="padding:5px 6px">${esc(w.name)}</td><td style="padding:5px 6px;text-align:right;color:#C2453F;font-weight:600">${w.rate.toFixed(1)}%</td><td style="padding:5px 6px;text-align:right;font-weight:600">+${w.gain.toFixed(1)}</td><td style="padding:5px 6px"><div class="bar" style="height:6px"><i style="width:${bar.toFixed(0)}%;background:linear-gradient(90deg,#E5A93F,#2D7D4F)"></i></div></td></tr>`;
+    });
+    html+='</table>';
+    if(weak.length>8)html+=`<div style="margin-top:8px;font-size:11.5px;color:var(--ink-400)">另有 ${weak.length-8} 题未展示</div>`;
+    $("#potentialChart").innerHTML=html;
+  });
+}
+
 // 单题目标偏差表
 function renderQGoal(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
@@ -2896,6 +3015,8 @@ function renderScore(){
   renderQDist();
   renderQBox();
   renderQGoal();
+  renderHealth();
+  renderPotential();
   renderPct();
   renderQRank();
   renderRateTrend();
