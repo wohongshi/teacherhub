@@ -277,9 +277,11 @@ for e in d.get('exams',[]):
     assert 'scores' not in e, '原始分泄露!'" 2>/dev/null && ok "成绩列表不含原始分" || bad "成绩原始分泄露"
 # 2) 上传失败模式：缺 file 字段
 curl -s -X POST "$BASE/api/files" -F "teacher=t" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "上传缺 file 拒绝（400）" || bad "上传缺字段"
-# 3) 文件下载带 Accept-Encoding: gzip 不应被压缩
-curl -s -o /dev/null -D /tmp/th-dl-gz -H 'Accept-Encoding: gzip' "$BASE/api/files/$FX"
+# 3) 文件下载带 Accept-Encoding: gzip 不应被压缩（重传文件再断言，避免对已删 $FX 恒过）
+FXG=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=gzip-test.docx" -F "teacher=探针" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+curl -s -o /dev/null -D /tmp/th-dl-gz -H 'Accept-Encoding: gzip' "$BASE/api/files/$FXG"
 grep -qi 'content-encoding' /tmp/th-dl-gz && bad "文件下载被 gzip 误压" || ok "文件下载不压缩（gzip 排除正确）"
+[ -n "$FXG" ] && curl -s -X DELETE "$BASE/api/files/$FXG" -H "X-Access-Key: $KEY" -o /dev/null
 # 4) 文件名净化强断言（无 .. 无空名）
 curl -s "$BASE/api/files" | python3 -c "
 import json,sys
@@ -301,6 +303,10 @@ curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_c
 import json,sys
 d=json.load(sys.stdin)
 assert d['logs'][0]['op']=='key 轮换', d['logs'][:1]" 2>/dev/null && ok "新 key 生效且轮换留痕" || bad "新 key"
+# 6) 数据重置端点（401 / 执行 / 清空）
+curl -s -X POST "$BASE/api/admin/reset" -H 'Content-Type: application/json' --data-raw '{}' -o /dev/null -w '%{http_code}' | grep -q 401 && ok "数据重置无 key 拒绝（401）" || bad "重置鉴权"
+curl -s -X POST "$BASE/api/admin/reset" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and 'cleared' in d,d" 2>/dev/null && ok "数据重置执行（ok+cleared）" || bad "数据重置"
+curl -s "$BASE/api/scores" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('exams'),d" 2>/dev/null && curl -s "$BASE/api/files" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('files'),d" 2>/dev/null && ok "重置后成绩/文件清空" || bad "重置未清空"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

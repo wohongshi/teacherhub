@@ -1901,7 +1901,38 @@ self.addEventListener('fetch',function(e){
 			}
 			return nil
 		})
-		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily, "disk_size": dirSize, "file_count": fileCount, "artifact_count": artifactCount})
+		st.mu.Lock()
+		scCount := len(st.data.Scores)
+		st.mu.Unlock()
+		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily, "disk_size": dirSize, "file_count": fileCount, "artifact_count": artifactCount, "score_count": scCount})
+	})
+	// 数据重置：清成绩/留言/公告/文件（实验模块与课标认领保留）
+	mux.HandleFunc("/api/admin/reset", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, 405, map[string]any{"ok": false, "error": "仅支持 POST"})
+			return
+		}
+		got := r.Header.Get("X-Access-Key")
+		if got == "" {
+			got = r.URL.Query().Get("key")
+		}
+		if !st.keyMatches(got) {
+			writeJSON(w, 401, map[string]any{"ok": false, "error": "写操作需要统一访问 key"})
+			return
+		}
+		st.mu.Lock()
+		nS, nB, nF := len(st.data.Scores), len(st.data.Board), len(st.data.Files)
+		st.data.Scores = nil
+		st.data.Board = nil
+		st.data.Notice = ""
+		for _, f := range st.data.Files {
+			_ = os.Remove(filepath.Join(st.dir, "files", f.ID))
+		}
+		st.data.Files = nil
+		st.log("数据重置", fmt.Sprintf("成绩 %d 场 / 留言 %d 条 / 文件 %d 个已清空（实验与课标保留）", nS, nB, nF))
+		_ = st.save()
+		st.mu.Unlock()
+		writeJSON(w, 200, map[string]any{"ok": true, "cleared": map[string]int{"scores": nS, "board": nB, "files": nF}})
 	})
 
 	// 管理备份导出：zip（store.json + artifacts + files 全量）

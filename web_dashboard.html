@@ -1262,7 +1262,7 @@ $("#msearchInput").addEventListener("keydown",e=>{
   if(e.key==="Enter"){
     const q=e.target.value.trim();
     $("#msearch").classList.remove("on");
-    doSearch(q);
+    doSearch(q,1);
   }
 });
 document.addEventListener("click",e=>{
@@ -1298,7 +1298,7 @@ function saveSearchHistory(q){
     localStorage.setItem("th_search_hist",JSON.stringify(h));
   }catch(e){}
 }
-function doSearch(q){
+function doSearch(q,commit){
   window.__searchQ=(q||"").trim();
   const ql=(q||"").toLowerCase().trim();
   if(!ql){
@@ -1310,7 +1310,7 @@ function doSearch(q){
     }
     return
   }
-  saveSearchHistory(ql);
+  if(commit)saveSearchHistory(ql);
   const results=[];
   WBS.forEach(w=>{
     if(!w.hidden&&[w.title,w.desc,(w.tags||[]).join(" ")].join(" ").toLowerCase().includes(ql))
@@ -1369,7 +1369,7 @@ document.addEventListener("click",e=>{
   const histHit=e.target.closest("[data-q]");
   if(histHit&&histHit.classList.contains("msearch-hit")){
     const mi=$("#msearchInput");
-    if(mi){mi.value=histHit.dataset.q;doSearch(histHit.dataset.q)}
+    if(mi){mi.value=histHit.dataset.q;doSearch(histHit.dataset.q,1)}
     return;
   }
   const hit=e.target.closest(".msearch-hit");
@@ -1380,7 +1380,7 @@ document.addEventListener("click",e=>{
 });
 $("#globalSearch").addEventListener("keydown",e=>{
   if(e.key==="Enter"){
-    doSearch(e.target.value.trim());
+    doSearch(e.target.value.trim(),1);
     const ms=$("#msearch");if(ms)ms.classList.add("open");
     setTimeout(()=>{const mi=$("#msearchInput");if(mi){mi.value=e.target.value;doSearch(e.target.value)}},50);
   }
@@ -1716,8 +1716,8 @@ document.addEventListener("click",e=>{
   if(!cd||!isFinite(v)||v<0||v>150){out.textContent="输入 0-150 的分数";return}
   let pct=0;
   const pts=cd.pts;
-  if(v>=150)pct=0;
-  else if(v<=0)pct=100;
+  if(v>=150)pct=100;
+  else if(v<=0)pct=0;
   else{
     const i=Math.floor(v/5);
     const a=pts[Math.min(i,pts.length-1)],b2=pts[Math.min(i+1,pts.length-1)];
@@ -1860,9 +1860,8 @@ function previewFile(id,name){
           .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
           .replace(/`([^`]+)`/g,"<code style='background:var(--green-50);padding:2px 6px;border-radius:4px;font-size:12px'>$1</code>")
           .replace(/^[-*] (.+)$/gm,"<li style='margin:4px 0 4px 20px'>$1</li>")
-          .replace(/^\|(.+)\|$/gm,function(m,inner){return '<tr>'+inner.split('|').map(function(c){return '<td style="padding:4px 8px;border:1px solid var(--line)">'+c.trim()+'</td>'}).join('')+'</tr>'})
-          .replace(/(<tr>[\s\S]*?<\/tr>)(?:\s*<tr>)/g,'<table style="border-collapse:collapse;margin:8px 0">$1')
-          .replace(/(<\/tr>)\s*(?!<tr>)/g,'$1</table>')
+          .replace(/^\|(.+)\|$/gm,function(m,inner){if(/^[-: |]+$/.test(inner))return "";return '<tr>'+inner.split('|').map(function(c){return '<td style="padding:4px 8px;border:1px solid var(--line)">'+c.trim()+'</td>'}).join('')+'</tr>'})
+          .replace(/((?:<tr>[\s\S]*?<\/tr>\s*)+)/g,'<table style="border-collapse:collapse;margin:8px 0">$1</table>')
           .replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid var(--green-400);padding:4px 12px;margin:8px 0;color:var(--ink-500)'>$1</blockquote>")
           .replace(/^---$/gm,"<hr style='border:none;border-top:1px solid var(--line);margin:12px 0'/>")
           .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
@@ -1888,9 +1887,16 @@ function renderFiles(){
   $("#fileCount").textContent=FILES.length?`共 ${FILES.length} 个文件`:"";
   const tb=$("#fileTable").querySelector("tbody");
   $("#fileEmpty").style.display=list.length?"none":"block";
-  tb.innerHTML=list.map(x=>`<tr>
+  try{
+    const ord=JSON.parse(localStorage.getItem("th_file_order")||"[]");
+    if(ord.length){
+      const oi=id=>{const i=ord.indexOf(id);return i<0?9999:i};
+      list=[...list].sort((a,b)=>oi(a.id)-oi(b.id));
+    }
+  }catch(e){}
+  tb.innerHTML=list.map(x=>`<tr data-fid="${esc(x.id)}" draggable="true">
     <td><input type="checkbox" class="file-check" data-id="${esc(x.id)}"/></td>
-    <td><span style="cursor:grab;opacity:.4;margin-right:4px">⋮⋮</span><a href="/api/files/${encodeURIComponent(x.id)}" style="font-weight:600">${esc(x.name).replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"),"<mark style=\"background:var(--green-100);color:var(--green-900);padding:1px 3px;border-radius:3px\">$1</mark>")}</a></td>
+    <td><span style="cursor:grab;opacity:.4;margin-right:4px">⋮⋮</span><a href="/api/files/${encodeURIComponent(x.id)}" style="font-weight:600">${q?esc(x.name).replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"),"<mark style=\"background:var(--green-100);color:var(--green-900);padding:1px 3px;border-radius:3px\">$1</mark>"):esc(x.name)}</a></td>
     <td class="file-size">${fmtSize(x.size||0)}</td>
     <td>${esc(x.teacher||"匿名")}</td>
     <td class="file-size">${fmtTs(x.at)}</td>
@@ -2016,7 +2022,7 @@ document.addEventListener("click",e=>{
   if(e.target.id!=="exportHtml")return;
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){toast("还没有成绩数据");return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const segs=d.segments||[];
     const qs=d.questions||[];
     const total=segs.reduce((a,b)=>a+b.n,0)||1;
@@ -2068,7 +2074,7 @@ ${exams.length>=2?`历次考试 ${exams.length} 场，趋势${exams[exams.length
 三、平台使用
 实验模块 ${wbs.length} 个在线
 资源文件 ${files.length} 个共享
-${(kb_claims&&Object.keys(kb_claims).length)?`课标认领 ${Object.keys(kb_claims).length} 个模块`:"课标认领待推进"}
+${(typeof KB_CLAIMS!=="undefined"&&Object.keys(KB_CLAIMS).length)?`课标认领 ${Object.keys(KB_CLAIMS).length} 个模块`:"课标认领待推进"}
 
 ——化学学科园地自动生成`;
   const blob=new Blob([report],{type:"text/markdown;charset=utf-8"});
@@ -2081,7 +2087,7 @@ document.addEventListener("click",e=>{
   if(e.target.id!=="exportExcel")return;
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){toast("还没有成绩数据");return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const segs=d.segments||[];
     const qs=d.questions||[];
     let html=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>`;
@@ -2109,7 +2115,7 @@ document.addEventListener("click",e=>{
   if(e.target.id==="genReport"){
     const cur=SCORES[SCORES.length-1];
     if(!cur){toast("还没有考试数据");return}
-    jget("/api/scores/"+cur.id).then(d=>{
+    jgetExam(cur.id).then(d=>{
       const segs=d.segments||[];
       const qs=d.questions||[];
       const total=segs.reduce((a,b)=>a+b.n,0)||1;
@@ -2182,7 +2188,7 @@ ${trendText}${qAdvice}
 function renderQCmp(){
   if(SCORES.length<2){$("#qCmpCard").style.display="none";return}
   const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
-  Promise.all(sorted.map(e=>jget("/api/scores/"+e.id))).then(all=>{
+  Promise.all(sorted.map(e=>jgetExam(e.id))).then(all=>{
     const qSet=new Set();
     all.forEach(d=>(d.questions||[]).forEach(q=>qSet.add(q.name)));
     const qNames=[...qSet].sort((a,b)=>{
@@ -2270,14 +2276,10 @@ function renderFilePie(){
 }
 
 // 考试对比增强：分数段对比 + 最大进退步
-function renderCmpEnhance(){
-  const cmpA=$("#cmpA"),cmpB=$("#cmpB");
-  if(!cmpA||!cmpB||SCORES.length<2)return;
-  const aId=cmpA.value,bId=cmpB.value;
-  if(!aId||!bId)return;
-  Promise.all([jget("/api/scores/"+aId),jget("/api/scores/"+bId)]).then(([dA,dB])=>{
-    const box=$("#cmpResult");
-    if(!box)return;
+function renderCmpEnhance(dA,dB){
+  if(!dA||!dB)return;
+  const box=$("#cmpResult");
+  if(!box)return;
     // 分数段对比
     const segsA=dA.segments||[],segsB=dB.segments||[];
     const labels=["不及格","及格","中等","良好","优秀"];
@@ -2303,17 +2305,16 @@ function renderCmpEnhance(){
     diffs.sort((a,b)=>b.diff-a.diff);
     const best=diffs[0],worst=diffs[diffs.length-1];
     let tipHtml="";
-    if(best&&best.diff>0)tipHtml+=`<div style="font-size:12px;color:#4E9A63;margin-top:8px">📈 最大进步：第${best.qn}题（+${best.diff}%）</div>`;
-    if(worst&&worst.diff<0)tipHtml+=`<div style="font-size:12px;color:#C2453F;margin-top:4px">📉 最大退步：第${worst.qn}题（${worst.diff}%）</div>`;
+    if(best&&best.diff>0)tipHtml+=`<div style="font-size:12px;color:#4E9A63;margin-top:8px">📈 最大进步：第${esc(String(best.qn))}题（+${best.diff}%）</div>`;
+    if(worst&&worst.diff<0)tipHtml+=`<div style="font-size:12px;color:#C2453F;margin-top:4px">📉 最大退步：第${esc(String(worst.qn))}题（${worst.diff}%）</div>`;
     box.innerHTML+=segHtml+tipHtml;
-  });
 }
 
 // 分数段堆叠柱状图（单场五档占比）
 function renderSegStack(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){$("#segStackCard").style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const segs=d.segments||[];
     const total=segs.reduce((a,b)=>a+b.n,0)||1;
     const colors=["#C2453F","#E5A93F","#5B9BD5","#4E9A63","#2D7D4F"];
@@ -2345,7 +2346,7 @@ function renderSegFlow(){
   const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
   const a=sorted[sorted.length-2],b=sorted[sorted.length-1];
   if(!a||!b){$("#segFlowCard").style.display="none";return}
-  Promise.all([jget("/api/scores/"+a.id),jget("/api/scores/"+b.id)]).then(([dA,dB])=>{
+  Promise.all([jgetExam(a.id),jgetExam(b.id)]).then(([dA,dB])=>{
     const segsA=dA.segments||[],segsB=dB.segments||[];
     const labels=["不及格","及格","中等","良好","优秀"];
     const colors=["#C2453F","#E5A93F","#5B9BD5","#4E9A63","#2D7D4F"];
@@ -2394,6 +2395,15 @@ function renderSegFlow(){
 }
 
 // 及格率/优秀率趋势图
+// 试卷详情 8 秒内共享缓存（切 tab 不再 4*N+12 扇出；失败回空骨架防 unhandled）
+const __examDCache={};
+function jgetExam(id){
+  const c=__examDCache[id];
+  if(c&&Date.now()-c.t<8000)return c.p;
+  const p=jget("/api/scores/"+id).catch(()=>({questions:[],segments:[],scores:[]}));
+  __examDCache[id]={t:Date.now(),p:p};
+  return p;
+}
 // ===== 成绩波动预警（多场均分环比）=====
 function renderVolWarn(){
   const el=document.querySelector("#volWarnCard");if(!el)return;
@@ -2570,7 +2580,7 @@ function renderRateTrend(){
 function renderQTrend(){
   if(SCORES.length<2){$("#qTrendCard").style.display="none";return}
   const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
-  Promise.all(sorted.map(e=>jget("/api/scores/"+e.id))).then(all=>{
+  Promise.all(sorted.map(e=>jgetExam(e.id))).then(all=>{
     const qSet=new Set();
     all.forEach(d=>(d.questions||[]).forEach(q=>qSet.add(q.name)));
     const qNames=[...qSet].sort((a,b)=>{const na=parseInt(a),nb=parseInt(b);return isNaN(na)||isNaN(nb)?a.localeCompare(b):na-nb}).slice(0,15);
@@ -2601,7 +2611,7 @@ function renderQTrend(){
       const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
       svg+=`<path d="${path}" fill="none" stroke="${colors[qi%colors.length]}" stroke-width="2"/>`;
       pts.forEach(p=>{svg+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${colors[qi%colors.length]}"/>`});
-      svg+=`<text x="${(pts[pts.length-1][0]+6).toFixed(1)}" y="${(pts[pts.length-1][1]+4).toFixed(1)}" font-size="9" fill="${colors[qi%colors.length]}">第${qn}题</text>`;
+      svg+=`<text x="${(pts[pts.length-1][0]+6).toFixed(1)}" y="${(pts[pts.length-1][1]+4).toFixed(1)}" font-size="9" fill="${colors[qi%colors.length]}">第${esc(qn)}题</text>`;
     });
     svg+='</svg>';
     $("#qTrendChart").innerHTML=svg;
@@ -2612,7 +2622,7 @@ function renderQTrend(){
 function renderQDist(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){$("#qDistCard").style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const qs=d.questions||[];
     if(qs.length<3){$("#qDistCard").style.display="none";return}
     $("#qDistCard").style.display="block";
@@ -2642,7 +2652,7 @@ function renderQDist(){
 function renderQBox(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){$("#qBoxCard").style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const qs=d.questions||[];
     if(qs.length<3){$("#qBoxCard").style.display="none";return}
     $("#qBoxCard").style.display="block";
@@ -2711,7 +2721,7 @@ function renderDispTrend(){
   if((SCORES||[]).length<2){el.style.display="none";return}
   el.style.display="block";
   const exams=SCORES.slice().sort((a,b)=>(a.at||0)-(b.at||0));
-  Promise.all(exams.map(e=>jget("/api/scores/"+e.id).catch(()=>null))).then(all=>{
+  Promise.all(exams.map(e=>jgetExam(e.id).catch(()=>null))).then(all=>{
     const pts=[];
     all.forEach((d,i)=>{
       if(!d)return;
@@ -2759,14 +2769,14 @@ function renderCum(){
   const el=$("#cumCard");if(!el)return;
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){el.style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const segs=d.segments||[];
     const N=segs.reduce((a,b)=>a+b.n,0);
-    if(N<5){el.style.display="none";return}
+    if(N<5){el.style.display="none";window.__cumData=null;return}
     el.style.display="block";
     const above=x=>segs.filter(sg=>Number(sg.lo)>x).reduce((a,b)=>a+b.n,0)+segs.filter(sg=>Number(sg.lo)<=x&&Number(sg.hi)>=x).reduce((a,b)=>a+b.n,0)*0.5;
     const pts=[];
-    for(let x=0;x<=150;x+=5)pts.push({x:x,p:above(x)/N*100});
+    for(let x=0;x<=150;x+=5)pts.push({x:x,p:100-above(x)/N*100});
     window.__cumData={pts:pts,N:N};
     const W=560,H=210,padL=55,padR=20,padT=20,padB=42;
     const x=v=>padL+(v/150)*(W-padL-padR);
@@ -2798,7 +2808,7 @@ function renderHealth(){
   const cur=window.__scoreSel?list.find(e=>e.id===window.__scoreSel):list[list.length-1];
   if(!cur||!cur.id){el.style.display="none";return}
   el.style.display="block";
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const segs=d.segments||[];
     const N=segs.reduce((a,b)=>a+b.n,0);
     if(N<3){el.style.display="none";return}
@@ -2859,7 +2869,7 @@ function renderPotential(){
   const el=$("#potentialCard");if(!el)return;
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){el.style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const qs=d.questions||[];
     const weak=qs.filter(q=>q.rate<60).map(q=>({name:q.name,gain:(60-q.rate)/100*(Number(q.max)||0),rate:q.rate}));
     if(!weak.length){el.style.display="none";return}
@@ -2882,7 +2892,7 @@ function renderPotential(){
 function renderQGoal(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){$("#qGoalCard").style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const qs=d.questions||[];
     if(!qs.length){$("#qGoalCard").style.display="none";return}
     $("#qGoalCard").style.display="block";
@@ -2907,7 +2917,7 @@ function renderQGoal(){
 function renderPct(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){$("#pctCard").style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const segs=d.segments||[];
     const total=segs.reduce((a,b)=>a+b.n,0);
     if(total<5){$("#pctCard").style.display="none";return}
@@ -2954,7 +2964,7 @@ function renderPct(){
 function renderQRank(){
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
   if(!cur||!cur.id){$("#qRankCard").style.display="none";return}
-  jget("/api/scores/"+cur.id).then(d=>{
+  jgetExam(cur.id).then(d=>{
     const qs=(d.questions||[]).slice().sort((a,b)=>a.rate-b.rate);
     if(qs.length<3){$("#qRankCard").style.display="none";return}
     $("#qRankCard").style.display="block";
@@ -2965,7 +2975,7 @@ function renderQRank(){
       const ci=Math.min(4,Math.floor(pct/20));
       const label=pct<20?"很难":pct<40?"较难":pct<60?"中等":pct<80?"较易":"容易";
       html+=`<div style="display:flex;align-items:center;gap:12px">
-        <div style="width:50px;font-size:12px;font-weight:600;color:var(--ink-700);text-align:right">第${q.name}题</div>
+        <div style="width:50px;font-size:12px;font-weight:600;color:var(--ink-700);text-align:right">第${esc(q.name)}题</div>
         <div style="flex:1;height:20px;background:var(--green-50);border-radius:10px;overflow:hidden;position:relative">
           <div style="width:${pct}%;height:100%;background:${colors[ci]};border-radius:10px;transition:width .5s"></div>
           <div style="position:absolute;right:8px;top:2px;font-size:10px;color:var(--ink-500)">${pct}%</div>
@@ -2982,7 +2992,7 @@ function renderQRank(){
 function renderHeat(){
   if(SCORES.length<2){$("#heatCard").style.display="none";return}
   const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
-  Promise.all(sorted.map(e=>jget("/api/scores/"+e.id))).then(all=>{
+  Promise.all(sorted.map(e=>jgetExam(e.id))).then(all=>{
     // 收集所有题号
     const qSet=new Set();
     all.forEach(d=>(d.questions||[]).forEach(q=>qSet.add(q.name)));
@@ -3034,7 +3044,7 @@ function renderRadar(){
   if(!cur||!cur.id){return}
   const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
   const prev=sorted.filter(e=>e.id!==cur.id&&e.at<(cur.at||0)).pop();
-  const fetches=[jget("/api/scores/"+cur.id)];
+  const fetches=[jgetExam(cur.id)];
   if(prev&&prev.id)fetches.push(jget("/api/scores/"+prev.id));
   Promise.all(fetches).then(results=>{
     const dCur=results[0],dPrev=results[1];
@@ -3088,7 +3098,7 @@ function renderSegTrend(){
   const exams=SCORES.slice().sort((a,b)=>(a.at||0)-(b.at||0));
   const buckets=[[0,60,'不及格','#C2453F'],[60,75,'及格','#E5A93F'],[75,90,'良好','#8FC79B'],[90,151,'优秀','#2F6B45']];
   const W=680,H=160,step=W/Math.max(1,exams.length);
-  const details=exams.map(e=>jget("/api/scores/"+e.id).catch(()=>({segments:[]})));
+  const details=exams.map(e=>jgetExam(e.id).catch(()=>({segments:[]})));
   Promise.all(details).then(all=>{
     let svg='';
     all.forEach((d,i)=>{
@@ -3120,11 +3130,10 @@ function initCompare(){
   const opts=SCORES.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join("");
   const selA=$("#cmpA"),selB=$("#cmpB");
   if(!selA.options.length){selA.innerHTML=opts;selB.innerHTML=opts;selB.selectedIndex=1}
-  document.addEventListener("click",e=>{if(e.target.id==="cmpGo")setTimeout(renderCmpEnhance,300)});
 $("#cmpGo").onclick=async()=>{
     const a=selA.value,b=selB.value;
     if(!a||!b||a===b){toast("选两场不同的考试");return}
-    const [da,db]=await Promise.all([jget("/api/scores/"+a),jget("/api/scores/"+b)]);
+    const [da,db]=await Promise.all([jgetExam(a),jgetExam(b)]);
     const dAvg=(db.avg-da.avg).toFixed(1);
     const dPass=(db.pass_rate-da.pass_rate).toFixed(1);
     const qa=(da.questions||[]),qb=(db.questions||[]);
@@ -3143,6 +3152,7 @@ $("#cmpGo").onclick=async()=>{
         ${qChanges.map(q=>`<tr><td><b>${esc(q.name)}</b></td><td>${q.oldRate}%</td><td>${q.newRate}%</td>
           <td><span class="tag ${q.delta>=0?'g':'r'}">${q.delta>=0?'+':''}${q.delta}%</span></td></tr>`).join("")}
       </tbody></table></div>`:'<div class="empty">两场考试都有逐题数据才能对比失分变化</div>'}`;
+    renderCmpEnhance(da,db);
   };
 }
 
@@ -3178,7 +3188,7 @@ function renderScore(){
   }
   // 分数段柱状图
   if(cur&&cur.id){
-    jget("/api/scores/"+cur.id).then(d=>{
+    jgetExam(cur.id).then(d=>{
       // 题目失分排行
       const qs=d.questions||[];
       if(qs.length){
@@ -3380,7 +3390,7 @@ document.addEventListener("click",e=>{
   if(e.target.id==="loadPresets"){
     const presets=safeLS("th_param_presets","[]");
     const favsL=safeLS("th_favs","[]");
-    const wbsL=(window.__wbs||[]);
+    const wbsL=(window.__wbs||WBS||[]);
     const favWbs=wbsL.filter(w=>favsL.includes(w.id));
     const favTags=safeLS("th_fav_tags","{}");
     if(!presets.length&&!favWbs.length){toast("还没有保存过预设或收藏");return}
@@ -3391,7 +3401,7 @@ document.addEventListener("click",e=>{
       tagGroups[tag].push(w);
     });
     const favs=safeLS("th_favs","[]");
-    const wbs=window.__wbs||[];
+    const wbs=window.__wbs||WBS||[];
     // 弹窗可点击列表
     const overlay=document.createElement("div");
     overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer";
@@ -3402,7 +3412,22 @@ document.addEventListener("click",e=>{
         <span style="font-size:15px">⚙️</span><span style="flex:1;font-weight:600">${p.name}</span>
         <span style="font-size:11px;color:var(--ink-400)">${new Date(p.at).toLocaleDateString()}</span>
       </div>`).join("")+
-      `<div style="margin-top:12px;font-size:11.5px;color:var(--ink-400)">点击预设名可跳到实验工作台</div>`;
+      (Object.keys(tagGroups).length?`<div style="font-size:15px;font-weight:700;margin:14px 0 8px">⭐ 我的收藏（${favWbs.length} 个）</div>`+
+        Object.keys(tagGroups).map(tag=>`<div style="margin-bottom:8px"><div style="font-size:11.5px;color:var(--ink-500);margin-bottom:4px">🏷️ ${esc(tag)}</div>`+
+          tagGroups[tag].map(w=>`<div class="preset-hit" data-name="${esc(w.title)}" style="padding:8px 10px;cursor:pointer;border-radius:10px;font-size:13px;display:flex;gap:8px;align-items:center" onmouseover="this.style.background='var(--green-50)'" onmouseout="this.style.background=''">
+            <span style="font-size:14px">⭐</span><span style="flex:1">${esc(w.title)}</span>
+            <input class="fav-tag-input" data-fid="${esc(w.id)}" value="${esc(favTags[w.id]&&favTags[w.id]!=="未分组"?favTags[w.id]:"")}" placeholder="标签" onclick="event.stopPropagation()" style="width:76px;font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px"/>
+          </div>`).join("")+`</div>`).join(""):"")+
+      `<div style="margin-top:12px;font-size:11.5px;color:var(--ink-400)">点击条目跳到实验工作台 · 标签输入后回车保存分组</div>`;
+    box.addEventListener("keydown",ev=>{
+      if(ev.key==="Enter"&&ev.target.classList&&ev.target.classList.contains("fav-tag-input")){
+        const t=safeLS("th_fav_tags","{}");
+        const v=ev.target.value.trim();
+        if(v)t[ev.target.dataset.fid]=v;else delete t[ev.target.dataset.fid];
+        try{localStorage.setItem("th_fav_tags",JSON.stringify(t))}catch(err){}
+        toast(v?("标签已设为「"+v+"」"):"已取消分组");
+      }
+    });
     overlay.appendChild(box);
     overlay.addEventListener("click",e=>{
       const hit=e.target.closest(".preset-hit");
@@ -3451,7 +3476,7 @@ document.addEventListener("click",e=>{
     ids.forEach(id=>{
       fetch("/api/files/"+encodeURIComponent(id),{method:"DELETE",headers:{"X-Access-Key":k}}).then(r=>r.json()).then(d=>{
         done++;if(!d.ok)fail++;
-        if(done===ids.length){toast(fail?"成功 "+(ids.length-fail)+"，失败 "+fail:"已删除 "+ids.length+" 个文件");renderFiles()}
+        if(done===ids.length){toast(fail?"成功 "+(ids.length-fail)+"，失败 "+fail:"已删除 "+ids.length+" 个文件");FILES=FILES.filter(f=>!ids.includes(f.id));renderFiles()}
       }).catch(()=>{done++;fail++;if(done===ids.length)toast("成功 "+(ids.length-fail)+"，失败 "+fail)});
     });
     return;
@@ -3654,6 +3679,8 @@ function renderData(){
   }catch(e){}
   const h=location.hash.slice(1);
   if(h&&TITLES[h])go(h);
+  const examQ=new URLSearchParams(location.search).get("exam");
+  if(examQ){window.__scoreSel=examQ;go("score")}
 })();
 </script>
 </body>

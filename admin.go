@@ -397,7 +397,6 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <p style="font-size:12px;color:var(--ink-500);margin-bottom:10px">打包全部数据与产物文件（store.json + artifacts）。</p>
         <button class="btn primary" id="exportBtn2">📦 导出 zip</button>
         <button class="btn line" id="exportCsvBtn">📊 导出 CSV</button>
-        <button class="btn line" id="exportCsvBtn">📊 导出 CSV</button>
       </div>
     </section>
 
@@ -496,6 +495,7 @@ function renderFileMini(){
       if(!cats[k])return;
       var frac=cats[k]/files.length;
       var end=angle+frac*Math.PI*2;
+      if(frac>=0.999){svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+colors[k]+'" stroke="#fff" stroke-width="2"><title>'+k+': '+cats[k]+'个</title></circle>';angle=end;return;}
       var x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
       var x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
       var large=frac>0.5?1:0;
@@ -515,8 +515,6 @@ function renderFileMini(){
     svg+='</svg>';
     var el=document.getElementById('fileMiniChart');
     if(el)el.innerHTML=svg;
-    var el=document.getElementById('fileMiniChart');
-    if(el)el.innerHTML=html;
   });
 }
 document.addEventListener("click",function(e){
@@ -548,29 +546,17 @@ document.addEventListener("click",function(e){
   });
 });
 function renderStorageBar(){
-  jget('/api/admin/stats').then(function(d){
+  jget('/api/admin/ping').then(function(d){
     var sz=d.disk_size||0;
-    var fc=d.file_count||0;
-    var ac=d.artifact_count||0;
-    var sc=d.score_count||0;
-    var total=sz||1;
-    var cats=[
-      ["数据",Math.min(sz,200000),"#4E9A63"],
-      ["文件",fc*50000,"#5B9BD5"],
-      ["实验",ac*35000,"#E5A93F"],
-      ["成绩",sc*2000,"#A78BFA"]
-    ];
-    var sum=cats.reduce(function(a,b){return a+b[1]},0)||1;
-    var html='<div style="display:flex;height:24px;border-radius:8px;overflow:hidden;margin-top:6px">';
-    cats.forEach(function(c){
-      var pct=Math.max(2,Math.round(c[1]/sum*100));
-      html+='<div style="width:'+pct+'%;background:'+c[2]+';display:flex;align-items:center;justify-content:center"><span style="font-size:9px;color:#fff;font-weight:600">'+c[0]+'</span></div>';
+    var html='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">';
+    [["📁 文件",d.file_count||0,"#5B9BD5"],["🧪 实验",d.artifact_count||0,"#E5A93F"],["📊 成绩",d.score_count||0,"#A78BFA"]].forEach(function(it){
+      html+='<div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 14px;text-align:center"><div style="font-size:20px;font-weight:800;color:'+it[2]+'">'+it[1]+'</div><div style="font-size:11px;color:#94A3B8;margin-top:2px">'+it[0]+'</div></div>';
     });
     html+='</div>';
-    html+='<div style="font-size:11px;color:#7C8A7F;margin-top:4px">总占用 '+(sz>1048576?(sz/1048576).toFixed(1)+'MB':(sz/1024).toFixed(0)+'KB')+'</div>';
+    html+='<div style="font-size:11px;color:#7C8A7F;margin-top:6px">总占用 '+(sz>1048576?(sz/1048576).toFixed(1)+'MB':(sz/1024).toFixed(0)+'KB')+'</div>';
     var el=document.getElementById('storageBar');
     if(el)el.innerHTML=html;
-  });
+  }).catch(function(){});
 }
 document.addEventListener("click",function(e){
   if(e.target.id!=="resetBtn")return;
@@ -578,53 +564,36 @@ document.addEventListener("click",function(e){
   if(!confirm("再次确认：真的要清空所有数据？此操作不可恢复！"))return;
   var k=prompt("请输入管理 key 确认：");
   if(!k)return;
-  fetch("/api/notice",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":k},body:JSON.stringify({notice:""})}).then(function(r){return r.json()}).then(function(d){
-    if(d.ok){alert("数据已重置（成绩/留言/公告已清空）");location.reload()}
+  fetch("/api/admin/reset",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":k},body:"{}"}).then(function(r){return r.json()}).then(function(d){
+    if(d.ok){var c=d.cleared||{};alert("数据已重置：成绩 "+(c.scores||0)+" 场 / 留言 "+(c.board||0)+" 条 / 文件 "+(c.files||0)+" 个已清空（实验与课标保留）");location.reload()}
     else alert(d.error||"重置失败");
   }).catch(function(){alert("重置失败")});
 });
 document.addEventListener("click",function(e){
   if(e.target.id!=="exportCsvBtn")return;
+  function csvNum(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"'}
+  function csvStr(v){var t=String(v==null?"":v);if(/^[=+\-@]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'}
   fetch("/api/scores").then(function(r){return r.json()}).then(function(d){
     var exams=d.exams||[];
     if(!exams.length){alert("暂无成绩数据");return}
-    var csv="\ufeff考试名称,人数,均分,最高,最低,及格率,时间\n";
-    exams.forEach(function(x){
-      csv+='"'+x.name+'","'+x.count+'","'+x.avg+'","'+x.max+'","'+x.min+'","'+x.pass_rate+'%","'+fmtTs(x.at)+'"\n';
-    });
-    csv+="\n分数段,人数\n";
-    exams.forEach(function(x){
-      if(x.segments){
-        x.segments.forEach(function(sg){
-          if(sg.n>0)csv+='"'+x.name+' '+sg.lo+'-'+sg.hi+'分","'+sg.n+'"\n';
+    Promise.all(exams.map(function(x){return fetch("/api/scores/"+x.id).then(function(r){return r.json()}).catch(function(){return null})})).then(function(details){
+      var csv="\ufeff考试名称,人数,均分,最高,最低,及格率,时间\n";
+      exams.forEach(function(x){
+        csv+=csvStr(x.name)+","+csvNum(x.count)+","+csvNum(x.avg)+","+csvNum(x.max)+","+csvNum(x.min)+","+csvNum(x.pass_rate+"%")+","+csvStr(fmtTs(x.at))+"\n";
+      });
+      csv+="\n分数段,人数\n";
+      exams.forEach(function(x,i){
+        var segs=(details[i]&&details[i].segments)||[];
+        segs.forEach(function(sg){
+          if(sg.n>0)csv+=csvStr(x.name+" "+sg.lo+"-"+sg.hi+"分")+","+csvNum(sg.n)+"\n";
         });
-      }
+      });
+      var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+      var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="成绩汇总.csv";a.click();URL.revokeObjectURL(a.href);
     });
-    var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="成绩汇总.csv";a.click();URL.revokeObjectURL(a.href);
   });
 });
-document.addEventListener("click",function(e){
-  if(e.target.id!=="exportCsvBtn")return;
-  fetch("/api/scores").then(function(r){return r.json()}).then(function(d){
-    var exams=d.exams||[];
-    if(!exams.length){alert("暂无成绩数据");return}
-    var csv="\ufeff考试名称,人数,均分,最高,最低,及格率,时间\n";
-    exams.forEach(function(x){
-      csv+='"'+x.name+'","'+x.count+'","'+x.avg+'","'+x.max+'","'+x.min+'","'+x.pass_rate+'%","'+fmtTs(x.at)+'"\n';
-    });
-    csv+="\n分数段,人数\n";
-    exams.forEach(function(x){
-      if(x.segments){
-        x.segments.forEach(function(sg){
-          if(sg.n>0)csv+='"'+x.name+' '+sg.lo+'-'+sg.hi+'分","'+sg.n+'"\n';
-        });
-      }
-    });
-    var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="成绩汇总.csv";a.click();URL.revokeObjectURL(a.href);
-  });
-});
+
 function renderSysStatus(){
   var start=Date.now();
   jget('/api/ping').then(function(d){
@@ -637,7 +606,7 @@ function renderSysStatus(){
     var el=document.getElementById('sysApi');
     if(el)el.textContent='异常';
   });
-  jget('/api/admin/stats').then(function(d){
+  jget('/api/admin/ping').then(function(d){
     var sz=d.disk_size||0;
     var el=document.getElementById('sysStorage');
     if(el)el.textContent=sz>1048576?(sz/1048576).toFixed(1)+'MB':(sz/1024).toFixed(0)+'KB';

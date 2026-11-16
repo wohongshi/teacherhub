@@ -8,7 +8,7 @@
 <img src="https://img.shields.io/badge/Go-单二进制-00ADD8?logo=go&logoColor=white" alt="Go">
 <img src="https://img.shields.io/badge/依赖-纯标准库-41B883" alt="零依赖">
 <img src="https://img.shields.io/badge/MCP-17%20工具-8B5CF6" alt="MCP">
-<img src="https://img.shields.io/badge/探针-99%20断言-2E7D54" alt="tests">
+<img src="https://img.shields.io/badge/探针-107%20断言-2E7D54" alt="tests">
 <img src="https://img.shields.io/badge/账号-零账号-FFA500" alt="no-account">
 <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT">
 </p>
@@ -110,7 +110,7 @@ teacherhub/
 ├── main.go / cloud.go / admin.go / portal.go / mcp.go / ui.go / qr.go
 │        # 单二进制双角色：serve（云端）+ CLI（本地）；qr.go 为自写迷你 QR 编码器
 ├── web_dashboard.html          # 学科园地门户（11 视图 SPA，深色/移动端/元素主题）
-├── scripts/probe_teacherhub.sh # 全量探针（99 断言：鉴权/文件/成绩/gzip/备份/MCP）
+├── scripts/probe_teacherhub.sh # 全量探针（107 断言：鉴权/文件/成绩/gzip/备份/MCP/重置）
 ├── plugins/workbuddy/teacherhub/  # WorkBuddy 插件包（SKILL + 四平台 CLI + 实验模板）
 └── docs/shots/                 # README 截图素材
 ```
