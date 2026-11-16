@@ -1831,7 +1831,12 @@ function addNormalLines(segs,total){
   if(valid.length<2)return {sd:0};
   const mean=valid.reduce((a,b)=>a+b.m*b.n,0)/Math.max(1,total);
   const variance=valid.reduce((a,b)=>a+(b.m-mean)*(b.m-mean)*b.n,0)/Math.max(1,total);
-  return {sd:Math.sqrt(variance),mean:mean};
+  const sd=Math.sqrt(variance);
+  const m3=valid.reduce((a,b)=>a+Math.pow(b.m-mean,3)*b.n,0)/Math.max(1,total);
+  const m4=valid.reduce((a,b)=>a+Math.pow(b.m-mean,4)*b.n,0)/Math.max(1,total);
+  const skewness=sd>0?m3/Math.pow(sd,3):0;
+  const kurtosis=sd>0?m4/Math.pow(sd,4)-3:0;
+  return {sd:sd,mean:mean,skewness:skewness,kurtosis:kurtosis};
 }
 
 function renderFilePie(){
@@ -2384,6 +2389,9 @@ function renderScore(){
         bars+=`<text x="${xLo.toFixed(1)}" y="16" text-anchor="middle" font-size="8" fill="#E5A93F">-1σ</text>`;
         bars+=`<line x1="${xHi.toFixed(1)}" y1="18" x2="${xHi.toFixed(1)}" y2="${H-30}" stroke="#E5A93F" stroke-width="1" stroke-dasharray="4,3"/>`;
         bars+=`<text x="${xHi.toFixed(1)}" y="16" text-anchor="middle" font-size="8" fill="#E5A93F">+1σ</text>`;
+        const skewLabel=norm.skewness>0.5?"右偏":norm.skewness<-0.5?"左偏":"近似对称";
+        const kurtLabel=norm.kurtosis>1?"尖峰":norm.kurtosis<-1?"平峰":"近似正态";
+        bars+=`<text x="${W-8}" y="${H-4}" text-anchor="end" font-size="9" fill="var(--ink-400)">偏度${norm.skewness.toFixed(2)}(${skewLabel}) 峰度${norm.kurtosis.toFixed(2)}(${kurtLabel})</text>`;
       }
       // 平滑分布曲线（Catmull-Rom 转 Bezier）
       if(pts.length>=3){
