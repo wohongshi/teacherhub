@@ -590,6 +590,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div style="margin-left:auto;display:flex;gap:8px;flex:none">
           <button class="chip" id="sortNew">最新</button>
           <button class="chip" id="sortHot">最热</button>
+          <button class="chip" id="sortRate">⭐ 评分</button>
         </div>
       </div>
       <div class="card" id="paramGuide" style="margin-bottom:20px">
@@ -842,6 +843,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <button class="chip on" id="genReport">生成报告</button>
           <button class="chip" id="printScore" onclick="window.print()">🖨️ 打印</button>
           <button class="chip" id="exportExcel">📊 Excel</button>
+          <button class="chip" id="weeklyReport">📋 周报</button>
         </div>
         <div id="reportBody" class="report-body" style="font-size:13px;line-height:2;color:var(--ink-700);white-space:pre-wrap;border-radius:12px;padding:16px;display:none"></div>
         <div class="row" style="margin-top:10px">
@@ -1312,6 +1314,7 @@ function renderWbs(){
   list.sort((a,b)=>{
     const fa=favsSet.has(a.id)?1:0,fb=favsSet.has(b.id)?1:0;
     if(fa!==fb)return fb-fa;
+    if(labSort==="rate")return ((b.rate||0)*(b.rate_num||1))-((a.rate||0)*(a.rate_num||1));
     return labSort==="hot"?((b.views||0)-(a.views||0)):((Number(b.created_at)||0)-(Number(a.created_at)||0));
   });
   const grid=$("#wbGrid"),empty=$("#labEmpty");
@@ -1371,7 +1374,8 @@ document.addEventListener("click",e=>{
   }
 });
 $("#sortNew").addEventListener("click",()=>{labSort="new";$("#sortNew").classList.add("on");$("#sortHot").classList.remove("on");renderWbs()});
-$("#sortHot").addEventListener("click",()=>{labSort="hot";$("#sortHot").classList.add("on");$("#sortNew").classList.remove("on");renderWbs()});
+$("#sortHot").addEventListener("click",()=>{labSort="hot";$("#sortHot").classList.add("on");$("#sortNew").classList.remove("on");$("#sortRate").classList.remove("on");renderWbs()});
+$("#sortRate").addEventListener("click",()=>{labSort="rate";$("#sortRate").classList.add("on");$("#sortNew").classList.remove("on");$("#sortHot").classList.remove("on");renderWbs()});
 
 function renderLabChips(){
   const tags=[...new Set(WBS.flatMap(w=>w.tags||[]))];
@@ -1507,6 +1511,40 @@ function renderRes(){
 }
 
 /* —— 成长空间贡献榜 —— */
+// 一键教研周报
+document.addEventListener("click",e=>{
+  if(e.target.id!=="weeklyReport")return;
+  const wbs=WBS.filter(w=>!w.hidden);
+  const files=FILES||[];
+  const exams=SCORES||[];
+  const now=new Date();
+  const weekAgo=now-7*864e5;
+  const newWbs=wbs.filter(w=>(Number(w.created_at)||0)*1000>weekAgo);
+  const totalViews=wbs.reduce((a,b)=>a+(b.views||0),0);
+  const totalDl=wbs.reduce((a,b)=>a+(b.downloads||0),0);
+  const latestExam=exams.length?exams[exams.length-1]:null;
+  const report=`📋 化学教研组周报（${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}）
+
+一、本周动态
+${newWbs.length?`新上架实验模块 ${newWbs.length} 个：${newWbs.map(w=>w.title).join("、")}`:"本周无新实验上架"}
+共享文件 ${files.length} 个（累计下载 ${totalDl} 次）
+实验模块累计浏览 ${totalViews} 次
+
+二、教学数据
+${latestExam?`最新考试「${latestExam.name}」：${latestExam.count} 人参考，均分 ${latestExam.avg} 分，及格率 ${latestExam.pass_rate}%`:"暂无考试数据"}
+${exams.length>=2?`历次考试 ${exams.length} 场，趋势${exams[exams.length-1].avg>=exams[exams.length-2].avg?"向好":"需关注"}`:""}
+
+三、平台使用
+实验模块 ${wbs.length} 个在线
+资源文件 ${files.length} 个共享
+${(kb_claims&&Object.keys(kb_claims).length)?`课标认领 ${Object.keys(kb_claims).length} 个模块`:"课标认领待推进"}
+
+——化学学科园地自动生成`;
+  const blob=new Blob([report],{type:"text/markdown;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="教研周报.md";a.click();URL.revokeObjectURL(a.href);
+  toast("周报已下载");
+});
+
 // Excel 导出（HTML table .xls）
 document.addEventListener("click",e=>{
   if(e.target.id!=="exportExcel")return;
