@@ -870,6 +870,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <button class="chip" id="printScore" onclick="window.print()">🖨️ 打印</button>
           <button class="chip" id="exportExcel">📊 Excel</button>
           <button class="chip" id="weeklyReport">📋 周报</button>
+          <button class="chip" id="exportHtml">🌐 报告</button>
         </div>
         <div id="reportBody" class="report-body" style="font-size:13px;line-height:2;color:var(--ink-700);white-space:pre-wrap;border-radius:12px;padding:16px;display:none"></div>
         <div class="row" style="margin-top:10px">
@@ -887,6 +888,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="card section" id="qTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">单题得分率趋势</div><div class="card-sub">每道题在多场考试中的得分率变化折线</div></div></div>
         <div id="qTrendChart" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+      </div>
+      <div class="card section" id="qDistCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">单题难度分布</div><div class="card-sub">各题得分率区间分布直方图</div></div></div>
+        <div id="qDistChart"></div>
       </div>
       <div class="card section" id="heatCard" style="display:none">
         <div class="card-head"><div><div class="card-title">得分率热力图</div><div class="card-sub">多场考试 × 多题得分率矩阵 · 颜色越红失分越重</div></div></div>
@@ -1455,6 +1460,12 @@ function previewFile(id,name){
           .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
           .replace(/`([^`]+)`/g,"<code style='background:var(--green-50);padding:2px 6px;border-radius:4px;font-size:12px'>$1</code>")
           .replace(/^[-*] (.+)$/gm,"<li style='margin:4px 0 4px 20px'>$1</li>")
+          .replace(/^\|(.+)\|$/gm,function(m,inner){return '<tr>'+inner.split('|').map(function(c){return '<td style="padding:4px 8px;border:1px solid var(--line)">'+c.trim()+'</td>'}).join('')+'</tr>'})
+          .replace(/(<tr>[\s\S]*?<\/tr>)(?:\s*<tr>)/g,'<table style="border-collapse:collapse;margin:8px 0">$1')
+          .replace(/(<\/tr>)\s*(?!<tr>)/g,'$1</table>')
+          .replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid var(--green-400);padding:4px 12px;margin:8px 0;color:var(--ink-500)'>$1</blockquote>")
+          .replace(/^---$/gm,"<hr style='border:none;border-top:1px solid var(--line);margin:12px 0'/>")
+          .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
           .replace(/\n\n/g,"</p><p style='margin:8px 0'>")
           .replace(/\n/g,"<br/>");
         box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">📝 ${name}（Markdown 预览）</div><div style="font-size:13px;line-height:1.8;max-height:60vh;overflow:auto;padding:4px 0"><p style='margin:8px 0'>${html}</p></div>`;
@@ -1587,6 +1598,37 @@ document.addEventListener("click",e=>{
   localStorage.setItem("th_target",JSON.stringify(goals));
   renderTarget();
   toast("目标已更新");
+});
+
+// 教研报告 HTML 导出
+document.addEventListener("click",e=>{
+  if(e.target.id!=="exportHtml")return;
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){toast("还没有成绩数据");return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const segs=d.segments||[];
+    const qs=d.questions||[];
+    const total=segs.reduce((a,b)=>a+b.n,0)||1;
+    let html=`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>${cur.name} 教研报告</title><style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#1a1a1a}h1{color:#2D7D4F;border-bottom:2px solid #2D7D4F;padding-bottom:8px}h2{color:#2D7D4F;margin-top:28px}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}th{background:#E8F5E9}tr:nth-child(even){background:#f9f9f9}.bar{height:10px;background:#E6EDE5;border-radius:5px;overflow:hidden;margin:4px 0}.bar i{display:block;height:100%;background:#4E9A63;border-radius:5px}.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600}</style></head><body>`;
+    html+=`<h1>📊 ${cur.name} 教研报告</h1>`;
+    html+=`<p>生成时间：${new Date().toLocaleString("zh-CN")}</p>`;
+    html+=`<h2>一、总体情况</h2><table><tr><th>指标</th><th>数值</th></tr><tr><td>参考人数</td><td>${cur.count} 人</td></tr><tr><td>平均分</td><td>${cur.avg} 分</td></tr><tr><td>最高分</td><td>${cur.max} 分</td></tr><tr><td>最低分</td><td>${cur.min} 分</td></tr><tr><td>及格率</td><td>${cur.pass_rate}%</td></tr></table>`;
+    html+=`<h2>二、分数段分布</h2><table><tr><th>区间</th><th>人数</th><th>占比</th></tr>`;
+    segs.filter(x=>x.n>0).forEach(x=>{html+=`<tr><td>${x.lo}-${x.hi} 分</td><td>${x.n}</td><td>${(x.n/total*100).toFixed(1)}%</td></tr>`});
+    html+=`</table>`;
+    if(qs.length){
+      html+=`<h2>三、逐题分析</h2><table><tr><th>题号</th><th>满分</th><th>均分</th><th>得分率</th></tr>`;
+      qs.forEach(q=>{html+=`<tr><td>第${q.name}题</td><td>${q.max}</td><td>${q.avg}</td><td><span class="tag" style="background:${q.rate<50?"#FEE2E2":q.rate<70?"#FEF3C7":"#D1FAE5"};color:${q.rate<50?"#C2453F":q.rate<70?"#B45309":"#2D7D4F"}">${q.rate}%</span></td></tr>`});
+      html+=`</table>`;
+    }
+    html+=`<h2>四、教学建议</h2><ul>`;
+    html+=`<li>${cur.avg>=80?"整体水平良好，可适当拓展提高题训练。":cur.avg>=60?"整体中等，建议加强基础题型训练，关注不及格学生。":"基础薄弱，建议回归课本，强化核心概念与基本操作。"}</li>`;
+    if(qs.length){qs.slice(0,3).forEach(q=>{html+=`<li>第${q.name}题（得分率 ${q.rate}%）：${q.rate<30?"全班普遍失分，建议课堂重讲+专项练习":q.rate<50?"较多学生未掌握，建议增加例题讲解":q.rate<70?"部分学生薄弱，建议分层作业巩固":"整体尚可，注意个别后进生辅导"}</li>`})}
+    html+=`</ul><p style="color:#888;font-size:12px;margin-top:30px">——化学学科园地自动生成</p></body></html>`;
+    const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=cur.name+"_教研报告.html";a.click();URL.revokeObjectURL(a.href);
+    toast("教研报告已下载");
+  });
 });
 
 // 一键教研周报
@@ -1970,6 +2012,36 @@ function renderQTrend(){
   });
 }
 
+// 单题难度分布直方图
+function renderQDist(){
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){$("#qDistCard").style.display="none";return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const qs=d.questions||[];
+    if(qs.length<3){$("#qDistCard").style.display="none";return}
+    $("#qDistCard").style.display="block";
+    const ranges=[["0-20%",0,20],["20-40%",20,40],["40-60%",40,60],["60-80%",60,80],["80-100%",80,100.1]];
+    const counts=ranges.map(([label,lo,hi])=>qs.filter(q=>q.rate>=lo&&q.rate<hi).length);
+    const maxC=Math.max(1,...counts);
+    const colors=["#C2453F","#E5A93F","#5B9BD5","#4E9A63","#2D7D4F"];
+    const W=560,H=220,padL=50,padR=20,padT=20,padB=50;
+    const bw=(W-padL-padR)/ranges.length-12;
+    let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+    ranges.forEach(([label],i)=>{
+      const h=(H-padT-padB)*(counts[i]/maxC);
+      const x=padL+i*((W-padL-padR)/ranges.length)+6;
+      const y=H-padB-h;
+      svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,3).toFixed(1)}" rx="5" fill="${colors[i]}"><title>${label}: ${counts[i]} 题</title></rect>`;
+      if(counts[i]>0)svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--ink-700)" font-weight="600">${counts[i]}</text>`;
+      svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-30}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${label}</text>`;
+      svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-16}" text-anchor="middle" font-size="9" fill="var(--ink-400)">${(counts[i]/qs.length*100).toFixed(0)}%</text>`;
+    });
+    svg+=`<text x="${padL}" y="14" font-size="10" fill="var(--ink-400)">共 ${qs.length} 题</text>`;
+    svg+='</svg>';
+    $("#qDistChart").innerHTML=svg;
+  });
+}
+
 // 得分率热力图（多场 × 多题矩阵）
 function renderHeat(){
   if(SCORES.length<2){$("#heatCard").style.display="none";return}
@@ -2268,6 +2340,7 @@ function renderScore(){
   renderHeat();
   renderQCmp();
   renderQTrend();
+  renderQDist();
   renderRateTrend();
   renderSegStack();
   renderTarget();
