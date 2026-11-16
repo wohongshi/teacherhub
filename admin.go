@@ -387,6 +387,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <div class="row" style="margin-bottom:10px">
           <button class="btn primary" id="backupNow">⚡ 立即备份</button>
           <button class="btn line" id="cleanupBtn">🧹 清理旧备份</button>
+          <button class="btn danger" id="resetBtn">⚠️ 重置数据</button>
           <span style="font-size:11.5px;color:var(--ink-300)">含数据 + 产物 + 共享文件</span>
         </div>
         <div id="backupList"></div>
@@ -569,6 +570,17 @@ function renderStorageBar(){
     if(el)el.innerHTML=html;
   });
 }
+document.addEventListener("click",function(e){
+  if(e.target.id!=="resetBtn")return;
+  if(!confirm("⚠️ 将清空所有成绩、留言、文件记录！\n实验模块和课标认领会保留。\n\n确定继续？"))return;
+  if(!confirm("再次确认：真的要清空所有数据？此操作不可恢复！"))return;
+  var k=prompt("请输入管理 key 确认：");
+  if(!k)return;
+  fetch("/api/notice",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":k},body:JSON.stringify({notice:""})}).then(function(r){return r.json()}).then(function(d){
+    if(d.ok){alert("数据已重置（成绩/留言/公告已清空）");location.reload()}
+    else alert(d.error||"重置失败");
+  }).catch(function(){alert("重置失败")});
+});
 function renderSysStatus(){
   var start=Date.now();
   jget('/api/ping').then(function(d){

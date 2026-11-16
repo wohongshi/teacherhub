@@ -893,6 +893,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">单题难度分布</div><div class="card-sub">各题得分率区间分布直方图</div></div></div>
         <div id="qDistChart"></div>
       </div>
+      <div class="card section" id="qBoxCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">得分率箱线图</div><div class="card-sub">各题得分率分布统计（最小值/Q1/中位数/Q3/最大值）</div></div></div>
+        <div id="qBoxChart"></div>
+      </div>
       <div class="card section" id="heatCard" style="display:none">
         <div class="card-head"><div><div class="card-title">得分率热力图</div><div class="card-sub">多场考试 × 多题得分率矩阵 · 颜色越红失分越重</div></div></div>
         <div id="heatChart" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
@@ -1445,7 +1449,7 @@ function previewFile(id,name){
   const box=document.createElement("div");
   box.style.cssText="background:#fff;border-radius:16px;padding:20px;max-width:85vw;max-height:85vh;overflow:auto";
   if(isImg){
-    box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${esc(name)}</div><img src="/api/files/${encodeURIComponent(id)}?inline=1" style="max-width:100%;max-height:70vh;border-radius:8px"/>`;
+    box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${esc(name)}</div><img src="/api/files/${encodeURIComponent(id)}?inline=1" style="max-width:100%;max-height:70vh;border-radius:8px;cursor:zoom-in" onclick="this.style.cursor=this.style.cursor==='zoom-out'?'zoom-in':'zoom-out';this.style.maxWidth=this.style.maxWidth==='none'?'100%':'none';this.style.maxHeight=this.style.maxHeight==='none'?'120vh':'70vh'"/>`;
   }else{
     fetch("/api/files/"+encodeURIComponent(id)).then(r=>r.text()).then(t=>{
       const isMd=name.toLowerCase().endsWith(".md");
@@ -2042,6 +2046,42 @@ function renderQDist(){
   });
 }
 
+// 得分率箱线图
+function renderQBox(){
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur||!cur.id){$("#qBoxCard").style.display="none";return}
+  jget("/api/scores/"+cur.id).then(d=>{
+    const qs=d.questions||[];
+    if(qs.length<3){$("#qBoxCard").style.display="none";return}
+    $("#qBoxCard").style.display="block";
+    const rates=qs.map(q=>q.rate).sort((a,b)=>a-b);
+    const n=rates.length;
+    const min=rates[0],max=rates[n-1];
+    const q1=rates[Math.floor(n*0.25)];
+    const med=rates[Math.floor(n*0.5)];
+    const q3=rates[Math.floor(n*0.75)];
+    const mean=(rates.reduce((a,b)=>a+b,0)/n).toFixed(1);
+    const W=560,H=120,padL=60,padR=30;
+    const x=v=>padL+(v/100)*(W-padL-padR);
+    const cy=H/2;
+    let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+    svg+=`<line x1="${x(min).toFixed(1)}" y1="${cy}" x2="${x(max).toFixed(1)}" y2="${cy}" stroke="var(--ink-400)" stroke-width="1.5"/>`;
+    svg+=`<line x1="${x(min).toFixed(1)}" y1="${cy-12}" x2="${x(min).toFixed(1)}" y2="${cy+12}" stroke="var(--ink-500)" stroke-width="2"/>`;
+    svg+=`<line x1="${x(max).toFixed(1)}" y1="${cy-12}" x2="${x(max).toFixed(1)}" y2="${cy+12}" stroke="var(--ink-500)" stroke-width="2"/>`;
+    svg+=`<rect x="${x(q1).toFixed(1)}" y="${cy-20}" width="${(x(q3)-x(q1)).toFixed(1)}" height="40" rx="5" fill="rgba(78,154,99,0.2)" stroke="var(--green-500)" stroke-width="1.5"/>`;
+    svg+=`<line x1="${x(med).toFixed(1)}" y1="${cy-20}" x2="${x(med).toFixed(1)}" y2="${cy+20}" stroke="var(--green-700)" stroke-width="2.5"/>`;
+    svg+=`<circle cx="${x(Number(mean)).toFixed(1)}" cy="${cy}" r="4" fill="#E5A93F"/>`;
+    svg+=`<text x="${x(min).toFixed(1)}" y="${cy+35}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${min}%</text>`;
+    svg+=`<text x="${x(q1).toFixed(1)}" y="${cy-28}" text-anchor="middle" font-size="10" fill="var(--green-700)">Q1:${q1}%</text>`;
+    svg+=`<text x="${x(med).toFixed(1)}" y="${cy-28}" text-anchor="middle" font-size="10" fill="var(--green-900)" font-weight="600">中位${med}%</text>`;
+    svg+=`<text x="${x(q3).toFixed(1)}" y="${cy-28}" text-anchor="middle" font-size="10" fill="var(--green-700)">Q3:${q3}%</text>`;
+    svg+=`<text x="${x(max).toFixed(1)}" y="${cy+35}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${max}%</text>`;
+    svg+=`<circle cx="${x(Number(mean)).toFixed(1)}" cy="${cy}" r="4" fill="#E5A93F" opacity="0"/><text x="${x(Number(mean)).toFixed(1)}" y="${cy+50}" text-anchor="middle" font-size="10" fill="#E5A93F">均值${mean}%</text>`;
+    svg+='</svg>';
+    $("#qBoxChart").innerHTML=svg;
+  });
+}
+
 // 得分率热力图（多场 × 多题矩阵）
 function renderHeat(){
   if(SCORES.length<2){$("#heatCard").style.display="none";return}
@@ -2341,6 +2381,7 @@ function renderScore(){
   renderQCmp();
   renderQTrend();
   renderQDist();
+  renderQBox();
   renderRateTrend();
   renderSegStack();
   renderTarget();
