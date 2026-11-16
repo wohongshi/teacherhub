@@ -397,6 +397,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <p style="font-size:12px;color:var(--ink-500);margin-bottom:10px">打包全部数据与产物文件（store.json + artifacts）。</p>
         <button class="btn primary" id="exportBtn2">📦 导出 zip</button>
         <button class="btn line" id="exportCsvBtn">📊 导出 CSV</button>
+        <button class="btn line" id="exportCsvBtn">📊 导出 CSV</button>
       </div>
     </section>
 
@@ -581,6 +582,27 @@ document.addEventListener("click",function(e){
     if(d.ok){alert("数据已重置（成绩/留言/公告已清空）");location.reload()}
     else alert(d.error||"重置失败");
   }).catch(function(){alert("重置失败")});
+});
+document.addEventListener("click",function(e){
+  if(e.target.id!=="exportCsvBtn")return;
+  fetch("/api/scores").then(function(r){return r.json()}).then(function(d){
+    var exams=d.exams||[];
+    if(!exams.length){alert("暂无成绩数据");return}
+    var csv="\ufeff考试名称,人数,均分,最高,最低,及格率,时间\n";
+    exams.forEach(function(x){
+      csv+='"'+x.name+'","'+x.count+'","'+x.avg+'","'+x.max+'","'+x.min+'","'+x.pass_rate+'%","'+fmtTs(x.at)+'"\n';
+    });
+    csv+="\n分数段,人数\n";
+    exams.forEach(function(x){
+      if(x.segments){
+        x.segments.forEach(function(sg){
+          if(sg.n>0)csv+='"'+x.name+' '+sg.lo+'-'+sg.hi+'分","'+sg.n+'"\n';
+        });
+      }
+    });
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="成绩汇总.csv";a.click();URL.revokeObjectURL(a.href);
+  });
 });
 document.addEventListener("click",function(e){
   if(e.target.id!=="exportCsvBtn")return;

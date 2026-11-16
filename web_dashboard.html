@@ -2217,7 +2217,14 @@ function renderPct(){
     svg+=`<text x="${x(0)}" y="${cy+38}" text-anchor="middle" font-size="9" fill="var(--ink-400)">0</text>`;
     svg+=`<text x="${x(150)}" y="${cy+38}" text-anchor="middle" font-size="9" fill="var(--ink-400)">150</text>`;
     svg+='</svg>';
-    $("#pctChart").innerHTML=svg;
+    let table='<table style="width:100%;margin-top:12px;font-size:12px;border-collapse:collapse">';
+    table+='<tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--line)">分位数</th><th style="text-align:right;padding:6px;border-bottom:1px solid var(--line)">分数</th><th style="text-align:right;padding:6px;border-bottom:1px solid var(--line)">含义</th></tr>';
+    const meanings=["后10%上限","后25%上限","中位数","前25%下限","前10%下限"];
+    results.forEach((r,i)=>{
+      table+=`<tr><td style="padding:5px 6px;color:${colors[i]};font-weight:600">P${r.p}</td><td style="padding:5px 6px;text-align:right;font-weight:600">${r.val}</td><td style="padding:5px 6px;text-align:right;color:var(--ink-500)">${meanings[i]}</td></tr>`;
+    });
+    table+='</table>';
+    $("#pctChart").innerHTML=svg+table;
   });
 }
 
@@ -2613,7 +2620,10 @@ document.addEventListener("click",e=>{
   }
   if(e.target.id==="loadPresets"){
     const presets=safeLS("th_param_presets","[]");
-    if(!presets.length){toast("还没有保存过预设");return}
+    const favsL=safeLS("th_favs","[]");
+    const wbsL=(window.__wbs||[]);
+    const favWbs=wbsL.filter(w=>favsL.includes(w.id));
+    if(!presets.length&&!favWbs.length){toast("还没有保存过预设或收藏");return}
     const favs=safeLS("th_favs","[]");
     const wbs=window.__wbs||[];
     // 弹窗可点击列表
