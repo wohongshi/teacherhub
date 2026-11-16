@@ -725,8 +725,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
             <div class="lab-search" style="width:180px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="fileQ" placeholder="搜文件名…"></div>
           </div>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+          <button class="btn-line" id="batchDelFiles" style="height:32px;font-size:12px">🗑️ 批量删除选中</button>
+          <span style="font-size:11px;color:var(--ink-400)">勾选后一键删除多个文件</span>
+        </div>
         <div class="tbl-wrap"><table class="tbl" id="fileTable">
-          <thead><tr><th>文件名</th><th>大小</th><th>上传人</th><th>时间</th><th>下载次数</th><th>操作</th></tr></thead>
+          <thead><tr><th><input type="checkbox" id="fileCheckAll" title="全选"/></th><th>文件名</th><th>大小</th><th>上传人</th><th>时间</th><th>下载次数</th><th>操作</th></tr></thead>
           <tbody></tbody>
         </table></div>
         <div class="empty-state" id="fileEmpty" style="display:none"><div class="big" style="font-size:30px">📁</div><div style="font-size:12.5px">还没有共享文件——上传第一份，全组都能用</div></div>
@@ -1441,6 +1445,7 @@ function renderFiles(){
   const tb=$("#fileTable").querySelector("tbody");
   $("#fileEmpty").style.display=list.length?"none":"block";
   tb.innerHTML=list.map(x=>`<tr>
+    <td><input type="checkbox" class="file-check" data-id="${esc(x.id)}"/></td>
     <td><a href="/api/files/${encodeURIComponent(x.id)}" style="font-weight:600">${esc(x.name)}</a></td>
     <td class="file-size">${fmtSize(x.size||0)}</td>
     <td>${esc(x.teacher||"匿名")}</td>
@@ -2125,8 +2130,18 @@ function renderScore(){
       return [x,y,e];
     });
     const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+    const n2=avgs.length;
+    let sumX=0,sumY=0,sumXY=0,sumX2=0;
+    for(let i=0;i<n2;i++){sumX+=i;sumY+=avgs[i];sumXY+=i*avgs[i];sumX2+=i*i}
+    const slope=n2>1?(n2*sumXY-sumX*sumY)/(n2*sumX2-sumX*sumX):0;
+    const intercept=(sumY-slope*sumX)/n2;
+    const predClamped=Math.max(0,Math.min(150,slope*n2+intercept));
+    const lastX=W-20,lastY=H-28-((predClamped-mn)/span)*(H-58);
     $("#scoreTrend").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">
       <path d="${path}" stroke="#4E9A63" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <line x1="${pts[pts.length-1][0].toFixed(1)}" y1="${pts[pts.length-1][1].toFixed(1)}" x2="${lastX.toFixed(1)}" y2="${lastY.toFixed(1)}" stroke="#E5A93F" stroke-width="1.8" stroke-dasharray="6,4"/>
+      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="5" fill="#E5A93F" stroke="#fff" stroke-width="2"/>
+      <text x="${lastX.toFixed(1)}" y="${(lastY-10).toFixed(1)}" text-anchor="end" font-size="10" fill="#E5A93F" font-weight="600">预测 ${predClamped.toFixed(1)}</text>
       ${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="#fff" stroke="#2F6B45" stroke-width="2"><title>${esc(p[2].name)}: ${p[2].avg}</title></circle>
       <text x="${p[0].toFixed(1)}" y="${(p[1]-10).toFixed(1)}" font-size="10.5" fill="#2F6B45" text-anchor="middle" font-weight="700">${p[2].avg}</text>
       <text x="${p[0].toFixed(1)}" y="${H-8}" font-size="9.5" fill="#A8B2A9" text-anchor="middle">${esc(p[2].name.slice(0,6))}</text>`).join("")}
@@ -2237,6 +2252,28 @@ document.addEventListener("click",e=>{
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="课标认领进度.csv";a.click();URL.revokeObjectURL(a.href);
   toast("课标进度已导出");
+});
+document.addEventListener("click",e=>{
+  if(e.target.id==="fileCheckAll"){
+    const checked=e.target.checked;
+    $$(".file-check").forEach(c=>c.checked=checked);
+    return;
+  }
+  if(e.target.id==="batchDelFiles"){
+    const ids=[];
+    $$(".file-check:checked").forEach(c=>ids.push(c.dataset.id));
+    if(!ids.length){toast("先勾选要删除的文件");return}
+    if(!confirm("确认删除 "+ids.length+" 个文件？此操作不可恢复"))return;
+    const k=prompt("请输入管理 key：")||"";
+    let done=0,fail=0;
+    ids.forEach(id=>{
+      fetch("/api/files/"+encodeURIComponent(id),{method:"DELETE",headers:{"X-Access-Key":k}}).then(r=>r.json()).then(d=>{
+        done++;if(!d.ok)fail++;
+        if(done===ids.length){toast(fail?"成功 "+(ids.length-fail)+"，失败 "+fail:"已删除 "+ids.length+" 个文件");renderFiles()}
+      }).catch(()=>{done++;fail++;if(done===ids.length)toast("成功 "+(ids.length-fail)+"，失败 "+fail)});
+    });
+    return;
+  }
 });
 let __fileSort="time";
 document.addEventListener("click",e=>{

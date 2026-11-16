@@ -468,13 +468,32 @@ function renderFileMini(){
       else cats["其他"]++;
     });
     var colors={"图片":"#5B9BD5","文档":"#4E9A63","表格":"#E5A93F","其他":"#A8B2A9"};
-    var html='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">';
+    var cx=80,cy=80,r=60;
+    var angle=-Math.PI/2;
+    var svg='<svg viewBox="0 0 240 160" style="width:100%;max-width:360px;height:160px">';
     Object.keys(cats).forEach(function(k){
       if(!cats[k])return;
-      var pct=Math.round(cats[k]/files.length*100);
-      html+='<div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:3px;background:'+colors[k]+'"></div><span style="font-size:12px">'+k+' '+cats[k]+'个('+pct+'%)</span></div>';
+      var frac=cats[k]/files.length;
+      var end=angle+frac*Math.PI*2;
+      var x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
+      var x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
+      var large=frac>0.5?1:0;
+      svg+='<path d="M'+cx+','+cy+' L'+x1.toFixed(1)+','+y1.toFixed(1)+' A'+r+','+r+' 0 '+large+',1 '+x2.toFixed(1)+','+y2.toFixed(1)+' Z" fill="'+colors[k]+'" stroke="#fff" stroke-width="2"><title>'+k+': '+cats[k]+'个</title></path>';
+      var mid=angle+frac*Math.PI;
+      var lx=cx+(r*0.65)*Math.cos(mid),ly=cy+(r*0.65)*Math.sin(mid);
+      if(frac>0.06)svg+='<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">'+cats[k]+'</text>';
+      angle=end;
     });
-    html+='</div>';
+    var ly=20;
+    Object.keys(cats).forEach(function(k){
+      if(!cats[k])return;
+      svg+='<rect x="175" y="'+ly+'" width="12" height="12" rx="3" fill="'+colors[k]+'"/>';
+      svg+='<text x="193" y="'+(ly+11)+'" font-size="11" fill="#5C6A5F">'+k+' '+cats[k]+'</text>';
+      ly+=24;
+    });
+    svg+='</svg>';
+    var el=document.getElementById('fileMiniChart');
+    if(el)el.innerHTML=svg;
     var el=document.getElementById('fileMiniChart');
     if(el)el.innerHTML=html;
   });
