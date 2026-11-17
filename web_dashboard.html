@@ -711,6 +711,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           </tbody>
         </table></div>
       </div>
+      <div class="card" id="examKbCard" style="margin-top:18px">
+        <div class="card-head"><div><div class="card-title">真题覆盖 × 认领缺口</div><div class="card-sub">按卷型归口估算模块覆盖（选择题跨模块）· 与课标认领对照找教研优先级</div></div></div>
+        <div id="examKbBody"></div>
+      </div>
     </section>
 
     <!-- ===== 成长空间 ===== -->
@@ -2102,6 +2106,31 @@ function jgetExam(id){
   return p;
 }
 // ===== 成绩波动预警（多场均分环比）=====
+function renderExamKb(){
+  const el=document.querySelector("#examKbBody");if(!el)return;
+  const claims=(function(){try{return (typeof KB_CLAIMS!=="undefined"&&KB_CLAIMS)||{}}catch(e){return {}}})();
+  // 卷型列真实求和（六年表）：选择 42 / 反应原理 12 / 工业流程 6 / 实验探究 6 / 有机推断 4
+  const rows=[
+    {m:"化学实验基础",big:12,bigNote:"工业流程 6 + 实验探究 6"},
+    {m:"物质结构与元素周期律",big:0,bigNote:"无独立大题"},
+    {m:"化学反应与能量",big:0,bigNote:"归口反应原理大题"},
+    {m:"有机化合物",big:4,bigNote:"有机推断 4"},
+    {m:"化学反应原理",big:12,bigNote:"反应原理 12"}
+  ];
+  const body=rows.map(r=>{
+    const claimed=!!claims[r.m];
+    let advice="";
+    if(r.big>=8&&!claimed)advice="⚠ 真题重镇未认领，优先";
+    else if(r.big>0&&!claimed)advice="📖 有独立大题，建议认领";
+    else if(!claimed)advice="选择题覆盖为主，可顺带补档";
+    else advice="✅ 已认领";
+    return `<tr><td style="font-weight:600">${esc(r.m)}</td><td style="font-variant-numeric:tabular-nums">${r.big||"—"}</td><td style="font-size:11.5px;color:var(--ink-500)">${esc(r.bigNote)}</td><td style="font-size:12px;color:var(--ink-500)">42（跨模块）</td><td>${claimed?'<span style="color:#2D7D4F">已认领</span>':'<span style="color:var(--ink-500)">待认领</span>'}</td><td style="font-size:12px">${esc(advice)}</td></tr>`;
+  }).join("");
+  el.innerHTML=`<div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>课标模块</th><th>独立大题</th><th>卷型归口</th><th>选择题覆盖</th><th>认领</th><th>建议</th></tr></thead>
+    <tbody>${body}</tbody></table></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--ink-500)">六年 74 题 = 选择 42 + 反应原理 12 + 工业流程 6 + 实验探究 6 + 有机推断 4 + 零头 4 · 归口为教研口径估算</div>`;
+}
 function renderKbScore(){
   const el=$("#kbScoreCard");if(!el)return;
   const claims=(function(){try{return (typeof KB_CLAIMS!=="undefined"&&KB_CLAIMS)||{}}catch(e){return {}}})();
@@ -3021,6 +3050,7 @@ function renderScore(){
   renderQBox();
   renderVolWarn();
   renderKbScore();
+  renderExamKb();
   renderQGoal();
   renderHealth();
   renderPotential();
@@ -3301,7 +3331,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义

@@ -282,6 +282,8 @@ assert q and len(q[0])==4, rows" 2>/dev/null && ok "CSV 注入防护（公式前
 MX=$(curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"模块对照测试","scores":[70,80],"modules":["化学实验基础","有机化合物"]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
 curl -s "$BASE/api/scores/$MX" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('modules')==['化学实验基础','有机化合物'],d" 2>/dev/null && ok "成绩模块关联（录入回读一致）" || bad "成绩模块关联"
 curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"模块越界","scores":[70],"modules":["a","b","c","d","e","f"]}' -o /dev/null -w '%{http_code}' | grep -q 400 && ok "成绩模块越界拒（>5 个 400）" || bad "成绩模块越界"
+# 10) PWA 离线策略（sw th-v3 + 预缓存壳 + API 不缓存）
+curl -s "$BASE/sw.js" | grep -q "th-v3" && curl -s "$BASE/sw.js" | grep -q "SHELL" && curl -s "$BASE/sw.js" | grep -q "caches.match('/')" && ok "sw.js 离线策略（th-v3 + 缓存壳）" || bad "sw.js"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

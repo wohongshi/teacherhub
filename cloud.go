@@ -1625,17 +1625,7 @@ func cmdServe(args []string) {
 	})
 	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-		_, _ = w.Write([]byte(`self.addEventListener('install',function(e){self.skipWaiting()});
-self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim())});
-self.addEventListener('fetch',function(e){
-  if(e.request.method!=='GET')return;
-  e.respondWith(fetch(e.request).catch(function(){
-    return caches.open('th-v2').then(function(c){return c.match(e.request)}).then(function(r){return r||new Response('offline',{status:503})});
-  }).then(function(resp){
-    if(resp&&resp.ok){var cl=resp.clone();caches.open('th-v2').then(function(c){c.put(e.request,cl)})}
-    return resp;
-  }));
-});`))
+		_, _ = w.Write([]byte("const CACHE='th-v3';const SHELL=['/','/manifest.webmanifest','/icon.svg'];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.pathname.startsWith('/api/')||u.pathname==='/mcp'||u.pathname==='/feed.xml')return;const isHTML=(r.headers.get('accept')||'').includes('text/html');if(isHTML){e.respondWith(fetch(r).then(resp=>{const cl=resp.clone();caches.open(CACHE).then(c=>c.put(r,cl));return resp}).catch(()=>caches.match(r).then(m=>m||caches.match('/'))));return}e.respondWith(caches.match(r).then(m=>m||fetch(r).then(resp=>{const cl=resp.clone();caches.open(CACHE).then(c=>c.put(r,cl));return resp})))});"))
 	})
 
 	// 管理面板：/admin 页面（前端带 key 拉数据）+ /api/admin/ping（key 校验 + 每日浏览）
