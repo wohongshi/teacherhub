@@ -293,6 +293,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .menu-btn svg{width:20px;height:20px;stroke:var(--ink-700);fill:none;stroke-width:2}
 @media (max-width:1020px){.wb-grid,.board-grid{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:repeat(3,1fr)}}
 @media print{
+  #reviewCard{page-break-inside:auto}
+  #reviewCard .chip{display:none!important}
+  #reviewCard .up-item{page-break-inside:avoid;border-bottom:1px dashed #ccc;padding:8px 0}
+  #reviewCard .up-title{text-decoration:none!important}
+  #reviewStat::before{content:"讲评清单 · ";font-weight:700}
   .sidebar,.mobile-bottom,.hero,.top-bar,.search-overlay,.fab,footer,.dock-bar{display:none!important}
   .main-wrap{margin-left:0!important;padding:0!important}
   .view:not(#v-score):not(#v-kb){display:none!important}
@@ -827,18 +832,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <button class="chip" id="setTarget">🎯 设定目标</button>
         </div>
         <div id="targetBody" style="display:none">
-          <div style="display:flex;gap:24px;flex-wrap:wrap">
-            <div style="flex:1;min-width:200px">
-              <div style="font-size:12px;color:var(--ink-500);margin-bottom:6px">目标均分 <b id="targetAvgVal" style="color:var(--green-700)">80</b> 分</div>
-              <div class="bar" style="height:14px"><i id="targetAvgBar" style="width:0%;background:linear-gradient(90deg,var(--green-600),var(--green-400));transition:width .6s"></i></div>
-              <div style="font-size:11px;color:var(--ink-400);margin-top:4px">当前 <span id="targetAvgCur">0</span> / <span id="targetAvgGoal">80</span></div>
-            </div>
-            <div style="flex:1;min-width:200px">
-              <div style="font-size:12px;color:var(--ink-500);margin-bottom:6px">目标及格率 <b id="targetPassVal" style="color:var(--green-700)">85</b>%</div>
-              <div class="bar" style="height:14px"><i id="targetPassBar" style="width:0%;background:linear-gradient(90deg,#5B9BD5,#93C5FD);transition:width .6s"></i></div>
-              <div style="font-size:11px;color:var(--ink-400);margin-top:4px">当前 <span id="targetPassCur">0</span>% / <span id="targetPassGoal">85</span>%</div>
-            </div>
-          </div>
+          <div id="targetRings" style="display:flex;gap:26px;justify-content:center;flex-wrap:wrap"></div>
           <div id="targetTip" style="margin-top:12px;font-size:12px"></div>
         </div>
       </div>
@@ -913,7 +907,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       </div>
       <div class="card section" id="aiReportCard" style="display:none">
         <div class="card-head"><div><div class="card-title">AI 分析报告</div><div class="card-sub">分析由 WorkBuddy 生成 · 本页只做数据展示</div></div>
-          <div id="aiReportMeta" style="font-size:11.5px;color:var(--ink-400)"></div>
+          <div style="display:flex;gap:8px;align-items:center"><div id="aiReportMeta" style="font-size:11.5px;color:var(--ink-400)"></div>
+          <button class="chip" id="copyAiReport" style="height:28px;font-size:11.5px">📋 复制</button></div>
         </div>
         <div id="aiReportBody"></div>
       </div>
@@ -1656,6 +1651,17 @@ document.addEventListener("click",e=>{
   if(wg){new MutationObserver(()=>{injectWbCmpBtns();renderWbStats()}).observe(wg,{childList:true});injectWbCmpBtns();renderWbStats()}
 })();
 document.addEventListener("click",e=>{
+  if(e.target.id==="copyAiReport"){
+    const cur=window.__scoreSel?SCORES.find(x=>x.id===window.__scoreSel):SCORES[SCORES.length-1];
+    if(!cur)return;
+    jgetExam(cur.id).then(d=>{
+      const t=(d&&d.analysis)||"暂无分析报告";
+      (navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast("分析报告已复制")).catch(()=>{
+        const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("分析报告已复制");
+      });
+    });
+    return;
+  }
   const rt=e.target.closest("[data-rt]");
   if(rt){go("lab");labTag="";$("#labQ").value=rt.dataset.rt;renderWbs();
     $$("#labChips .chip").forEach(c=>c.classList.toggle("on",c.dataset.tag===rt.dataset.rt));return;}
@@ -1697,16 +1703,21 @@ function renderTarget(){
   let goals={avg:80,pass:85};
   try{goals=Object.assign(goals,JSON.parse(localStorage.getItem("th_target")||"{}"))}catch(e){}
   $("#targetBody").style.display="block";
-  $("#targetAvgVal").textContent=goals.avg;
-  $("#targetAvgGoal").textContent=goals.avg;
-  $("#targetPassVal").textContent=goals.pass;
-  $("#targetPassGoal").textContent=goals.pass;
-  const avgPct=Math.min(100,(cur.avg/goals.avg*100)).toFixed(0);
-  const passPct=Math.min(100,(cur.pass_rate/goals.pass*100)).toFixed(0);
-  $("#targetAvgBar").style.width=avgPct+"%";
-  $("#targetPassBar").style.width=passPct+"%";
-  $("#targetAvgCur").textContent=cur.avg;
-  $("#targetPassCur").textContent=cur.pass_rate;
+  const avgPct=Math.min(100,(cur.avg/goals.avg*100));
+  const passPct=Math.min(100,(cur.pass_rate/goals.pass*100));
+  const ring=(pct,label,curVal,goalVal,color)=>{
+    const R=52,C=2*Math.PI*R;
+    return `<div style="text-align:center"><svg width="132" height="132" viewBox="0 0 132 132">
+      <circle cx="66" cy="66" r="${R}" fill="none" stroke="var(--gold-soft)" stroke-width="10" opacity=".35"/>
+      <circle cx="66" cy="66" r="${R}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(C*pct/100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 66 66)" style="transition:stroke-dasharray .7s var(--ease)"><title>${label}达成 ${Math.round(pct)}%</title></circle>
+      <text x="66" y="62" text-anchor="middle" font-size="21" font-weight="700" fill="${color}">${Math.round(pct)}%</text>
+      <text x="66" y="80" text-anchor="middle" font-size="9.5" fill="var(--ink-500)">${label}目标 ${goalVal}</text>
+    </svg>
+    <div style="font-size:11.5px;color:var(--ink-500);margin-top:2px">当前 <b style="color:${color}">${curVal}</b>${label==="及格率"?"%":""}</div></div>`;
+  };
+  $("#targetRings").innerHTML=
+    ring(avgPct,"均分",cur.avg,goals.avg,"var(--green-700)")+
+    ring(passPct,"及格率",cur.pass_rate,goals.pass,"var(--gold-deep)");
   const avgOk=cur.avg>=goals.avg,passOk=cur.pass_rate>=goals.pass;
   let tip="";
   if(avgOk&&passOk)tip='<span style="color:#4E9A63">🎉 双目标达成！继续保持</span>';
