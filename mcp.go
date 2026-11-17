@@ -8,7 +8,6 @@ package main
 // JSON-RPC 2.0 方法：initialize / notifications/initialized / tools/list / tools/call。
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -55,8 +54,6 @@ var mcpTools = []mcpTool{
 	{Name: "set_hidden", Description: "产物下架/上架（写操作，需要统一访问 key）。下架后门户不显示但直链仍可访问。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"hidden":{"type":"boolean","description":"true=下架 false=上架"}},"required":["id","hidden"]}`)},
 	{Name: "rate_workbench", Description: "给产物评分 1-5 星（免 key，每 IP 每产物限一评）。返回最新均分。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"产物 id"},"stars":{"type":"integer","description":"1-5 星"}},"required":["id","stars"]}`)},
 	{Name: "list_backups", Description: "列出自动备份快照（需要统一访问 key）。返回名称/大小/时间。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
-	{Name: "list_files", Description: "列出校本资源共享文件（免 key）。返回文件名/大小/上传人/下载数；q 参数按文件名模糊检索。", InputSchema: json.RawMessage(`{"type":"object","properties":{"q":{"type":"string","description":"可选：文件名关键词"}}}`)},
-	{Name: "push_file", Description: "上传文件到资源库（写操作，需要统一访问 key）。content_base64 为 base64 编码文件内容。", InputSchema: json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"文件名（含扩展名）"},"teacher":{"type":"string","description":"上传人署名"},"content_base64":{"type":"string","description":"文件内容 base64 编码"}},"required":["name","content_base64"]}`)},
 	{Name: "record_score", Description: "录入一次考试成绩（写操作，需要统一访问 key）。scores 为分数数组（0-150）；questions 可选逐题统计（name/max/avg）。", InputSchema: json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"考试名"},"scores":{"type":"array","items":{"type":"number"},"description":"分数数组"},"questions":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"max":{"type":"number"},"avg":{"type":"number"}}},"description":"可选：逐题统计"}},"required":["name","scores"]}`)},
 	{Name: "get_scores", Description: "列出考试统计（免 key，不含原始分）。返回人数/均分/极值/及格率。", InputSchema: json.RawMessage(`{"type":"object","properties":{}}`)},
 	{Name: "get_score_detail", Description: "考试详情（免 key）：分数段分布 + 逐题失分排行（得分率升序）。", InputSchema: json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"考试 id"}},"required":["id"]}`)},
@@ -432,62 +429,6 @@ func callMCP(st *cloudStore, w http.ResponseWriter, r *http.Request, req mcpReq)
 		}
 		out["ok"] = true
 		reply(mcpText(out))
-	case "push_file":
-		if !keyOK() {
-			reply(mcpErr("写操作需要统一访问 key（X-Access-Key 头或 ?key=）"))
-			return
-		}
-		name, _ := args["name"].(string)
-		teacher, _ := args["teacher"].(string)
-		b64, _ := args["content_base64"].(string)
-		name = sanitizeFileName(strings.TrimSpace(name))
-		if name == "" || name == "file" || b64 == "" {
-			reply(mcpErr("缺 name/content_base64"))
-			return
-		}
-		if teacher == "" {
-			teacher = "AI"
-		}
-		if len([]rune(teacher)) > 20 {
-			teacher = string([]rune(teacher)[:20])
-		}
-		data, err := base64.StdEncoding.DecodeString(b64)
-		if err != nil {
-			reply(mcpErr("content_base64 解码失败"))
-			return
-		}
-		if len(data) > 50<<20 {
-			reply(mcpErr("文件过大（≤50MB）"))
-			return
-		}
-		id := "fx_" + randToken()[:12]
-		if err := os.WriteFile(filepath.Join(st.dir, "files", id), data, 0o644); err != nil {
-			reply(mcpErr("存储失败"))
-			return
-		}
-		rec := FileRec{ID: id, Name: name, Size: int64(len(data)), Teacher: teacher, At: time.Now().Unix()}
-		st.mu.Lock()
-		st.data.Files = append(st.data.Files, rec)
-		st.log("文件上传", name+"（"+teacher+"，MCP）")
-		_ = st.save()
-		st.mu.Unlock()
-		reply(mcpText(map[string]any{"ok": true, "id": id, "name": name, "size": rec.Size}))
-	case "list_files":
-		q, _ := args["q"].(string)
-		q = strings.ToLower(strings.TrimSpace(q))
-		st.mu.Lock()
-		files := make([]FileRec, len(st.data.Files))
-		copy(files, st.data.Files)
-		st.mu.Unlock()
-		out := make([]map[string]any, 0, len(files))
-		for i := len(files) - 1; i >= 0; i-- { // 倒序（新在前）
-			x := files[i]
-			if q != "" && !strings.Contains(strings.ToLower(x.Name), q) {
-				continue
-			}
-			out = append(out, map[string]any{"id": x.ID, "name": x.Name, "size": x.Size, "teacher": x.Teacher, "at": x.At, "downloads": x.Downloads})
-		}
-		reply(mcpText(map[string]any{"ok": true, "files": out}))
 	case "list_backups":
 		if !keyOK() {
 			reply(mcpErr("读备份需统一访问 key（X-Access-Key 头或 ?key=）"))

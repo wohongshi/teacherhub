@@ -410,10 +410,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
           真题库
         </div>
-        <div class="nav-item" data-view="res">
-          <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
-          资源库
-        </div>
         <div class="nav-item" data-view="grow">
           <svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/></svg>
           成长空间
@@ -552,7 +548,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="stats">
         <div class="stat"><span class="elem-tag">Na</span><div class="sname">课标条目</div><div class="sval">15<small>条</small></div><div class="snote">五模块四级映射</div></div>
         <div class="stat"><span class="elem-tag">H₂O</span><div class="sname">高考真题</div><div class="sval">74<small>题</small></div><div class="snote">2021—2026 六年归档</div></div>
-        <div class="stat"><span class="elem-tag">Fe</span><div class="sname">校本资源</div><div class="sval" id="statRes">0<small>份</small></div><div class="snote">上传第一份 →</div></div>
+        <div class="stat"><span class="elem-tag">Fe</span><div class="sname">课标认领</div><div class="sval" id="statKb">0<small>/5</small></div><div class="snote">课标地图认领 →</div></div>
         <div class="stat"><span class="elem-tag">O₂</span><div class="sname">实验模块</div><div class="sval" id="statLab">0<small>个</small></div><div class="snote">AI 生成一个 →</div></div>
         <div class="stat"><span class="elem-tag">C</span><div class="sname">最近考试均分</div><div class="sval" id="statAvg">— 待录入</div><div class="snote" id="statAvgNote">录入成绩后自动生成</div></div>
       </div>
@@ -717,68 +713,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       </div>
     </section>
 
-    <!-- ===== 资源库 ===== -->
-    <section class="view" id="v-res">
-      <div class="mod-head"><h2>资源库</h2><p>校本资源文件共享：课件、试卷、学案、图片——传上来，全组都能下。</p></div>
-
-      <!-- 上传区 -->
-      <div class="card" id="uploadCard">
-        <div class="card-head"><div><div class="card-title">上传资源</div><div class="card-sub">单文件 ≤50MB · 每小时 10 个 · 署名后全组可见</div></div></div>
-        <div class="up-drop" id="upDrop">
-          <div class="up-ic">📤</div>
-          <div style="font-size:13px;color:var(--ink-700)">把文件拖到这里，或 <label for="upFile" style="color:var(--green-700);font-weight:600;cursor:pointer">点击选择</label></div>
-          <div style="font-size:11px;color:var(--ink-300);margin-top:4px">支持课件 / 试卷 / 学案 / 图片 / 压缩包等</div>
-          <input type="file" id="upFile" style="display:none">
-          <input type="file" id="upCam" accept="image/*" capture="environment" style="display:none">
-        </div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn-line" id="camBtn" style="height:42px">📷 拍照上传</button>
-          <span style="font-size:11.5px;color:var(--ink-300);align-self:center">手机拍试卷/板书/实验现象，直接传</span>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <input class="f" id="upTeacher" placeholder="你的署名（可选）" style="flex:1;min-width:160px;height:42px">
-          <button class="btn-primary" id="upGo" style="height:42px;padding:0 22px">上传</button>
-        </div>
-        <div id="upStatus" style="font-size:11.5px;color:var(--ink-300);margin-top:8px;min-height:16px"></div>
-      </div>
-
-      <!-- 文件列表 -->
-      <div class="card">
-        <div class="card-head">
-          <div><div class="card-title">共享文件</div><div class="card-sub" id="fileCount"></div></div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <button class="chip on" data-sort="time">🕐 时间</button>
-            <button class="chip" data-sort="size">📦 大小</button>
-            <button class="chip" data-sort="downloads">🔥 热度</button>
-            <span style="width:12px"></span>
-            <button class="chip on" data-filetype="">全部</button>
-            <button class="chip" data-filetype="image">📷 图片</button>
-            <button class="chip" data-filetype="doc">📄 文档</button>
-            <button class="chip" data-filetype="table">📊 表格</button>
-            <div class="lab-search" style="width:180px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="fileQ" placeholder="搜文件名…"></div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
-          <button class="btn-line" id="batchDelFiles" style="height:32px;font-size:12px">🗑️ 批量删除选中</button>
-          <span style="font-size:11px;color:var(--ink-400)">勾选后一键删除多个文件</span>
-        </div>
-        <div class="tbl-wrap"><table class="tbl" id="fileTable">
-          <thead><tr><th><input type="checkbox" id="fileCheckAll" title="全选"/></th><th>文件名</th><th>大小</th><th>上传人</th><th>时间</th><th>下载次数</th><th>操作</th></tr></thead>
-          <tbody></tbody>
-        </table></div>
-        <div class="empty-state" id="fileEmpty" style="display:none"><div class="big" style="font-size:30px">📁</div><div style="font-size:12.5px">还没有共享文件——上传第一份，全组都能用</div></div>
-      </div>
-
-      <!-- 贡献记录 -->
-      <div class="card">
-        <div class="card-head"><div><div class="card-title">贡献记录</div><div class="card-sub">资源流转留痕</div></div></div>
-        <div class="tbl-wrap"><table class="tbl" id="resTable">
-          <thead><tr><th>资源</th><th>类型</th><th>贡献人</th><th>时间</th></tr></thead>
-          <tbody></tbody>
-        </table></div>
-      </div>
-    </section>
-
     <!-- ===== 成长空间 ===== -->
     <section class="view" id="v-grow">
       <div class="mod-head"><h2>成长空间</h2><p>每位老师的资源共享与参赛足迹，成长林的数据来源。</p></div>
@@ -831,12 +765,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">近 30 天浏览</div><div class="card-sub">全平台访问热度</div></div></div>
         <div id="dataSpark"></div>
       </div>
-      <div class="spark-wrap section">
-        <div class="card-head"><div><div class="card-title">文件类型分布</div><div class="card-sub">资源库文件分类占比</div></div></div>
-        <div id="filePieChart" style="display:flex;justify-content:center"></div>
-      </div>
       <div class="cols">
-        <div class="col-l"><div class="card"><div class="card-head"><div><div class="card-title">教师贡献分布</div><div class="card-sub">资源份数</div></div></div><div id="dataTeachers"></div></div></div>
+        <div class="col-l"><div class="card"><div class="card-head"><div><div class="card-title">教师贡献分布</div><div class="card-sub">贡献条数</div></div></div><div id="dataTeachers"></div></div></div>
         <div class="col-r">
           <div class="card"><div class="card-head"><div><div class="card-title">热门资源</div><div class="card-sub">下载与浏览排行</div></div></div><div id="dataHot"></div></div>
           <div class="card"><div class="card-head"><div><div class="card-title">说明</div></div></div>
@@ -1116,10 +1046,10 @@ function toast(msg){const t=document.createElement("div");t.textContent=msg;t.st
 
 /* ============ 元素速达（周期表第一行 + Na，按导航顺序） ============ */
 const ELEMS=[
- {no:1,sym:"H",en:"Hydrogen",cn:"实验工作台",v:"lab"},
- {no:2,sym:"He",en:"Helium",cn:"课标地图",v:"kb"},
- {no:3,sym:"Li",en:"Lithium",cn:"真题库",v:"exam"},
- {no:4,sym:"Be",en:"Beryllium",cn:"资源库",v:"res"},
+ {no:1,sym:"H",en:"Hydrogen",cn:"总览",v:"overview"},
+ {no:2,sym:"He",en:"Helium",cn:"实验工作台",v:"lab"},
+ {no:3,sym:"Li",en:"Lithium",cn:"课标地图",v:"kb"},
+ {no:4,sym:"Be",en:"Beryllium",cn:"真题库",v:"exam"},
  {no:5,sym:"B",en:"Boron",cn:"成长空间",v:"grow"},
  {no:6,sym:"C",en:"Carbon",cn:"实验与安全",v:"board"},
  {no:7,sym:"N",en:"Nitrogen",cn:"数据看板",v:"data"},
@@ -1173,7 +1103,7 @@ function plantSVG(leafPairs,hasBud,h){
 }
 
 /* ============ 视图切换 ============ */
-const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",res:"资源库",grow:"成长空间",board:"实验与安全",data:"数据看板",plan:"计划与制度",score:"成绩分析",about:"建设方案"};
+const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",grow:"成长空间",board:"实验与安全",data:"数据看板",plan:"计划与制度",score:"成绩分析",about:"建设方案"};
 // 手机手势滑动切换视图
 (function(){
   const ORDER=["overview","lab","kb","exam","res","grow","board","data","plan","score","about"];
@@ -1326,10 +1256,6 @@ function doSearch(q,commit){
       results.push({type:"📋",label:"课标",title:mod,view:"kb"});
     }
   });
-  FILES.forEach(f=>{
-    if((f.name||"").toLowerCase().includes(ql))
-      results.push({type:"📁",label:"资源",title:f.name,view:"res"});
-  });
   (SCORES||[]).forEach(e=>{
     if((e.name||"").toLowerCase().includes(ql))
       results.push({type:"📊",label:"成绩",title:e.name,view:"score"});
@@ -1440,7 +1366,7 @@ function renderForest(){
         <circle cx="60" cy="62" r="2" fill="#E5A93F" opacity=".45"/>
       </svg>
       <div style="font-size:13px;color:var(--ink-500);margin-top:8px">第一片叶子还没长出来</div>
-      <div style="font-size:12px;color:var(--ink-300);margin-top:4px">上传第一份资源，它就是成长林的第一片叶子</div>
+      <div style="font-size:12px;color:var(--ink-300);margin-top:4px">发第一份贡献，它就是成长林的第一片叶子</div>
     </div>`;
   }else{
   $("#forest").innerHTML=merged.slice(0,7).map(m=>{
@@ -1455,7 +1381,7 @@ function renderForest(){
   const total=merged.reduce((s,m)=>s+m.res,0);
   $("#goalNow").textContent=total;
   $("#htagAcc").textContent=total;
-  $("#statRes").innerHTML=`${total}<small>份</small>`;
+  try{const kc=(typeof KB_CLAIMS!=="undefined"&&KB_CLAIMS)||{};$("#statKb").innerHTML=`${Object.keys(kc).length}<small>/5</small>`}catch(e){}
   $("#statLab").innerHTML=`${WBS.length}<small>个</small>`;
   $("#goalFill").style.width=Math.min(100,total/28*100)+"%";
 }
@@ -1589,56 +1515,6 @@ document.addEventListener("click",e=>{
     try{const rec=safeLS("th_wb_recent","[]");const arr=Array.isArray(rec)?rec:[];arr.unshift({id:id,ts:Date.now()});localStorage.setItem("th_wb_recent",JSON.stringify(arr.slice(0,20)))}catch(_){}
   }
 });
-// ===== 文件备注（localStorage）=====
-function renderFileRatings(){
-  const rs=safeLS("th_file_ratings","{}");
-  $$("#fileTable tbody tr").forEach(tr=>{
-    const cb=tr.querySelector(".file-check");if(!cb)return;
-    const id=cb.dataset.id,cell=tr.cells[1];if(!cell)return;
-    let rp=cell.querySelector(".file-rate");
-    if(!rp){
-      rp=document.createElement("div");rp.className="file-rate";
-      rp.style.cssText="font-size:12px;margin-top:2px;letter-spacing:1px";
-      rp.addEventListener("click",e2=>{
-        const b=e2.target.closest("[data-star]");if(!b)return;
-        const ns=safeLS("th_file_ratings","{}");
-        const v=Number(b.dataset.star)||0;
-        if(ns[rp.dataset.rid]===v)delete ns[rp.dataset.rid];else ns[rp.dataset.rid]=v;
-        try{localStorage.setItem("th_file_ratings",JSON.stringify(ns))}catch(_){}
-        renderFileRatings();
-      });
-      cell.appendChild(rp);
-    }
-    rp.dataset.rid=id;
-    const rv=rs[id]||0;
-    rp.innerHTML=[1,2,3,4,5].map(n2=>`<span data-star="${n2}" style="cursor:pointer;color:${n2<=rv?"#E5A93F":"var(--ink-300)"}">★</span>`).join("")+(rv?`<span style="font-size:10px;color:var(--ink-400);margin-left:4px">${rv} 分</span>`:"");
-  });
-}
-function renderFileNotes(){
-  const notes=safeLS("th_file_notes","{}");
-  $$("#fileTable tbody tr").forEach(tr=>{
-    const cb=tr.querySelector(".file-check");if(!cb)return;
-    const id=cb.dataset.id,cell=tr.cells[1];if(!cell)return;
-    let sp=cell.querySelector(".file-note");
-    if(!sp){
-      sp=document.createElement("div");sp.className="file-note";
-      sp.addEventListener("click",()=>{
-        const cur=safeLS("th_file_notes","{}");
-        const v=prompt("文件备注（留空删除）",cur[sp.dataset.nid]||"");
-        if(v===null)return;
-        const ns=safeLS("th_file_notes","{}");
-        if(v.trim())ns[sp.dataset.nid]=v.trim();else delete ns[sp.dataset.nid];
-        try{localStorage.setItem("th_file_notes",JSON.stringify(ns))}catch(_){}
-        renderFileNotes();
-      });
-      cell.appendChild(sp);
-    }
-    sp.dataset.nid=id;
-    const n=notes[id];
-    sp.style.cssText="font-size:11px;margin-top:2px;cursor:pointer;color:"+(n?"var(--green-700)":"var(--ink-400)");
-    sp.textContent=n?"📝 "+n:"📝 加备注";
-  });
-}
 // ===== 实验使用统计 =====
 function renderWbStats(){
   const el=$("#wbStatsChart");if(!el)return;
@@ -1791,8 +1667,6 @@ document.addEventListener("click",e=>{
 (function(){
   const wg=$("#wbGrid");
   if(wg){new MutationObserver(()=>{injectWbCmpBtns();renderWbStats()}).observe(wg,{childList:true});injectWbCmpBtns();renderWbStats()}
-  const ft=$("#fileTable")&&$("#fileTable").querySelector("tbody");
-  if(ft){new MutationObserver(()=>{renderFileNotes();renderFileRatings()}).observe(ft,{childList:true});renderFileNotes();renderFileRatings()}
 })();
 document.addEventListener("click",e=>{
   const rt=e.target.closest("[data-rt]");
@@ -1826,183 +1700,6 @@ $("#favFilter").addEventListener("click",()=>{
 function renderLabChips(){
   const tags=[...new Set(WBS.flatMap(w=>w.tags||[]))];
   $("#labChips").innerHTML=[`<button class="chip on" data-tag="">全部</button>`,...tags.map(t=>`<button class="chip" data-tag="${esc(t)}">${esc(t)}</button>`)].join("");
-}
-
-/* —— 校本资源文件（上传/下载） —— */
-let FILES=[];
-function fmtSize(n){if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(2)+' MB'}
-function renameFile(id,oldName){
-  const newName=prompt("新文件名：",oldName);
-  if(!newName||newName===oldName)return;
-  const rk=prompt("请输入管理 key：")||"";
-  fetch("/api/files/rename",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":rk},body:JSON.stringify({id:id,name:newName})})
-    .then(r=>r.json()).then(d=>{
-      if(d.ok){toast("已重命名");renderFiles()}
-      else toast(d.error||"重命名失败");
-    }).catch(()=>toast("重命名失败"));
-}
-function openComments(fid,name){
-  const overlay=document.createElement("div");
-  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer";
-  const box=document.createElement("div");
-  box.style.cssText="background:#fff;border-radius:16px;padding:20px;max-width:85vw;max-height:80vh;overflow:auto;min-width:300px;cursor:default";
-  box.addEventListener("click",e=>e.stopPropagation());
-  overlay.addEventListener("click",()=>overlay.remove());
-  box.innerHTML=`<div style="font-size:15px;font-weight:700;margin-bottom:12px">💬 ${esc(name)} 的评论</div>
-    <div id="cmtList" style="min-height:60px"><div style="color:var(--ink-500);font-size:13px">加载中…</div></div>
-    <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
-      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-        <input id="cmtName" placeholder="昵称" maxlength="16" style="width:110px;height:36px;border:1.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px"/>
-        <input id="cmtText" placeholder="说点什么…（200 字内）" maxlength="200" style="flex:1;min-width:160px;height:36px;border:1.5px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px"/>
-        <button class="btn primary" id="cmtSend" style="height:36px;padding:0 14px">发表</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  const load=()=>{
-    fetch("/api/files/"+encodeURIComponent(fid)+"/comments").then(r=>r.json()).then(d=>{
-      const list=d.comments||[];
-      const el=box.querySelector("#cmtList");
-      el.innerHTML=list.length?list.map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="font-size:12px;color:var(--ink-500)"><b style="color:var(--green-700)">${esc(c.name)}</b> · ${fmtTs(c.at)}</div>
-        <div style="font-size:13px;line-height:1.7">${esc(c.text)}</div></div>`).join(""):'<div style="color:var(--ink-500);font-size:13px;padding:12px 0">还没有评论，来说第一句 🧪</div>';
-    }).catch(()=>{box.querySelector("#cmtList").innerHTML='<div style="color:var(--ink-500);font-size:13px;padding:12px 0">评论加载失败</div>'});
-  };
-  load();
-  box.querySelector("#cmtSend").onclick=()=>{
-    const nm=box.querySelector("#cmtName").value.trim()||"匿名";
-    const tx=box.querySelector("#cmtText").value.trim();
-    if(!tx){toast("写点内容再发呀");return}
-    fetch("/api/files/"+encodeURIComponent(fid)+"/comments",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:nm,text:tx})})
-      .then(r=>r.json()).then(d=>{if(d.ok){box.querySelector("#cmtText").value="";load();toast("已发表");renderFiles()}else toast(d.error||"发表失败")}).catch(()=>toast("发表失败"));
-  };
-}
-function previewFile(id,name){
-  const ext=(name||"").split(".").pop().toLowerCase();
-  const isImg=["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext);
-  const overlay=document.createElement("div");
-  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer";
-  const box=document.createElement("div");
-  box.style.cssText="background:#fff;border-radius:16px;padding:20px;max-width:85vw;max-height:85vh;overflow:auto";
-  if(isImg){
-    box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${esc(name)}</div><img src="/api/files/${encodeURIComponent(id)}?inline=1" style="max-width:100%;max-height:70vh;border-radius:8px;cursor:zoom-in" onclick="this.style.cursor=this.style.cursor==='zoom-out'?'zoom-in':'zoom-out';this.style.maxWidth=this.style.maxWidth==='none'?'100%':'none';this.style.maxHeight=this.style.maxHeight==='none'?'120vh':'70vh'"/>`;
-  }else{
-    fetch("/api/files/"+encodeURIComponent(id)).then(r=>r.text()).then(t=>{
-      const isMd=name.toLowerCase().endsWith(".md");
-      if(isMd){
-        // 简易 Markdown 渲染（标题/粗体/列表/代码/段落）
-        const md=t.length>5000?t.slice(0,5000)+"\u2026":t;
-        const html=md
-          .replace(/&/g,"&amp;").replace(/</g,"&lt;")
-          .replace(/^### (.+)$/gm,"<h4 style='margin:12px 0 6px;color:var(--green-700)'>$1</h4>")
-          .replace(/^## (.+)$/gm,"<h3 style='margin:14px 0 8px;color:var(--green-700)'>$1</h3>")
-          .replace(/^# (.+)$/gm,"<h2 style='margin:16px 0 10px;color:var(--green-800)'>$1</h2>")
-          .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
-          .replace(/`([^`]+)`/g,"<code style='background:var(--green-50);padding:2px 6px;border-radius:4px;font-size:12px'>$1</code>")
-          .replace(/^[-*] (.+)$/gm,"<li style='margin:4px 0 4px 20px'>$1</li>")
-          .replace(/^\|(.+)\|$/gm,function(m,inner){if(/^[-: |]+$/.test(inner))return "";return '<tr>'+inner.split('|').map(function(c){return '<td style="padding:4px 8px;border:1px solid var(--line)">'+c.trim()+'</td>'}).join('')+'</tr>'})
-          .replace(/((?:<tr>[\s\S]*?<\/tr>\s*)+)/g,'<table style="border-collapse:collapse;margin:8px 0">$1</table>')
-          .replace(/^> (.+)$/gm,"<blockquote style='border-left:3px solid var(--green-400);padding:4px 12px;margin:8px 0;color:var(--ink-500)'>$1</blockquote>")
-          .replace(/^---$/gm,"<hr style='border:none;border-top:1px solid var(--line);margin:12px 0'/>")
-          .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
-          .replace(/\n\n/g,"</p><p style='margin:8px 0'>")
-          .replace(/\n/g,"<br/>");
-        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">📝 ${esc(name)}（Markdown 预览）</div><div style="font-size:13px;line-height:1.8;max-height:60vh;overflow:auto;padding:4px 0"><p style='margin:8px 0'>${html}</p></div>`;
-      }else{
-        const preview=t.length>2000?t.slice(0,2000)+"\u2026":t;
-        box.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">${esc(name)}（前 2000 字）</div><pre style="font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto">${preview.replace(/</g,"&lt;")}</pre>`;
-      }
-    });
-  }
-  overlay.appendChild(box);
-  overlay.addEventListener("click",()=>overlay.remove());
-  document.body.appendChild(overlay);
-}
-function renderFiles(){
-  const q=($("#fileQ").value||"").trim().toLowerCase();
-  let list=FILES.filter(x=>!q||(x.name||"").toLowerCase().includes(q));
-  if(__fileSort==="size")list=[...list].sort((a,b)=>(b.size||0)-(a.size||0));
-  else if(__fileSort==="downloads")list=[...list].sort((a,b)=>(b.downloads||0)-(a.downloads||0));
-  else list=[...list].sort((a,b)=>(b.at||0)-(a.at||0));
-  $("#fileCount").textContent=FILES.length?`共 ${FILES.length} 个文件`:"";
-  const tb=$("#fileTable").querySelector("tbody");
-  $("#fileEmpty").style.display=list.length?"none":"block";
-  try{
-    const ord=JSON.parse(localStorage.getItem("th_file_order")||"[]");
-    if(ord.length){
-      const oi=id=>{const i=ord.indexOf(id);return i<0?9999:i};
-      list=[...list].sort((a,b)=>oi(a.id)-oi(b.id));
-    }
-  }catch(e){}
-  tb.innerHTML=list.map(x=>`<tr data-fid="${esc(x.id)}" draggable="true">
-    <td><input type="checkbox" class="file-check" data-id="${esc(x.id)}"/></td>
-    <td><span style="cursor:grab;opacity:.4;margin-right:4px">⋮⋮</span><a href="/api/files/${encodeURIComponent(x.id)}" style="font-weight:600">${q?esc(x.name).replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"),"<mark style=\"background:var(--green-100);color:var(--green-900);padding:1px 3px;border-radius:3px\">$1</mark>"):esc(x.name)}</a></td>
-    <td class="file-size">${fmtSize(x.size||0)}</td>
-    <td>${esc(x.teacher||"匿名")}</td>
-    <td class="file-size">${fmtTs(x.at)}</td>
-    <td>${x.downloads||0}</td>
-    <td><a class="btn-line" href="/api/files/${encodeURIComponent(x.id)}" style="height:32px;padding:0 12px;font-size:11.5px">下载</a>
-      <button class="chip" data-fid="${esc(x.id)}" data-fname="${esc(x.name||"")}" onclick="previewFile(this.dataset.fid,this.dataset.fname)">预览</button>
-      <button class="chip" data-fid="${esc(x.id)}" data-fname="${esc(x.name||"")}" onclick="openComments(this.dataset.fid,this.dataset.fname)">💬${(x.comments||[]).length?" "+(x.comments||[]).length:""}</button>
-      <button class="chip" data-fid="${esc(x.id)}" data-fname="${esc(x.name||"")}" onclick="renameFile(this.dataset.fid,this.dataset.fname)">✏️</button></td>
-  </tr>`).join("");
-}
-$("#fileQ").addEventListener("input",()=>{clearTimeout(window.__fT);window.__fT=setTimeout(renderFiles,180)});
-// 上传：点击 + 拖拽
-const upDrop=$("#upDrop"),upFile=$("#upFile");let pickedFile=null;
-upDrop.addEventListener("click",e=>{if(!e.target.closest("input")&&e.target.tagName!=="LABEL")upFile.click()});
-upFile.addEventListener("change",()=>{const n=upFile.files[0];if(n){pickedFile=n;$("#upStatus").textContent="已选： "+n.name+"（"+fmtSize(n.size)+"）"}});
-["dragenter","dragover"].forEach(ev=>upDrop.addEventListener(ev,e=>{e.preventDefault();upDrop.classList.add("over")}));
-["dragleave","drop"].forEach(ev=>upDrop.addEventListener(ev,e=>{e.preventDefault();upDrop.classList.remove("over")}));
-upDrop.addEventListener("drop",e=>{
-  const fs=e.dataTransfer&&e.dataTransfer.files;
-  if(fs&&fs.length){pickedFile=fs[0];try{upFile.files=fs}catch(_){}$("#upStatus").textContent="已选： "+fs[0].name+"（"+fmtSize(fs[0].size)+"）"}
-});
-$("#camBtn").addEventListener("click",()=>{$("#upCam").click()});
-$("#upCam").addEventListener("change",()=>{
-  const fs=$("#upCam").files;
-  if(fs&&fs.length){
-    pickedFile=fs[0];
-    try{const dt=new DataTransfer();dt.items.add(fs[0]);$("#upFile").files=dt.files}catch(_){}
-    $("#upStatus").textContent="已拍照： "+fs[0].name+"（"+fmtSize(fs[0].size)+"）";
-  }
-});
-$("#upGo").addEventListener("click",()=>{
-  const file=pickedFile||upFile.files[0];
-  if(!file){$("#upStatus").textContent="先选一个文件";return}
-  if(file.size>49.5*1024*1024){$("#upStatus").textContent="文件超过 49MB（服务端限制 50MB 含协议头）";return}
-  const fd=new FormData();
-  fd.append("file",file);
-  fd.append("teacher",$("#upTeacher").value.trim()||"匿名");
-  const btn=$("#upGo");btn.disabled=true;btn.textContent="上传中…";
-  $("#upStatus").textContent="上传中…";
-  fetch("/api/files",{method:"POST",body:fd}).then(r=>r.json()).then(d=>{
-    btn.disabled=false;btn.textContent="上传";
-    if(d.ok){
-      $("#upStatus").textContent="已上传： "+d.name;
-      pickedFile=null;upFile.value="";$("#upTeacher").value="";
-      toast("上传成功，全组都能下载了");
-      loadFiles();
-    }else{$("#upStatus").textContent=d.error||"上传失败"}
-  }).catch(()=>{btn.disabled=false;btn.textContent="上传";$("#upStatus").textContent="网络错误"});
-});
-function loadFiles(){
-  jget("/api/files").then(d=>{
-    FILES=d.files||[];
-    renderFiles();
-  }).catch(()=>{});
-}
-
-/* —— 资源库表格（真实） —— */
-function renderRes(){
-  const tb=$("#resTable tbody");
-  const rows=[];
-  WBS.filter(w=>!w.hidden).forEach(w=>{
-    rows.push(`<tr><td><a href="/w/${esc(w.id)}" target="_blank">${esc(w.title)}</a></td><td><span class="td-tag">实验模块</span></td><td>${esc(w.teacher||"教研组")}</td><td>${fmtTs(w.created_at)}</td></tr>`);
-  });
-  (CONTRIBS||[]).forEach(c=>{
-    rows.push(`<tr><td>${esc(c.title||c.text||"教研资料")}</td><td><span class="td-tag b">${esc((c.subject||c.tag||"资料").slice(0,4))}</span></td><td>${esc(c.teacher||"教研组")}</td><td>${fmtTs(c.at)}</td></tr>`);
-  });
-  tb.innerHTML=rows.join("")||`<tr><td colspan="4" style="text-align:center;padding:30px"><div class="big" style="font-size:30px">🧫</div><div style="font-size:12.5px;color:var(--ink-500)">资源库还是纯净物——上传第一份资源，全组都能用</div></td></tr>`;
 }
 
 /* —— 成长空间贡献榜 —— */
@@ -2092,7 +1789,6 @@ document.addEventListener("click",e=>{
 document.addEventListener("click",e=>{
   if(e.target.id!=="weeklyReport")return;
   const wbs=WBS.filter(w=>!w.hidden);
-  const files=FILES||[];
   const exams=SCORES||[];
   const now=new Date();
   const weekAgo=now-7*864e5;
@@ -2104,8 +1800,7 @@ document.addEventListener("click",e=>{
 
 一、本周动态
 ${newWbs.length?`新上架实验模块 ${newWbs.length} 个：${newWbs.map(w=>w.title).join("、")}`:"本周无新实验上架"}
-共享文件 ${files.length} 个（累计下载 ${totalDl} 次）
-实验模块累计浏览 ${totalViews} 次
+实验模块累计下载 ${totalDl} 次、浏览 ${totalViews} 次
 
 二、教学数据
 ${latestExam?`最新考试「${latestExam.name}」：${latestExam.count} 人参考，均分 ${latestExam.avg} 分，及格率 ${latestExam.pass_rate}%`:"暂无考试数据"}
@@ -2276,44 +1971,6 @@ function addNormalLines(segs,total){
   return {sd:sd,mean:mean,skewness:skewness,kurtosis:kurtosis};
 }
 
-function renderFilePie(){
-  if(!FILES||!FILES.length)return;
-  const cats={"图片":0,"文档":0,"表格":0,"其他":0};
-  FILES.forEach(f=>{
-    const ext=(f.name||"").split(".").pop().toLowerCase();
-    if(["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext))cats["图片"]++;
-    else if(["doc","docx","pdf","txt","md","ppt","pptx"].includes(ext))cats["文档"]++;
-    else if(["xls","xlsx","csv"].includes(ext))cats["表格"]++;
-    else cats["其他"]++;
-  });
-  const total=FILES.length;
-  const colors={"图片":"#5B9BD5","文档":"#4E9A63","表格":"#E5A93F","其他":"#A8B2A9"};
-  const cx=80,cy=80,r=60;
-  let angle=-Math.PI/2;
-  let svg=`<svg viewBox="0 0 260 160" style="width:100%;max-width:380px;height:160px">`;
-  Object.entries(cats).forEach(([label,n])=>{
-    if(n===0)return;
-    const frac=n/total;
-    const end=angle+frac*Math.PI*2;
-    const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
-    const x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
-    const large=frac>0.5?1:0;
-    svg+=`<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${colors[label]}" stroke="#fff" stroke-width="2"><title>${label}: ${n} 个</title></path>`;
-    const mid=angle+frac*Math.PI;
-    const lx=cx+(r*0.65)*Math.cos(mid),ly=cy+(r*0.65)*Math.sin(mid);
-    if(frac>0.06)svg+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">${n}</text>`;
-    angle=end;
-  });
-  let ly=20;
-  Object.entries(cats).forEach(([label,n])=>{
-    svg+=`<rect x="175" y="${ly}" width="12" height="12" rx="3" fill="${colors[label]}"/>`;
-    svg+=`<text x="193" y="${ly+11}" font-size="11" fill="var(--ink-700)">${label} ${n}</text>`;
-    ly+=24;
-  });
-  svg+='</svg>';
-  const box=document.getElementById("filePieChart");
-  if(box)box.innerHTML=svg;
-}
 
 // 考试对比增强：分数段对比 + 最大进退步
 function renderCmpEnhance(dA,dB){
@@ -3528,88 +3185,6 @@ document.addEventListener("click",e=>{
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="课标认领进度.csv";a.click();URL.revokeObjectURL(a.href);
   toast("课标进度已导出");
 });
-document.addEventListener("click",e=>{
-  if(e.target.id==="fileCheckAll"){
-    const checked=e.target.checked;
-    $$(".file-check").forEach(c=>c.checked=checked);
-    return;
-  }
-  if(e.target.id==="batchDelFiles"){
-    const ids=[];
-    $$(".file-check:checked").forEach(c=>ids.push(c.dataset.id));
-    if(!ids.length){toast("先勾选要删除的文件");return}
-    if(!confirm("确认删除 "+ids.length+" 个文件？此操作不可恢复"))return;
-    const k=prompt("请输入管理 key：")||"";
-    let done=0,fail=0;
-    ids.forEach(id=>{
-      fetch("/api/files/"+encodeURIComponent(id),{method:"DELETE",headers:{"X-Access-Key":k}}).then(r=>r.json()).then(d=>{
-        done++;if(!d.ok)fail++;
-        if(done===ids.length){toast(fail?"成功 "+(ids.length-fail)+"，失败 "+fail:"已删除 "+ids.length+" 个文件");FILES=FILES.filter(f=>!ids.includes(f.id));renderFiles()}
-      }).catch(()=>{done++;fail++;if(done===ids.length)toast("成功 "+(ids.length-fail)+"，失败 "+fail)});
-    });
-    return;
-  }
-});
-// 文件拖拽排序
-let __dragFile=null;
-document.addEventListener("dragstart",e=>{
-  const row=e.target.closest("tr[data-fid]");
-  if(row){__dragFile=row.dataset.fid;row.style.opacity="0.5"}
-});
-document.addEventListener("dragend",e=>{
-  const row=e.target.closest("tr[data-fid]");
-  if(row){row.style.opacity="1"}
-  __dragFile=null;
-});
-document.addEventListener("dragover",e=>{
-  if(__dragFile)e.preventDefault();
-});
-document.addEventListener("drop",e=>{
-  if(!__dragFile)return;
-  e.preventDefault();
-  const target=e.target.closest("tr[data-fid]");
-  if(target&&target.dataset.fid!==__dragFile){
-    // 交换 localStorage 顺序
-    try{
-      let order=JSON.parse(localStorage.getItem("th_file_order")||"[]");
-      const from=order.indexOf(__dragFile),to=order.indexOf(target.dataset.fid);
-      if(from>=0&&to>=0){order.splice(from,1);order.splice(to,0,__dragFile)}
-      else{order=[__dragFile,target.dataset.fid]}
-      localStorage.setItem("th_file_order",JSON.stringify(order));
-    }catch(err){}
-    renderFiles();
-  }
-});
-
-
-
-
-let __fileSort="time";
-document.addEventListener("click",e=>{
-  const sb=e.target.closest("[data-sort]");
-  if(sb){
-    $$("[data-sort]").forEach(b=>b.classList.remove("on"));
-    sb.classList.add("on");
-    __fileSort=sb.dataset.sort;
-    renderFiles();
-    return;
-  }
-  const f=e.target.closest("[data-filetype]");
-  if(!f)return;
-  $$("[data-filetype]").forEach(b=>b.classList.remove("on"));
-  f.classList.add("on");
-  const mode=f.dataset.filetype;
-  $$("#fileTable tbody tr").forEach(tr=>{
-    const link=tr.querySelector("a");
-    const name=link?link.textContent:"";
-    const ext=name.split(".").pop().toLowerCase();
-    const isImg=["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext);
-    const isDoc=["doc","docx","pdf","txt","md","ppt","pptx"].includes(ext);
-    const isTable=["xls","xlsx","csv"].includes(ext);
-    const show=!mode||(mode==="image"&&isImg)||(mode==="doc"&&isDoc)||(mode==="table"&&isTable);
-    tr.style.display=show?"":"none";
-  });
-});
 document.addEventListener("input",e=>{
   if(e.target.id!=="kbSearch")return;
   const q=e.target.value.trim().toLowerCase();
@@ -3676,10 +3251,9 @@ $("#kbSubmit").addEventListener("click",async()=>{
 
 /* —— 数据看板 —— */
 function renderData(){
-  renderFilePie();
   const t=(STATS&&STATS.totals)||{};
   const minis=[
-    ["总浏览",t.views||0],["总下载",t.downloads||0],["今日访问",t.today_views||0],["留言",t.board_msgs||0],["共享文件",FILES.length]
+    ["总浏览",t.views||0],["总下载",t.downloads||0],["今日访问",t.today_views||0],["留言",t.board_msgs||0]
   ];
   $("#dataMinis").innerHTML=minis.map(([l,n])=>`<div class="mini"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
   const daily=dailyArr();
@@ -3695,12 +3269,10 @@ function renderData(){
   }else{$("#dataSpark").innerHTML=`<div class="empty-state" style="padding:20px 0">数据还在慢慢反应（至少积累 2 天）</div>`}
   renderGrow();
   // 热门资源
-  const hotFiles=[...FILES].sort((a,b)=>(b.downloads||0)-(a.downloads||0)).filter(x=>(x.downloads||0)>0).slice(0,5);
   const hotWbs=[...WBS].filter(w=>!w.hidden).sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,5);
   const hotBox=$("#dataHot");
   if(hotBox){
-    hotBox.innerHTML=(hotFiles.length?`<div style="font-size:12px;font-weight:600;color:var(--ink-900);margin:2px 0 8px">🔥 热门下载</div>`+hotFiles.map((x,i)=>`<div class="rank-row"><div class="rank-badge" style="background:${i===0?'#E5A93F':'#A8B2A9'}">${i+1}</div><div class="rank-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</div><div class="rank-num"><b>${x.downloads}</b> 次</div></div>`).join(""):"")
-      +(hotWbs.length?`<div style="font-size:12px;font-weight:600;color:var(--ink-900);margin:14px 0 8px">👁 热门实验</div>`+hotWbs.map((w,i)=>`<div class="rank-row"><div class="rank-badge" style="background:${i===0?'#E5A93F':'#A8B2A9'}">${i+1}</div><div class="rank-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="/w/${encodeURIComponent(w.id)}">${esc(w.title)}</a></div><div class="rank-num"><b>${w.views||0}</b> 次</div></div>`).join(""):"")
+    hotBox.innerHTML=(hotWbs.length?`<div style="font-size:12px;font-weight:600;color:var(--ink-900);margin:14px 0 8px">👁 热门实验</div>`+hotWbs.map((w,i)=>`<div class="rank-row"><div class="rank-badge" style="background:${i===0?'#E5A93F':'#A8B2A9'}">${i+1}</div><div class="rank-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="/w/${encodeURIComponent(w.id)}">${esc(w.title)}</a></div><div class="rank-num"><b>${w.views||0}</b> 次</div></div>`).join(""):"")
       ||`<div class="empty-state" style="padding:16px 0"><div style="font-size:12.5px">数据积累中——有人下载/浏览后这里会出现排行</div></div>`;
   }
   const byT=teacherMap();
@@ -3721,7 +3293,7 @@ function renderData(){
     WBS=wb.workbenches||wb.list||[];
     STATS=st;
     CONTRIBS=(cv.contribs||cv.list||[]).slice().reverse();
-    loadFiles().then(()=>renderData());
+    renderData();
   const [sc,kb]=await Promise.all([
       jget("/api/scores").catch(()=>({exams:[]})),
       jget("/api/kb").catch(()=>({claims:{}}))
@@ -3729,7 +3301,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderRes();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义

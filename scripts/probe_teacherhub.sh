@@ -110,7 +110,7 @@ PAGE=$(curl -s "$BASE/"); [[ "$PAGE" == *'class="lab-toolbar"'* && "$PAGE" == *'
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==18 and {'record_score','get_scores','get_score_detail','list_files','push_file'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十八件（含成绩/文件/上传）" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==16 and {'record_score','get_scores','get_score_detail'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十六件（含成绩工具）" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -203,40 +203,17 @@ assert '成绩录入' in ops and '课标认领' in ops and '成绩删除' in ops
 CG=$(curl -s -X POST "$BASE/api/contrib?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"teacher":"日志测试","text":"临时"}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
 [ -n "$CG" ] && curl -s -X DELETE "$BASE/api/contrib/$CG" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && ok "贡献删除（key）" || bad "贡献删除"
 curl -s -X DELETE "$BASE/api/kb/claim" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{"module":"化学实验基础"}' | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==True" 2>/dev/null && curl -s "$BASE/api/kb" | python3 -c "import json,sys;assert not json.load(sys.stdin)['claims']" 2>/dev/null && ok "课标认领清除" || bad "认领清除"
-# ---- 校本资源文件断言（上传/下载/净化/删除）----
-printf '文件内容TEST123' > /tmp/th-up.docx
-FX=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=化学 讲义.v2.docx" -F "teacher=张老师" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and d['name']=='化学 讲义.v2.docx',d;print(d['id'])" 2>/dev/null)
-[ -n "$FX" ] && ok "文件上传（中文名+点号保留）" || bad "文件上传"
-curl -s "$BASE/api/files" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-fs=[f for f in d['files'] if f['name']=='化学 讲义.v2.docx']
-assert fs and fs[0]['teacher']=='张老师' and fs[0]['size']==19, fs" 2>/dev/null && ok "文件列表（免 key，元数据正确）" || bad "文件列表"
-curl -s -D /tmp/th-fh "$BASE/api/files/$FX" -o /tmp/th-fd.bin
-cmp -s /tmp/th-up.docx /tmp/th-fd.bin && grep -qi 'content-disposition: attachment' /tmp/th-fh && grep -qi 'x-content-type-options: nosniff' /tmp/th-fh && ok "文件下载（字节一致+attachment+nosniff）" || bad "文件下载"
-EV=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=../../evil.html" -F "teacher=测试" | python3 -c "import json,sys;d=json.load(sys.stdin);assert '/' not in d['name'] and '\\\\' not in d['name'],d;print(d['id'])" 2>/dev/null)
-[ -n "$EV" ] && ok "穿越文件名净化（无路径分隔符）" || bad "文件名净化"
-curl -s -X DELETE "$BASE/api/files/$FX" -o /dev/null -w '%{http_code}' | grep -q 401 && curl -s -X DELETE "$BASE/api/files/$FX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s -X DELETE "$BASE/api/files/$FX" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 404 && ok "文件删除（401/200/404）" || bad "文件删除"
-[ -n "$EV" ] && curl -s -X DELETE "$BASE/api/files/$EV" -H "X-Access-Key: $KEY" -o /dev/null
 # ---- 优化轮断言（gzip/备份含 files/MCP 文件工具）----
 curl -s -o /dev/null -D /tmp/th-gzh -H 'Accept-Encoding: gzip' "$BASE/"
 grep -qi 'content-encoding: gzip' /tmp/th-gzh && grep -qi 'vary: accept-encoding' /tmp/th-gzh && ok "页面 gzip 压缩（含 Vary）" || bad "gzip"
-printf '导出验证内容' > /tmp/th-exp-src.txt
-curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-exp-src.txt;filename=导出验证.txt" -F "teacher=探针" >/dev/null
 curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/export" -o /tmp/th-exp.zip
-unzip -l /tmp/th-exp.zip 2>/dev/null | grep -q 'files/' && unzip -l /tmp/th-exp.zip 2>/dev/null | grep -q 'store.json' && ok "导出 zip 含 files 目录" || bad "导出含 files"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"list_files","arguments":{}}}' | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-r=json.loads(d['result']['content'][0]['text'])
-assert r.get('ok')==True and isinstance(r.get('files'),list), r" 2>/dev/null && ok "MCP list_files（免 key）" || bad "MCP list_files"
+unzip -l /tmp/th-exp.zip 2>/dev/null | grep -q 'store.json' && ok "导出 zip 含 store.json" || bad "导出内容"
 # ---- 优化轮续断言（manifest/feed 文件事件/手动备份）----
 curl -s "$BASE/manifest.webmanifest" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
 assert d['name']=='化学学科园地' and d['theme_color']=='#2F6B45', d" 2>/dev/null && ok "PWA manifest 化学园地化" || bad "manifest"
-curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=feed验证.txt" -F "teacher=探针" >/dev/null
-curl -s "$BASE/feed.xml" | grep -q '共享文件：feed验证.txt' && curl -s "$BASE/feed.xml" | grep -q '化学学科园地' && ok "RSS 含文件事件（园地标题）" || bad "RSS 文件事件"
+curl -s "$BASE/feed.xml" | grep -q '<item>' && curl -s "$BASE/feed.xml" | grep -q '化学学科园地' && ok "RSS 含产物条目（园地标题）" || bad "RSS 产物条目"
 curl -s -X POST "$BASE/api/admin/backup" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
@@ -267,7 +244,7 @@ d=json.load(sys.stdin)
 r=json.loads(d['result']['content'][0]['text'])
 assert r.get('ok')==True and [q['rate'] for q in r['questions']]==[38.8,62.0,79.2], r" 2>/dev/null && ok "MCP get_score_detail（失分排行）" || bad "MCP 详情"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"x","scores":[50]}}}' | python3 -c "import json,sys;assert json.load(sys.stdin)['result'].get('isError')==True" 2>/dev/null && curl -s -X POST "$BASE/mcp?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"MCP录","scores":[70]}}}' | python3 -c "import json,sys;import json as j;r=j.loads(json.load(sys.stdin)['result']['content'][0]['text']);assert r.get('ok')==True" 2>/dev/null && ok "MCP record_score（无 key 拒/带 key 成）" || bad "MCP record"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":10,"method":"tools/list"}' | python3 -c "import json,sys;ns={t['name'] for t in json.load(sys.stdin)['result']['tools']};assert len(ns)==18 and {'record_score','get_scores','get_score_detail','push_file'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十八件（含成绩/文件/上传）" || bad "MCP 清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":10,"method":"tools/list"}' | python3 -c "import json,sys;ns={t['name'] for t in json.load(sys.stdin)['result']['tools']};assert len(ns)==16 and {'record_score','get_scores','get_score_detail'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十六件" || bad "MCP 清单"
 # ---- ocr 列后补强断言（5 条）----
 # 1) 成绩公开 API 不泄露原始分
 curl -s "$BASE/api/scores" | python3 -c "
@@ -275,27 +252,10 @@ import json,sys
 d=json.load(sys.stdin)
 for e in d.get('exams',[]):
     assert 'scores' not in e, '原始分泄露!'" 2>/dev/null && ok "成绩列表不含原始分" || bad "成绩原始分泄露"
-# 2) 上传失败模式：缺 file 字段
-curl -s -X POST "$BASE/api/files" -F "teacher=t" | python3 -c "import json,sys;assert json.load(sys.stdin).get('ok')==False" 2>/dev/null && ok "上传缺 file 拒绝（400）" || bad "上传缺字段"
-# 3) 文件下载带 Accept-Encoding: gzip 不应被压缩（重传文件再断言，避免对已删 $FX 恒过）
-FXG=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=gzip-test.docx" -F "teacher=探针" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
-curl -s -o /dev/null -D /tmp/th-dl-gz -H 'Accept-Encoding: gzip' "$BASE/api/files/$FXG"
-grep -qi 'content-encoding' /tmp/th-dl-gz && bad "文件下载被 gzip 误压" || ok "文件下载不压缩（gzip 排除正确）"
-[ -n "$FXG" ] && curl -s -X DELETE "$BASE/api/files/$FXG" -H "X-Access-Key: $KEY" -o /dev/null
-# 4) 文件名净化强断言（无 .. 无空名）
-curl -s "$BASE/api/files" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-for f in d.get('files',[]):
-    n=f['name']
-    assert n, 'empty name'
-    assert chr(47) not in n, n
-    assert chr(92) not in n, n
-    assert '..' not in n, n" 2>/dev/null && ok "文件名净化强断言（无穿越/非空）" || bad "文件名净化"
 # 5) 备份内容断言（含 store.json + files/）
 BN=$(curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups" | python3 -c "import json,sys;print(json.load(sys.stdin)['backups'][0]['name'])" 2>/dev/null)
 curl -s -H "X-Access-Key: $KEY" "$BASE/api/admin/backups/$BN" -o /tmp/th-bk-test.zip
-unzip -l /tmp/th-bk-test.zip 2>/dev/null | grep -q 'store.json' && unzip -l /tmp/th-bk-test.zip 2>/dev/null | grep -q 'files/' && ok "备份含 store.json + files/" || bad "备份内容"
+unzip -l /tmp/th-bk-test.zip 2>/dev/null | grep -q 'store.json' && ok "备份含 store.json" || bad "备份内容"
 NK=$(curl -s -X POST "$BASE/api/admin/rotate-key" -H "X-Access-Key: $KEY" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
 [ ${#NK} -eq 32 ] && ok "key 轮换生成 32 位" || bad "key 轮换"
 curl -s "$BASE/api/admin/logs" -H "X-Access-Key: $KEY" -o /dev/null -w '%{http_code}' | grep -q 401 && ok "旧 key 轮换后作废" || bad "旧 key 未作废"
@@ -306,7 +266,7 @@ assert d['logs'][0]['op']=='key 轮换', d['logs'][:1]" 2>/dev/null && ok "新 k
 # 6) 数据重置端点（401 / 执行 / 清空）
 curl -s -X POST "$BASE/api/admin/reset" -H 'Content-Type: application/json' --data-raw '{}' -o /dev/null -w '%{http_code}' | grep -q 401 && ok "数据重置无 key 拒绝（401）" || bad "重置鉴权"
 curl -s -X POST "$BASE/api/admin/reset" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('ok')==True and 'cleared' in d,d" 2>/dev/null && ok "数据重置执行（ok+cleared）" || bad "数据重置"
-curl -s "$BASE/api/scores" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('exams'),d" 2>/dev/null && curl -s "$BASE/api/files" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('files'),d" 2>/dev/null && ok "重置后成绩/文件清空" || bad "重置未清空"
+curl -s "$BASE/api/scores" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('exams'),d" 2>/dev/null && curl -s "$BASE/api/board" | python3 -c "import json,sys;d=json.load(sys.stdin);assert not d.get('board'),d" 2>/dev/null && ok "重置后成绩/留言清空" || bad "重置未清空"
 # 7) CSV 注入防护（考试名含 =,," 破列+公式字符 → 转义+前缀；题名含逗号 → 列齐）
 CX=$(curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"=危,险\"名","subject":"化学","date":"2026-11-17","scores":[60,80],"questions":[{"name":"Q,1","max":10,"avg":5}]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
 curl -s -H "X-Access-Key: $NK" "$BASE/api/scores/csv/$CX" -o /tmp/th-csv-inj.csv
@@ -318,14 +278,6 @@ assert len(dat)==6, dat
 assert dat[0]==chr(39)+'=危,险'+chr(34)+'名', dat
 q=[r for r in rows if r and r[0]=='Q,1']
 assert q and len(q[0])==4, rows" 2>/dev/null && ok "CSV 注入防护（公式前缀+引号翻倍+列齐）" || bad "CSV 注入防护"
-# 8) 文件评论（长度 400 / 发表 200 / 限速 429 / 回读 / 删除 401-200-404）
-FC=$(curl -s -X POST "$BASE/api/files" -F "file=@/tmp/th-up.docx;filename=评论测试.docx" -F "teacher=探针" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
-LONGT=$(python3 -c "print('x'*201)")
-curl -s -X POST "$BASE/api/files/$FC/comments" -H 'Content-Type: application/json' --data-raw "$(python3 -c "import json;print(json.dumps({'name':'探针','text':'x'*201}))")" -o /dev/null -w '%{http_code}' | grep -q 400 && curl -s -X POST "$BASE/api/files/$FC/comments" -H 'Content-Type: application/json' --data-raw '{"name":"探针","text":"好资料"}' -o /dev/null -w '%{http_code}' | grep -q 200 && ok "评论发表（长度 400 拒 + 正常 200）" || bad "评论发表"
-curl -s -X POST "$BASE/api/files/$FC/comments" -H 'Content-Type: application/json' --data-raw '{"name":"探针","text":"再发"}' -o /dev/null -w '%{http_code}' | grep -q 429 && ok "评论限速（60s 内 429）" || bad "评论限速"
-curl -s "$BASE/api/files/$FC/comments" | python3 -c "import json,sys;d=json.load(sys.stdin);cs=d.get('comments',[]);assert len(cs)==1 and cs[0]['text']=='好资料' and cs[0]['name']=='探针',cs" 2>/dev/null && ok "评论回读（1 条内容一致）" || bad "评论回读"
-CID=$(curl -s "$BASE/api/files/$FC/comments" | python3 -c "import json,sys;print(json.load(sys.stdin)['comments'][0]['id'])" 2>/dev/null)
-curl -s -X DELETE "$BASE/api/files/$FC/comments/$CID" -o /dev/null -w '%{http_code}' | grep -q 401 && curl -s -X DELETE "$BASE/api/files/$FC/comments/$CID" -H "X-Access-Key: $NK" -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s -X DELETE "$BASE/api/files/$FC/comments/$CID" -H "X-Access-Key: $NK" -o /dev/null -w '%{http_code}' | grep -q 404 && ok "评论删除（401/200/404）" || bad "评论删除"
 # 9) 成绩模块关联（modules 录入回读 / 越界 400）
 MX=$(curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"模块对照测试","scores":[70,80],"modules":["化学实验基础","有机化合物"]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
 curl -s "$BASE/api/scores/$MX" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('modules')==['化学实验基础','有机化合物'],d" 2>/dev/null && ok "成绩模块关联（录入回读一致）" || bad "成绩模块关联"

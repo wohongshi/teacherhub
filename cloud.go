@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"io"
 	"io/fs"
 	"log"
 	"math"
@@ -65,14 +64,6 @@ type ScoreExam struct {
 	Modules   []string       `json:"modules,omitempty"`
 }
 
-// FileComment 资源文件评论（免 key 发表，管理 key 删除）。
-type FileComment struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Text string `json:"text"`
-	At   int64  `json:"at"`
-}
-
 // FileRec 校本资源文件元数据（磁盘名用 id，展示名净化后存元数据）。
 type FileRec struct {
 	ID        string        `json:"id"`
@@ -80,149 +71,7 @@ type FileRec struct {
 	Size      int64         `json:"size"`
 	Teacher   string        `json:"teacher"`
 	At        int64         `json:"at"`
-	Downloads int           `json:"downloads"`
-	Comments  []FileComment `json:"comments,omitempty"`
-}
-
-// fileCommentAPI 文件评论三路由：GET 列表（免 key）/ POST 发表（免 key 限速）/ DELETE 删（管理 key）。
-func fileCommentAPI(w http.ResponseWriter, r *http.Request, st *cloudStore, fid, cid string) {
-	switch r.Method {
-	case http.MethodGet:
-		st.mu.Lock()
-		var out []FileComment
-		for i := range st.data.Files {
-			if st.data.Files[i].ID == fid {
-				out = st.data.Files[i].Comments
-				break
-			}
-		}
-		st.mu.Unlock()
-		if out == nil {
-			out = []FileComment{}
-		}
-		writeJSON(w, 200, map[string]any{"ok": true, "comments": out})
-	case http.MethodPost:
-		if cid != "" {
-			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
-			return
-		}
-		var in FileComment
-		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
-		if err != nil || json.Unmarshal(body, &in) != nil {
-			writeJSON(w, 400, map[string]any{"ok": false, "error": "参数错误"})
-			return
-		}
-		in.Name = strings.TrimSpace(in.Name)
-		in.Text = strings.TrimSpace(in.Text)
-		if in.Name == "" || in.Text == "" {
-			writeJSON(w, 400, map[string]any{"ok": false, "error": "缺昵称或内容"})
-			return
-		}
-		if nr := []rune(in.Name); len(nr) > 16 {
-			writeJSON(w, 400, map[string]any{"ok": false, "error": "昵称太长（16 字内）"})
-			return
-		}
-		if tr := []rune(in.Text); len(tr) > 200 {
-			writeJSON(w, 400, map[string]any{"ok": false, "error": "评论太长（200 字内）"})
-			return
-		}
-		ip := clientIP(r)
-		now := time.Now().Unix()
-		st.mu.Lock()
-		if st.commentLast == nil {
-			st.commentLast = map[string]int64{}
-		}
-		if now-st.commentLast[ip] < 60 {
-			st.mu.Unlock()
-			writeJSON(w, 429, map[string]any{"ok": false, "error": "评论太快，歇一分钟再来"})
-			return
-		}
-		st.commentLast[ip] = now
-		found := false
-		for i := range st.data.Files {
-			if st.data.Files[i].ID == fid {
-				c := FileComment{ID: "fc_" + randToken()[:12], Name: in.Name, Text: in.Text, At: now}
-				st.data.Files[i].Comments = append(st.data.Files[i].Comments, c)
-				if len(st.data.Files[i].Comments) > 100 {
-					st.data.Files[i].Comments = st.data.Files[i].Comments[len(st.data.Files[i].Comments)-100:]
-				}
-				found = true
-				break
-			}
-		}
-		_ = st.save()
-		st.mu.Unlock()
-		if !found {
-			writeJSON(w, 404, map[string]any{"ok": false, "error": "文件不存在"})
-			return
-		}
-		writeJSON(w, 200, map[string]any{"ok": true})
-	case http.MethodDelete:
-		if cid == "" {
-			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
-			return
-		}
-		got := r.Header.Get("X-Access-Key")
-		if got == "" {
-			got = r.URL.Query().Get("key")
-		}
-		if !st.keyMatches(got) {
-			writeJSON(w, 401, map[string]any{"ok": false, "error": "key 不对"})
-			return
-		}
-		{
-			st.mu.Lock()
-			found := false
-			for i := range st.data.Files {
-				if st.data.Files[i].ID != fid {
-					continue
-				}
-				nc := st.data.Files[i].Comments[:0]
-				for _, c := range st.data.Files[i].Comments {
-					if c.ID == cid {
-						found = true
-						continue
-					}
-					nc = append(nc, c)
-				}
-				if found {
-					st.data.Files[i].Comments = nc
-					st.log("评论删除", st.data.Files[i].Name)
-				}
-				break
-			}
-			_ = st.save()
-			st.mu.Unlock()
-			if !found {
-				writeJSON(w, 404, map[string]any{"ok": false, "error": "评论不存在"})
-				return
-			}
-			writeJSON(w, 200, map[string]any{"ok": true})
-		}
-	default:
-		writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
-	}
-}
-
-// sanitizeFileName 文件名净化：拦路径分隔符与控制字符（点号是合法字符不拦）。
-func sanitizeFileName(s string) string {
-	s = strings.TrimSpace(s)
-	s = strings.ReplaceAll(s, "\\", "_")
-	s = strings.ReplaceAll(s, "/", "_")
-	s = strings.Map(func(r rune) rune {
-		if r < 32 || r == 127 {
-			return -1
-		}
-		return r
-	}, s)
-	s = strings.TrimSpace(s)
-	if s == "" || s == "." || s == ".." {
-		s = "file"
-	}
-	if rs := []rune(s); len(rs) > 120 {
-		s = string(rs[:120])
-	}
-	return s
+	Downloads int    `json:"downloads"`
 }
 
 // csvCell CSV 单元格：引号包裹 + 双引号翻倍 + 公式注入防护（=+-@ 开头加 ' 前缀）。
@@ -331,19 +180,15 @@ type cloudStore struct {
 		Files       []FileRec          `json:"files,omitempty"`
 	}
 	boardLast    map[string]int64 // IP → 上次留言时间（内存限速）
-	commentLast  map[string]int64 // IP → 上次评论时间（内存限速）
 	boardLikes map[string]bool    // ip|msgID → 已赞
-	fileQuota  map[string][]int64 // IP → 上传时间戳列表（每小时 10 个限速）
+
 }
 
 func openStore(dir, key string) (*cloudStore, error) {
-	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o755); err != nil {
-		return nil, err
-	}
 	if err := os.MkdirAll(filepath.Join(dir, "artifacts"), 0o755); err != nil {
 		return nil, err
 	}
-	s := &cloudStore{dir: dir, boardLast: map[string]int64{}, commentLast: map[string]int64{}, boardLikes: map[string]bool{}, fileQuota: map[string][]int64{}}
+	s := &cloudStore{dir: dir, boardLast: map[string]int64{}, boardLikes: map[string]bool{}}
 	b, err := os.ReadFile(filepath.Join(dir, "store.json"))
 	if err == nil {
 		_ = json.Unmarshal(b, &s.data)
@@ -373,18 +218,6 @@ func (s *cloudStore) save() error {
 	return os.WriteFile(filepath.Join(s.dir, "store.json"), b, 0o600)
 }
 
-// downloadDirty 下载计数脏标记（攒批后随下次 save 持久化，不再每次 GET 全量写）。
-var downloadDirty bool
-
-// flushDownloads 检查并持久化下载计数（由 autoBackup 定时调用）。
-func flushDownloads(st *cloudStore) {
-	st.mu.Lock()
-	if downloadDirty {
-		_ = st.save()
-		downloadDirty = false
-	}
-	st.mu.Unlock()
-}
 
 // keyMatches 锁内比较 key（rotate-key 并发写时防撕裂读）。
 func (s *cloudStore) keyMatches(got string) bool {
@@ -435,7 +268,7 @@ func withETag(next http.Handler) http.Handler {
 			return
 		}
 		p := r.URL.Path
-		if strings.HasPrefix(p, "/api/files/") || strings.HasPrefix(p, "/api/admin/backups") || strings.HasSuffix(p, "/raw") || strings.HasSuffix(p, "/file") || strings.HasSuffix(p, "/preview") {
+		if strings.HasPrefix(p, "/api/admin/backups") || strings.HasSuffix(p, "/raw") || strings.HasSuffix(p, "/file") || strings.HasSuffix(p, "/preview") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -597,7 +430,6 @@ func autoBackup(st *cloudStore) {
 	_ = doBackup(st) // 启动快照失败不致命，下次 tick 重试
 	go func() {
 		for range time.Tick(1 * time.Hour) {
-			flushDownloads(st) // 每小时持久化一次下载计数
 		}
 	}()
 	go func() {
@@ -1591,20 +1423,9 @@ func cmdServe(args []string) {
 		}
 		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
 		var b strings.Builder
-		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>化学学科园地 · 动态</title><link>` + base + `/</link><description>产物与共享文件更新订阅</description>`)
+		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>化学学科园地 · 动态</title><link>` + base + `/</link><description>产物更新订阅</description>`)
 		for _, wb := range list {
 			b.WriteString(`<item><title>` + html.EscapeString(wb.Title) + `</title><link>` + base + `/w/` + wb.ID + `</link><pubDate>` + time.Unix(wb.CreatedAt, 0).Format(time.RFC1123Z) + `</pubDate><description>` + html.EscapeString(wb.Desc) + `</description></item>`)
-		}
-		st.mu.Lock()
-		files := make([]FileRec, len(st.data.Files))
-		copy(files, st.data.Files)
-		st.mu.Unlock()
-		sort.Slice(files, func(i, j int) bool { return files[i].At > files[j].At })
-		if len(files) > 20 {
-			files = files[:20]
-		}
-		for _, fl := range files {
-			b.WriteString(`<item><title>共享文件：` + html.EscapeString(fl.Name) + `</title><link>` + base + `/api/files/` + fl.ID + `</link><pubDate>` + time.Unix(fl.At, 0).Format(time.RFC1123Z) + `</pubDate><description>` + html.EscapeString(fl.Teacher) + ` 上传（点击下载）</description></item>`)
 		}
 		b.WriteString(`</channel></rss>`)
 		_, _ = w.Write([]byte(b.String()))
@@ -1704,93 +1525,6 @@ func cmdServe(args []string) {
 		})
 	})
 	// 校本资源文件：列表免 key、上传免 key 限速、下载免 key、删除留 key
-	mux.HandleFunc("/api/files", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet: // 列表（倒序）
-			st.mu.Lock()
-			files := make([]FileRec, len(st.data.Files))
-			copy(files, st.data.Files)
-			st.mu.Unlock()
-			for i, j := 0, len(files)-1; i < j; i, j = i+1, j-1 {
-				files[i], files[j] = files[j], files[i]
-			}
-			writeJSON(w, 200, map[string]any{"ok": true, "files": files})
-		case http.MethodPost: // 上传（免 key，署名 + 限速 + 大小限制）
-			// 限速用 RemoteAddr 兜底（XFF 可伪造，只有已知反代才该被信任）
-			ip := r.RemoteAddr
-			if host, _, err := net.SplitHostPort(ip); err == nil {
-				ip = host
-			}
-			now := time.Now().Unix()
-			st.mu.Lock()
-			if st.fileQuota == nil {
-				st.fileQuota = map[string][]int64{}
-			}
-			q := append(st.fileQuota[ip], now)
-			kept := q[:0]
-			for _, t := range q {
-				if now-t < 3600 {
-					kept = append(kept, t)
-				}
-			}
-			if len(kept) > 10 {
-				st.fileQuota[ip] = kept
-				st.mu.Unlock()
-				writeJSON(w, 429, map[string]any{"ok": false, "error": "上传太频繁（每小时 10 个）"})
-				return
-			}
-			st.fileQuota[ip] = kept
-			if len(st.fileQuota) > 20000 {
-				st.fileQuota = map[string][]int64{ip: kept}
-			}
-			st.mu.Unlock()
-
-			r.Body = http.MaxBytesReader(w, r.Body, 50<<20) // 单文件 ≤50MB
-			// 1MB 内存 + 磁盘临时文件，防并发上传内存膨胀
-			if err := r.ParseMultipartForm(1 << 20); err != nil {
-				writeJSON(w, 400, map[string]any{"ok": false, "error": "文件过大或格式不对（≤50MB）"})
-				return
-			}
-			fh, hdr, err := r.FormFile("file")
-			_ = hdr
-			if err != nil {
-				writeJSON(w, 400, map[string]any{"ok": false, "error": "缺 file 字段"})
-				return
-			}
-			defer fh.Close()
-			teacherField := strings.TrimSpace(r.FormValue("teacher"))
-			teacher := teacherField
-			if teacher == "" {
-				teacher = "匿名"
-			}
-			if len([]rune(teacher)) > 20 {
-				teacher = string([]rune(teacher)[:20])
-			}
-			name := sanitizeFileName(hdr.Filename)
-			id := "fx_" + randToken()[:12]
-			dst, err := os.Create(filepath.Join(st.dir, "files", id))
-			if err != nil {
-				writeJSON(w, 500, map[string]any{"ok": false, "error": "存储失败"})
-				return
-			}
-			n, err := io.Copy(dst, fh)
-			dst.Close()
-			if err != nil {
-				_ = os.Remove(filepath.Join(st.dir, "files", id))
-				writeJSON(w, 500, map[string]any{"ok": false, "error": "写入失败"})
-				return
-			}
-			rec := FileRec{ID: id, Name: name, Size: n, Teacher: teacher, At: now}
-			st.mu.Lock()
-			st.data.Files = append(st.data.Files, rec)
-			st.log("文件上传", name+"（"+teacher+"）")
-			_ = st.save()
-			st.mu.Unlock()
-			writeJSON(w, 200, map[string]any{"ok": true, "id": id, "name": name, "size": n})
-		default:
-			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
-		}
-	})
 	mux.HandleFunc("/api/admin/cleanup-backups", func(w http.ResponseWriter, r *http.Request) {
 		got := r.Header.Get("X-Access-Key")
 		if got == "" {
@@ -1840,137 +1574,6 @@ func cmdServe(args []string) {
 		st.mu.Unlock()
 		writeJSON(w, 200, map[string]any{"ok": true, "removed": removed, "kept": keep})
 	})
-	mux.HandleFunc("/api/files/rename", func(w http.ResponseWriter, r *http.Request) {
-		got := r.Header.Get("X-Access-Key")
-		if got == "" {
-			got = r.URL.Query().Get("key")
-		}
-		if !st.keyMatches(got) {
-			writeJSON(w, 401, map[string]any{"error": "need key"})
-			return
-		}
-		if r.Method != http.MethodPost {
-			writeJSON(w, 405, map[string]any{"error": "POST only"})
-			return
-		}
-		var req struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == "" || req.Name == "" {
-			writeJSON(w, 400, map[string]any{"error": "need id and name"})
-			return
-		}
-		newName := sanitizeFileName(req.Name)
-		if newName == "" {
-			writeJSON(w, 400, map[string]any{"error": "invalid name"})
-			return
-		}
-		st.mu.Lock()
-		var found *FileRec
-		for i := range st.data.Files {
-			if st.data.Files[i].ID == req.ID {
-				found = &st.data.Files[i]
-				break
-			}
-		}
-		if found == nil {
-			st.mu.Unlock()
-			writeJSON(w, 404, map[string]any{"error": "not found"})
-			return
-		}
-		old := found.Name
-		found.Name = newName
-		st.log("更新", "文件重命名："+old+" → "+newName)
-		_ = st.save()
-		st.mu.Unlock()
-		writeJSON(w, 200, map[string]any{"ok": true, "name": newName})
-	})
-	mux.HandleFunc("/api/files/", func(w http.ResponseWriter, r *http.Request) {
-		rest := strings.TrimPrefix(r.URL.Path, "/api/files/")
-		// 评论路由：/api/files/{id}/comments[/{cid}]
-		if ci := strings.Index(rest, "/comments"); ci > 0 && (len(rest) == ci+9 || rest[ci+9] == '/') {
-			fid := rest[:ci]
-			cid := ""
-			if len(rest) > ci+10 {
-				cid = strings.TrimPrefix(rest[ci+10:], "/")
-			}
-			fileCommentAPI(w, r, st, fid, cid)
-			return
-		}
-		id := rest
-		if id == "" || strings.Contains(id, "/") {
-			writeJSON(w, 404, map[string]any{"ok": false, "error": "not found"})
-			return
-		}
-		switch r.Method {
-		case http.MethodGet: // 下载（免 key；attachment + nosniff 防内容嗅探渲染）
-			st.mu.Lock()
-			var rec *FileRec
-			for i := range st.data.Files {
-				if st.data.Files[i].ID == id {
-					rec = &st.data.Files[i]
-					break
-				}
-			}
-			if rec != nil {
-				rec.Downloads++
-				downloadDirty = true
-			}
-			var fname string
-			if rec != nil {
-				fname = rec.Name
-			}
-			st.mu.Unlock()
-			if rec == nil {
-				writeJSON(w, 404, map[string]any{"ok": false, "error": "文件不存在"})
-				return
-			}
-			if r.URL.Query().Get("inline") == "1" {
-				mt := mime.TypeByExtension(filepath.Ext(fname))
-				if mt == "" {
-					mt = "application/octet-stream"
-				}
-				w.Header().Set("Content-Type", mt)
-				w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": fname}))
-			} else {
-				w.Header().Set("X-Content-Type-Options", "nosniff")
-				w.Header().Set("Content-Type", "application/octet-stream")
-				w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": fname}))
-			}
-			http.ServeFile(w, r, filepath.Join(st.dir, "files", id))
-		case http.MethodDelete: // 删除（管理 key）
-			api(w, r, func(w http.ResponseWriter, r *http.Request) {
-				st.mu.Lock()
-				found := false
-				nf := st.data.Files[:0]
-				var fname string
-				for _, fl := range st.data.Files {
-					if fl.ID == id {
-						found = true
-						fname = fl.Name
-						continue
-					}
-					nf = append(nf, fl)
-				}
-				if found {
-					st.data.Files = nf
-					st.log("文件删除", fname)
-					_ = st.save()
-				}
-				st.mu.Unlock()
-				if !found {
-					writeJSON(w, 404, map[string]any{"ok": false, "error": "文件不存在"})
-					return
-				}
-				_ = os.Remove(filepath.Join(st.dir, "files", id))
-				writeJSON(w, 200, map[string]any{"ok": true})
-			})
-		default:
-			writeJSON(w, 405, map[string]any{"ok": false, "error": "方法不允许"})
-		}
-	})
-
 	// 贡献记录删除（管理 key）
 	mux.HandleFunc("/api/contrib/", func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/api/contrib/")
@@ -2076,7 +1679,7 @@ self.addEventListener('fetch',function(e){
 		st.mu.Lock()
 		scCount := len(st.data.Scores)
 		st.mu.Unlock()
-		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily, "disk_size": dirSize, "file_count": fileCount, "artifact_count": artifactCount, "score_count": scCount})
+		writeJSON(w, 200, map[string]any{"ok": true, "today": today, "yesterday": daily[yk], "daily": daily, "disk_size": dirSize, "artifact_count": artifactCount, "score_count": scCount})
 	})
 	// 数据重置：清成绩/留言/公告/文件（实验模块与课标认领保留）
 	mux.HandleFunc("/api/admin/reset", func(w http.ResponseWriter, r *http.Request) {

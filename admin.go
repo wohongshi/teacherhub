@@ -250,14 +250,6 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <div class="empty" id="wbEmpty" style="display:none">还没有产物——用下面的表单或让 AI 生成</div>
       </div>
       <div class="card">
-        <h3>资源文件</h3>
-        <div class="tbl-wrap"><table class="tbl" id="fileTable">
-          <thead><tr><th>文件名</th><th>大小</th><th>上传人</th><th>下载</th><th>时间</th><th>操作</th></tr></thead>
-          <tbody></tbody>
-        </table></div>
-        <div class="empty" id="fileEmpty" style="display:none">暂无共享文件</div>
-      </div>
-      <div class="card">
         <h3>内置实验模板</h3>
         <div class="row" style="margin-bottom:10px">
           <button class="btn primary" id="seedBtn">🧪 一键上架四个实验模板</button>
@@ -396,7 +388,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
           <button class="btn primary" id="backupNow">⚡ 立即备份</button>
           <button class="btn line" id="cleanupBtn">🧹 清理旧备份</button>
           <button class="btn danger" id="resetBtn">⚠️ 重置数据</button>
-          <span style="font-size:11.5px;color:var(--ink-300)">含数据 + 产物 + 共享文件</span>
+          <span style="font-size:11.5px;color:var(--ink-300)">含数据 + 产物</span>
         </div>
         <div id="backupList"></div>
       </div>
@@ -483,48 +475,6 @@ document.addEventListener('click',function(e){
 $('#backPortal').addEventListener('click',function(){location.href='/'});
 
 /* ===== 总览 ===== */
-function renderFileMini(){
-  jget('/api/files').then(function(d){
-    var files=d.files||[];
-    if(!files.length)return;
-    var cats={"图片":0,"文档":0,"表格":0,"其他":0};
-    files.forEach(function(f){
-      var ext=(f.name||"").split(".").pop().toLowerCase();
-      if(["png","jpg","jpeg","gif","webp","svg","bmp"].indexOf(ext)>=0)cats["图片"]++;
-      else if(["doc","docx","pdf","txt","md","ppt","pptx"].indexOf(ext)>=0)cats["文档"]++;
-      else if(["xls","xlsx","csv"].indexOf(ext)>=0)cats["表格"]++;
-      else cats["其他"]++;
-    });
-    var colors={"图片":"#5B9BD5","文档":"#4E9A63","表格":"#E5A93F","其他":"#A8B2A9"};
-    var cx=80,cy=80,r=60;
-    var angle=-Math.PI/2;
-    var svg='<svg viewBox="0 0 240 160" style="width:100%;max-width:360px;height:160px">';
-    Object.keys(cats).forEach(function(k){
-      if(!cats[k])return;
-      var frac=cats[k]/files.length;
-      var end=angle+frac*Math.PI*2;
-      if(frac>=0.999){svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+colors[k]+'" stroke="#fff" stroke-width="2"><title>'+k+': '+cats[k]+'个</title></circle>';angle=end;return;}
-      var x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
-      var x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
-      var large=frac>0.5?1:0;
-      svg+='<path d="M'+cx+','+cy+' L'+x1.toFixed(1)+','+y1.toFixed(1)+' A'+r+','+r+' 0 '+large+',1 '+x2.toFixed(1)+','+y2.toFixed(1)+' Z" fill="'+colors[k]+'" stroke="#fff" stroke-width="2"><title>'+k+': '+cats[k]+'个</title></path>';
-      var mid=angle+frac*Math.PI;
-      var lx=cx+(r*0.65)*Math.cos(mid),ly=cy+(r*0.65)*Math.sin(mid);
-      if(frac>0.06)svg+='<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">'+cats[k]+'</text>';
-      angle=end;
-    });
-    var ly=20;
-    Object.keys(cats).forEach(function(k){
-      if(!cats[k])return;
-      svg+='<rect x="175" y="'+ly+'" width="12" height="12" rx="3" fill="'+colors[k]+'"/>';
-      svg+='<text x="193" y="'+(ly+11)+'" font-size="11" fill="#5C6A5F">'+k+' '+cats[k]+'</text>';
-      ly+=24;
-    });
-    svg+='</svg>';
-    var el=document.getElementById('fileMiniChart');
-    if(el)el.innerHTML=svg;
-  });
-}
 document.addEventListener("click",function(e){
   if(e.target.id!=="bigScreenBtn")return;
   var overlay=document.createElement("div");
@@ -533,15 +483,14 @@ document.addEventListener("click",function(e){
   overlay.innerHTML='<div style="text-align:center;max-width:900px;width:100%"><div style="font-size:28px;color:#E2E8F0;font-weight:700;margin-bottom:30px;letter-spacing:2px">📊 教研数据大屏</div><div id="bigScreenData" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px"></div><div style="color:#475569;font-size:12px;margin-top:30px">点击任意处退出</div></div>';
   overlay.addEventListener("click",function(){overlay.remove()});
   document.body.appendChild(overlay);
-  Promise.all([jget('/api/stats'),jget('/api/workbenches?all=1'),jget('/api/scores'),jget('/api/files')]).then(function(results){
-    var st=results[0],wbs=results[1].workbenches||[],sc=results[2].exams||[],files=results[3].files||[];
+  Promise.all([jget('/api/stats'),jget('/api/workbenches?all=1'),jget('/api/scores')]).then(function(results){
+    var st=results[0],wbs=results[1].workbenches||[],sc=results[2].exams||[];
     var totalViews=wbs.reduce(function(a,b){return a+(b.views||0)},0);
     var totalDl=wbs.reduce(function(a,b){return a+(b.downloads||0)},0);
     var avgScore=sc.length?sc[sc.length-1].avg:0;
     var items=[
       ["实验模块",wbs.length+" 个","#34D399"],
       ["考试场次",sc.length+" 场","#60A5FA"],
-      ["共享文件",files.length+" 个","#FBBF24"],
       ["总浏览量",totalViews+" 次","#A78BFA"],
       ["总下载量",totalDl+" 次","#F472B6"],
       ["最新均分",avgScore+" 分","#FB923C"]
@@ -557,7 +506,7 @@ function renderStorageBar(){
   jget('/api/admin/ping').then(function(d){
     var sz=d.disk_size||0;
     var html='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">';
-    [["📁 文件",d.file_count||0,"#5B9BD5"],["🧪 实验",d.artifact_count||0,"#E5A93F"],["📊 成绩",d.score_count||0,"#A78BFA"]].forEach(function(it){
+    [["🧪 实验",d.artifact_count||0,"#E5A93F"],["📊 成绩",d.score_count||0,"#A78BFA"]].forEach(function(it){
       html+='<div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 14px;text-align:center"><div style="font-size:20px;font-weight:800;color:'+it[2]+'">'+it[1]+'</div><div style="font-size:11px;color:#94A3B8;margin-top:2px">'+it[0]+'</div></div>';
     });
     html+='</div>';
@@ -573,7 +522,7 @@ document.addEventListener("click",function(e){
   var k=prompt("请输入管理 key 确认：");
   if(!k)return;
   fetch("/api/admin/reset",{method:"POST",headers:{"Content-Type":"application/json","X-Access-Key":k},body:"{}"}).then(function(r){return r.json()}).then(function(d){
-    if(d.ok){var c=d.cleared||{};alert("数据已重置：成绩 "+(c.scores||0)+" 场 / 留言 "+(c.board||0)+" 条 / 文件 "+(c.files||0)+" 个已清空（实验与课标保留）");location.reload()}
+    if(d.ok){var c=d.cleared||{};alert("数据已重置：成绩 "+(c.scores||0)+" 场 / 留言 "+(c.board||0)+" 条已清空（实验与课标保留）");location.reload()}
     else alert(d.error||"重置失败");
   }).catch(function(){alert("重置失败")});
 });
@@ -679,7 +628,7 @@ function renderHome(){
     }else{$('#homeTrend').innerHTML='<div class="empty">数据积累中（至少 2 天）</div>'}
     if(d.disk_size!=null){
       var mb=(d.disk_size/1048576).toFixed(1);
-      $('#diskInfo').textContent='数据目录 '+mb+' MB · 共享文件 '+d.file_count+' 个 · 产物 '+d.artifact_count+' 个';
+      $('#diskInfo').textContent='数据目录 '+mb+' MB · 产物 '+d.artifact_count+' 个';
     }
     $('#keyMask').textContent=maskKey(key());
     $('#mcpUrl').textContent=location.origin+'/mcp';
@@ -768,23 +717,7 @@ $('#nwCreate').addEventListener('click',function(){
   });
 });
 
-/* ===== 资源文件管理 ===== */
-function renderFilesAdmin(){
-  jget('/api/files').then(function(d){
-    var list=d.files||[];
-    $('#fileEmpty').style.display=list.length?'none':'block';
-    $('#fileTable').querySelector('tbody').innerHTML=list.map(function(x){
-      var sz=x.size<1048576?((x.size||0)/1024).toFixed(1)+' KB':((x.size||0)/1048576).toFixed(2)+' MB';
-      return '<tr><td><a href="/api/files/'+encodeURIComponent(x.id)+'">'+esc(x.name)+'</a></td><td>'+sz+'</td><td>'+esc(x.teacher||'匿名')+'</td><td>'+(x.downloads||0)+'</td><td>'+fmtTs(x.at)+'</td><td><button class="btn danger sm" data-delfile="'+esc(x.id)+'">删除</button></td></tr>';
-    }).join('');
-  });
-}
-$('#fileTable').addEventListener('click',function(e){
-  var b=e.target.closest('[data-delfile]');
-  if(!b)return;
-  if(!confirm('删除这个文件？'))return;
-  jsend('DELETE','/api/files/'+b.dataset.delfile).then(function(d){if(d.ok){toast('已删除');renderFilesAdmin();renderLogs()}else{toast(d.error||'失败')}});
-});
+
 
 /* ===== 成绩管理 ===== */
 function renderSx(){
@@ -1015,7 +948,7 @@ function renderLogs(){
 
 /* ===== 启动 ===== */
 function boot(){
-  renderHome();renderWb();renderFilesAdmin();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();renderFileMini();renderSysStatus();renderStorageBar();
+  renderHome();renderWb();renderSx();renderKb();renderSocial();renderBackups();renderLogs();renderScoreMini();renderSysStatus();renderStorageBar();
 }
 </script>
 </body>
