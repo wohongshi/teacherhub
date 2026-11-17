@@ -131,6 +131,17 @@ func scoreSummary(e ScoreExam) map[string]any {
 	out["max"] = mx
 	out["min"] = mn
 	out["pass_rate"] = math.Round(float64(pass)/float64(n)*1000) / 10
+	good, excel := 0, 0
+	for _, v := range e.Scores {
+		if v >= 75 {
+			good++
+		}
+		if v >= 90 {
+			excel++
+		}
+	}
+	out["good_rate"] = math.Round(float64(good)/float64(n)*1000) / 10
+	out["excellent_rate"] = math.Round(float64(excel)/float64(n)*1000) / 10
 	return out
 }
 

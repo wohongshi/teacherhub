@@ -286,6 +286,13 @@ curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: appl
 curl -s "$BASE/sw.js" | grep -q "th-v3" && curl -s "$BASE/sw.js" | grep -q "SHELL" && curl -s "$BASE/sw.js" | grep -q "caches.match('/')" && ok "sw.js 离线策略（th-v3 + 缓存壳）" || bad "sw.js"
 # 11) MCP get_contribs（资料动态工具）
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"get_contribs","arguments":{"limit":5}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);r=json.loads(d['result']['content'][0]['text']);assert r.get('ok')==True and isinstance(r.get('contribs'),list),r" 2>/dev/null && ok "MCP get_contribs（资料动态）" || bad "MCP get_contribs"
+# 12) 三率字段（good_rate/excellent_rate 计算）
+TX=$(curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"三率测试","scores":[50,60,75,90],"good_rate":0}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+curl -s "$BASE/api/scores" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+e=[x for x in d.get('exams',[]) if x.get('name')=='三率测试']
+assert e and abs(e[0].get('good_rate',0)-50.0)<0.2 and abs(e[0].get('excellent_rate',0)-25.0)<0.2, e" 2>/dev/null && ok "三率字段（good/excellent 计算正确）" || bad "三率字段"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

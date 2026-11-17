@@ -899,7 +899,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div id="radarChart"></div>
       </div>
       <div class="card section" id="rateTrendCard" style="display:none">
-        <div class="card-head"><div><div class="card-title">及格率 / 优秀率趋势</div><div class="card-sub">多场考试率值走势 · 绿=及格率 蓝=优秀率</div></div></div>
+        <div class="card-head"><div><div class="card-title">三率趋势（及格 / 良好 / 优秀）</div><div class="card-sub">多场考试率值走势 · 绿=及格率 ≥60 ｜ 橙=良好率 ≥75 ｜ 蓝=优秀率 ≥90</div></div></div>
         <div id="rateTrendChart"></div>
       </div>
       <div class="card section" id="diffTrendCard" style="display:none">
@@ -913,6 +913,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="card section" id="examQuadCard" style="display:none">
         <div class="card-head"><div><div class="card-title">考试质量四象限</div><div class="card-sub">难度系数（均分/150）× 及格率 · 一眼看出每场卷子的位置</div></div></div>
         <div id="examQuadChart"></div>
+      </div>
+      <div class="card section" id="reviewCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">试卷讲评清单</div><div class="card-sub">按全班失分排讲评优先级 · 勾选记录讲评进度，课前一目了然</div></div>
+          <div id="reviewStat" style="font-size:12px;color:var(--ink-500)"></div>
+        </div>
+        <div id="reviewBody"></div>
       </div>
       <div class="card section" id="dispTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">成绩离散度趋势</div><div class="card-sub">变异系数 CV = 标准差 / 均分 · 看班级成绩分化程度</div></div></div>
@@ -1405,6 +1411,12 @@ function renderCal(){
 function renderRecent(){
   const rows=[];
   const now=Date.now(), dayAgo=now-864e5, weekAgo=now-7*864e5;
+  const scans=(CONTRIBS||[]).filter(c=>c.source==="scan");
+  if(scans.length){
+    const lastAt=(scans[0].at||0)*1000;
+    const weekN=scans.filter(c=>(c.at||0)*1000>Date.now()-7*864e5).length;
+    rows.push(`<div style="font-size:11px;color:var(--ink-400);margin:2px 0 4px">🤖 ima 自动扫描 · 上次 ${fmtTs(scans[0].at)} · 本周 ${weekN} 条动态</div>`);
+  }
   let lastGroup="";
   (CONTRIBS||[]).slice(0,8).forEach(c=>{
     const at=(c.at||0)*1000;
@@ -2141,6 +2153,42 @@ function renderExamKb(){
     <tbody>${body}</tbody></table></div>
     <div style="margin-top:10px;font-size:12px;color:var(--ink-500)">六年 74 题 = 选择 42 + 反应原理 12 + 工业流程 6 + 实验探究 6 + 有机推断 4 + 零头 4 · 归口为教研口径估算</div>`;
 }
+function renderReview(){
+  const el=document.querySelector("#reviewCard");if(!el)return;
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  const qs=(cur&&cur.questions)||[];
+  if(!qs.length){el.style.display="none";return}
+  el.style.display="block";
+  const done=(function(){try{return JSON.parse(localStorage.getItem("th_review_done")||"{}")}catch(e){return {}}})();
+  const key=(cur.id||"")+"";
+  const items=[...qs].map(q=>{
+    const rate=q.rate!=null?q.rate:(q.max?Math.round(q.avg/q.max*1000)/10:0);
+    return {...q,rate,lost:Math.round(((q.max||0)-(q.avg||0))*(cur.count||0)*10)/10};
+  }).sort((a,b)=>a.rate-b.rate);
+  const doneN=items.filter(q=>done[key+"|"+q.name]).length;
+  $("#reviewStat").textContent=`${cur.name} · ${doneN}/${items.length} 已讲 · 预计 ${(items.length-doneN)*3} 分钟`;
+  const talk=r=>r<30?"全班普遍失分，课堂重讲 + 专项练习":(r<50?"较多学生未掌握，增加例题讲解":(r<70?"部分学生薄弱，分层作业巩固":"整体尚可，个别后进生辅导"));
+  $("#reviewBody").innerHTML=items.map((q,i)=>{
+    const isDone=!!done[key+"|"+q.name];
+    return `<div class="up-item" style="${isDone?"opacity:.55":""};align-items:center">
+      <div style="width:26px;font-weight:700;color:${i<3?"#C0563E":"var(--ink-400)"};font-size:13px">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div class="up-title" style="${isDone?"text-decoration:line-through":""}">第 ${esc(String(q.name))} 题 · 得分率 ${q.rate}% · 全班失分 ${q.lost} 分</div>
+        <div class="up-meta">💡 ${esc(talk(q.rate))}</div>
+      </div>
+      <button class="chip" data-rv="${esc(String(q.name))}" style="${isDone?"background:var(--green-600);color:#fff":""}">${isDone?"✓ 已讲":"标记已讲"}</button>
+    </div>`;
+  }).join("");
+  $("#reviewBody").querySelectorAll("[data-rv]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const k=key+"|"+b.dataset.rv;
+      const ns=(function(){try{return JSON.parse(localStorage.getItem("th_review_done")||"{}")}catch(e){return {}}})();
+      if(ns[k])delete ns[k];else ns[k]=1;
+      try{localStorage.setItem("th_review_done",JSON.stringify(ns))}catch(e){}
+      renderReview();
+    });
+  });
+}
 function renderExamQuad(){
   const el=document.querySelector("#examQuadCard");if(!el)return;
   if(typeof SCORES==="undefined"||SCORES.length<2){el.style.display="none";return}
@@ -2329,48 +2377,53 @@ function renderRateTrend(){
   if(SCORES.length<2){$("#rateTrendCard").style.display="none";return}
   $("#rateTrendCard").style.display="block";
   const sorted=[...SCORES].sort((a,b)=>(a.at||0)-(b.at||0));
-  const W=560,H=220,padL=50,padR=20,padT=20,padB=50;
+  const last=sorted[sorted.length-1], prev=sorted[sorted.length-2];
+  const W=560,H=220,padL=50,padR=20,padT=44,padB=50;
   const n=sorted.length;
   const passRates=sorted.map(e=>e.pass_rate||0);
-  const excelRates=sorted.map(e=>{
-    if(e.excellent_rate!=null)return Math.round(e.excellent_rate*10)/10;
-    return 0;
-  });
+  const goodRates=sorted.map(e=>e.good_rate!=null?e.good_rate:Math.round((e.pass_rate||0)*0.7));
+  const excelRates=sorted.map(e=>e.excellent_rate||0);
   const x=i=>padL+i/Math.max(1,n-1)*(W-padL-padR);
   const y=v=>padT+(1-v/100)*(H-padT-padB);
   let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
-  // 网格线
   for(let v=0;v<=100;v+=25){
     svg+=`<line x1="${padL}" y1="${y(v)}" x2="${W-padR}" y2="${y(v)}" stroke="var(--green-100)" stroke-width="0.8"/>`;
     svg+=`<text x="${padL-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--ink-400)">${v}%</text>`;
   }
-  // 及格率（绿）
-  const passPts=passRates.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
-  svg+=`<polyline points="${passPts.join(' ')}" fill="none" stroke="var(--green-500)" stroke-width="2.5"/>`;
-  passRates.forEach((v,i)=>{
-    svg+=`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--green-600)"/>`;
-    svg+=`<text x="${x(i).toFixed(1)}" y="${y(v)-8}" text-anchor="middle" font-size="10" fill="var(--green-700)" font-weight="600">${v}%</text>`;
-  });
-  // 优秀率（蓝）
-  const exPts=excelRates.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
-  svg+=`<polyline points="${exPts.join(' ')}" fill="none" stroke="#5B9BD5" stroke-width="2.5" stroke-dasharray="6,3"/>`;
-  excelRates.forEach((v,i)=>{
-    svg+=`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="#5B9BD5"/>`;
-    svg+=`<text x="${x(i).toFixed(1)}" y="${y(v)+16}" text-anchor="middle" font-size="10" fill="#4A7FB5">${v}%</text>`;
-  });
-  // X 轴标签
+  const line=(vals,color,dash,up)=>{
+    svg+=`<polyline points="${vals.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="2.2"${dash?` stroke-dasharray="${dash}"`:""}/>`;
+    vals.forEach((v,i)=>{
+      svg+=`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.6" fill="${color}"/>`;
+      svg+=`<text x="${x(i).toFixed(1)}" y="${y(v)+(up?-8:15)}" text-anchor="middle" font-size="9.5" fill="${color}">${v}%</text>`;
+    });
+  };
+  line(passRates,"var(--green-500)","",true);
+  line(goodRates,"#E5A93F","5,3",false);
+  line(excelRates,"#5B9BD5","6,3",true);
   sorted.forEach((e,i)=>{
-    svg+=`<text x="${x(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${esc(e.name.slice(0,6))}</text>`;
+    svg+=`<text x="${x(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="10" fill="var(--ink-500)">${esc(String(e.name).slice(0,6))}</text>`;
   });
-  // 图例
-  svg+=`<rect x="${padL}" y="4" width="12" height="3" rx="1.5" fill="var(--green-500)"/>`;
-  svg+=`<text x="${padL+18}" y="10" font-size="10" fill="var(--green-700)">及格率</text>`;
-  svg+=`<rect x="${padL+70}" y="4" width="12" height="3" rx="1.5" fill="#5B9BD5"/>`;
-  svg+=`<text x="${padL+88}" y="10" font-size="10" fill="#4A7FB5">优秀率</text>`;
+  // 头部三率环（最新 + 环比箭头）
+  const rings=[["及格",last.pass_rate||0,(prev.pass_rate||0),"#4E9A63"],["良好",last.good_rate!=null?last.good_rate:0,(prev.good_rate||0),"#E5A93F"],["优秀",last.excellent_rate||0,(prev.excellent_rate||0),"#5B9BD5"]];
+  rings.forEach((r,idx)=>{
+    const cx=padL+6+idx*132, cyc=16, R=11;
+    const C=2*Math.PI*R, pct=Math.max(0,Math.min(100,r[1]));
+    svg+=`<circle cx="${cx}" cy="${cyc}" r="${R}" fill="none" stroke="var(--green-100)" stroke-width="3.4"/>`;
+    svg+=`<circle cx="${cx}" cy="${cyc}" r="${R}" fill="none" stroke="${r[3]}" stroke-width="3.4" stroke-dasharray="${(C*pct/100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 ${cx} ${cyc})" stroke-linecap="round"/>`;
+    svg+=`<text x="${cx}" y="${cyc+3.5}" text-anchor="middle" font-size="8" font-weight="700" fill="${r[3]}">${Math.round(r[1])}%</text>`;
+    const d=Math.round((r[1]-r[2])*10)/10;
+    const arrow=d>0?"▲":(d<0?"▼":"—");
+    const acol=d>0?"#2D7D4F":(d<0?"#C0563E":"var(--ink-400)");
+    svg+=`<text x="${cx+R+6}" y="${cyc-1}" font-size="9" font-weight="700" fill="${acol}">${arrow}</text>`;
+    svg+=`<text x="${cx+R+6}" y="${cyc+9}" font-size="8.5" fill="var(--ink-400)">${d>0?"+":""}${d}pp</text>`;
+    svg+=`<text x="${cx}" y="${cyc+R+13}" text-anchor="middle" font-size="9" fill="var(--ink-500)">${r[0]}率</text>`;
+  });
+  svg+=`<rect x="${W-160}" y="4" width="12" height="3" rx="1.5" fill="var(--green-500)"/><text x="${W-144}" y="10" font-size="9.5" fill="var(--green-700)">及格</text>`;
+  svg+=`<rect x="${W-110}" y="4" width="12" height="3" rx="1.5" fill="#E5A93F"/><text x="${W-94}" y="10" font-size="9.5" fill="#B45309">良好</text>`;
+  svg+=`<rect x="${W-60}" y="4" width="12" height="3" rx="1.5" fill="#5B9BD5"/><text x="${W-44}" y="10" font-size="9.5" fill="#4A7FB5">优秀</text>`;
   svg+='</svg>';
   $("#rateTrendChart").innerHTML=svg;
 }
-
 // 单题得分率趋势图（每题多场变化）
 function renderQTrend(){
   if(SCORES.length<2){$("#qTrendCard").style.display="none";return}
@@ -3091,6 +3144,7 @@ function renderScore(){
   renderQDist();
   renderQBox();
   renderVolWarn();
+  renderReview();
   renderExamQuad();
   renderKbScore();
   renderExamKb();
@@ -3374,7 +3428,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
