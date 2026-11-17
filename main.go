@@ -49,6 +49,10 @@ func main() {
 		cmdStats(args)
 	case "scan":
 		cmdScan(args)
+	case "scores":
+		cmdScores(args)
+	case "report":
+		cmdReport(args)
 	default:
 		usage()
 	}
@@ -69,6 +73,8 @@ func usage() {
   push      推送产物：push 文件.html --title 标题 --tags 标签1,标签2 --desc 简介
   stats     看大家最近的贡献统计
   scan      定时扫描 ImaHub 近期创建/上传，自动把文件名报成贡献（配 cron/插件定时跑）
+  scores    拉成绩数据给分析用：scores 考试ID（不带 ID=列全部）
+  report    推送成绩分析报告：report 考试ID --text 分析内容（或 --file 分析.md）
 
 说明：全程零账号；key 全员统一一把（不外传给学生）；工作台产物=单文件 HTML。`)
 }
@@ -327,6 +333,82 @@ func cmdScan(args []string) {
 	c.LastScan = maxAt
 	_ = saveConfig(c)
 	fmt.Printf("✓ 已上报 %d 条新资料动态\n", n)
+}
+
+func cmdScores(args []string) {
+	c := loadConfig()
+	if c.Cloud == "" {
+		fmt.Println("还没配置云端。先跑：teacherhub ui")
+		os.Exit(1)
+	}
+	if len(args) < 1 {
+		out, err := apiCall("GET", "/api/scores", nil, "")
+		if err != nil {
+			fmt.Println("✗", err)
+			os.Exit(1)
+		}
+		exams, _ := out["exams"].([]any)
+		if len(exams) == 0 {
+			fmt.Println("云端还没有成绩数据")
+			return
+		}
+		fmt.Printf("共 %d 场考试：\n", len(exams))
+		for _, e := range exams {
+			m, _ := e.(map[string]any)
+			fmt.Printf("  %v · %v 人均分 %v · 及格率 %v%% · id=%v\n", m["name"], m["count"], m["avg"], m["pass_rate"], m["id"])
+		}
+		fmt.Println("\n看单场详情：teacherhub scores 考试ID")
+		return
+	}
+	out, err := apiCall("GET", "/api/scores/"+args[0], nil, "")
+	if err != nil {
+		fmt.Println("✗", err)
+		os.Exit(1)
+	}
+	b, _ := json.MarshalIndent(out, "", "  ")
+	fmt.Println(string(b))
+}
+
+func cmdReport(args []string) {
+	fl := flag.NewFlagSet("report", flag.ExitOnError)
+	text := fl.String("text", "", "分析内容（Markdown）")
+	file := fl.String("file", "", "从文件读分析内容")
+	fl.Parse(reorderArgs(args))
+	if fl.NArg() < 1 {
+		fmt.Println(`用法：teacherhub report 考试ID --text "分析内容"（或 --file 分析.md）`)
+		os.Exit(1)
+	}
+	c := loadConfig()
+	if c.Name == "" {
+		fmt.Println("还没配置教师姓名。先跑：teacherhub ui")
+		os.Exit(1)
+	}
+	body := *text
+	if *file != "" {
+		b, err := os.ReadFile(*file)
+		if err != nil {
+			fmt.Println("✗ 读文件失败:", err)
+			os.Exit(1)
+		}
+		body = string(b)
+	}
+	if strings.TrimSpace(body) == "" {
+		fmt.Println("✗ 分析内容为空（--text 或 --file 二选一）")
+		os.Exit(1)
+	}
+	out, err := apiCall("POST", "/api/scores/"+fl.Arg(0)+"/analysis", map[string]any{
+		"text": body, "by": c.Name,
+	}, "")
+	if err != nil {
+		fmt.Println("✗", err)
+		os.Exit(1)
+	}
+	if ok, _ := out["ok"].(bool); ok {
+		fmt.Println("✓ 分析报告已推送云端")
+	} else {
+		fmt.Println("✗", out["error"])
+		os.Exit(1)
+	}
 }
 
 func cmdContrib(args []string) {

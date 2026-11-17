@@ -61,8 +61,11 @@ type ScoreExam struct {
 	Name      string         `json:"name"`
 	At        int64          `json:"at"`
 	Scores    []float64      `json:"scores"`
-	Questions []QuestionStat `json:"questions,omitempty"`
-	Modules   []string       `json:"modules,omitempty"`
+	Questions  []QuestionStat `json:"questions,omitempty"`
+	Modules    []string       `json:"modules,omitempty"`
+	Analysis   string         `json:"analysis,omitempty"`
+	AnalysisBy string         `json:"analysis_by,omitempty"`
+	AnalysisAt int64          `json:"analysis_at,omitempty"`
 }
 
 // FileRec 校本资源文件元数据（磁盘名用 id，展示名净化后存元数据）。
@@ -1076,7 +1079,44 @@ func cmdServe(args []string) {
 		}
 	})
 	mux.HandleFunc("/api/scores/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/api/scores/")
+		rest := strings.TrimPrefix(r.URL.Path, "/api/scores/")
+		// 分析报告：POST /api/scores/{id}/analysis（key 门，WorkBuddy 分析上传）
+		if strings.HasSuffix(rest, "/analysis") && r.Method == http.MethodPost {
+			aid := strings.TrimSuffix(strings.TrimSuffix(rest, "/analysis"), "/")
+			api(w, r, func(w http.ResponseWriter, r *http.Request) {
+				var in struct {
+					Text string `json:"text"`
+					By   string `json:"by"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+					writeJSON(w, 400, map[string]any{"ok": false, "error": "参数错误"})
+					return
+				}
+				if tr := []rune(in.Text); len(tr) > 20000 {
+					in.Text = string(tr[:20000])
+				}
+				st.mu.Lock()
+				found := false
+				for i := range st.data.Scores {
+					if st.data.Scores[i].ID == aid {
+						st.data.Scores[i].Analysis = in.Text
+						st.data.Scores[i].AnalysisBy = strings.TrimSpace(in.By)
+						st.data.Scores[i].AnalysisAt = time.Now().Unix()
+						found = true
+						break
+					}
+				}
+				_ = st.save()
+				st.mu.Unlock()
+				if !found {
+					writeJSON(w, 404, map[string]any{"ok": false, "error": "考试不存在"})
+					return
+				}
+				writeJSON(w, 200, map[string]any{"ok": true})
+			})
+			return
+		}
+		id := rest
 		if id == "" || strings.Contains(id, "/") {
 			writeJSON(w, 404, map[string]any{"ok": false, "error": "not found"})
 			return
@@ -1106,6 +1146,11 @@ func cmdServe(args []string) {
 					}
 					sort.Slice(qs, func(i, j int) bool { return qs[i]["rate"].(float64) < qs[j]["rate"].(float64) })
 					out["questions"] = qs
+				}
+				if found.Analysis != "" {
+					out["analysis"] = found.Analysis
+					out["analysis_by"] = found.AnalysisBy
+					out["analysis_at"] = found.AnalysisAt
 				}
 			}
 			st.mu.Unlock()

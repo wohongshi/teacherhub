@@ -293,6 +293,10 @@ import json,sys
 d=json.load(sys.stdin)
 e=[x for x in d.get('exams',[]) if x.get('name')=='三率测试']
 assert e and abs(e[0].get('good_rate',0)-50.0)<0.2 and abs(e[0].get('excellent_rate',0)-25.0)<0.2, e" 2>/dev/null && ok "三率字段（good/excellent 计算正确）" || bad "三率字段"
+# 13) 成绩分析报告（analysis 上传/回读/鉴权）
+AX=$(curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"分析报告测试","scores":[70,80]}' | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+curl -s -X POST "$BASE/api/scores/$AX/analysis" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"text":"均分 75，建议加强实验题训练","by":"探针"}' -o /dev/null -w '%{http_code}' | grep -q 200 && curl -s "$BASE/api/scores/$AX" | python3 -c "import json,sys;d=json.load(sys.stdin);assert d.get('analysis')=='均分 75，建议加强实验题训练' and d.get('analysis_by')=='探针',d" 2>/dev/null && ok "分析报告上传回读（200 + 字段一致）" || bad "分析报告"
+curl -s -X POST "$BASE/api/scores/$AX/analysis" -H 'Content-Type: application/json' --data-raw '{"text":"x"}' -o /dev/null -w '%{http_code}' | grep -q 401 && ok "分析报告无 key 拒（401）" || bad "分析报告鉴权"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

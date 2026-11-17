@@ -898,6 +898,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">能力雷达</div><div class="card-sub">各题得分率雷达图 · 强弱项一眼看出</div></div></div>
         <div id="radarChart"></div>
       </div>
+      <div class="card section" id="aiReportCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">AI 分析报告</div><div class="card-sub">分析由 WorkBuddy 生成 · 本页只做数据展示</div></div>
+          <div id="aiReportMeta" style="font-size:11.5px;color:var(--ink-400)"></div>
+        </div>
+        <div id="aiReportBody"></div>
+      </div>
       <div class="card section" id="rateTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">三率趋势（及格 / 良好 / 优秀）</div><div class="card-sub">多场考试率值走势 · 绿=及格率 ≥60 ｜ 橙=良好率 ≥75 ｜ 蓝=优秀率 ≥90</div></div></div>
         <div id="rateTrendChart"></div>
@@ -2373,6 +2379,33 @@ document.addEventListener("click",function(e){
     renderVolWarn();toast("波动预警阈值已设为 ±"+v+" 分");
   }
 });
+function mdLite(t){
+  return esc(t)
+    .replace(/^### (.+)$/gm,"<div style=\"font-size:13px;font-weight:700;margin:10px 0 4px;color:var(--green-700)\">$1</div>")
+    .replace(/^## (.+)$/gm,"<div style=\"font-size:14px;font-weight:700;margin:12px 0 5px;color:var(--green-800)\">$1</div>")
+    .replace(/^# (.+)$/gm,"<div style=\"font-size:15px;font-weight:700;margin:14px 0 6px\">$1</div>")
+    .replace(/^\s*[-*] (.+)$/gm,"<div style=\"margin:3px 0 3px 16px\">• $1</div>")
+    .replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")
+    .replace(/\n\n/g,"<br/><br/>")
+    .replace(/\n/g,"<br/>");
+}
+function renderAiReport(){
+  const el=document.querySelector("#aiReportCard");if(!el)return;
+  const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
+  if(!cur){el.style.display="none";return}
+  el.style.display="block";
+  jgetExam(cur.id).then(d=>{
+    const box=document.querySelector("#aiReportBody"), meta=document.querySelector("#aiReportMeta");
+    if(!box)return;
+    if(d&&d.analysis){
+      meta.textContent=(d.analysis_by||"WorkBuddy")+" · "+fmtTs(d.analysis_at||cur.at);
+      box.innerHTML=`<div style="font-size:13px;line-height:1.9;color:var(--ink-700)">${mdLite(d.analysis)}</div>`;
+    }else{
+      meta.textContent="";
+      box.innerHTML='<div class="empty-state" style="padding:16px 0"><div style="font-size:12.5px">还没有分析报告 —— 在 WorkBuddy 里说「帮我分析'+esc(cur.name)+'」即可生成</div></div>';
+    }
+  });
+}
 function renderRateTrend(){
   if(SCORES.length<2){$("#rateTrendCard").style.display="none";return}
   $("#rateTrendCard").style.display="block";
@@ -3144,6 +3177,7 @@ function renderScore(){
   renderQDist();
   renderQBox();
   renderVolWarn();
+  renderAiReport();
   renderReview();
   renderExamQuad();
   renderKbScore();
@@ -3428,7 +3462,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();renderAiReport();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
