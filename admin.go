@@ -283,7 +283,7 @@ label.lb{display:block;font-size:11.5px;color:var(--ink-500);margin:11px 0 5px;f
         <h3>录入考试</h3>
         <div class="form-grid">
           <div><label class="lb">考试名 *</label><input class="f" id="sxName" placeholder="如 高三月考一"></div>
-          <div><label class="lb">分数列表 *（空格/逗号/换行分隔）</label><input class="f" id="sxScores" placeholder="88 92 76 45 100"></div>
+          <div><label class="lb">分数列表 *（空格/逗号/换行分隔）</label><input class="f" id="sxScores" placeholder="88 92 76 45 100"><div id="sxPreview" style="margin-top:8px;font-size:11.5px;color:var(--ink-500);min-height:18px"></div></div>
         </div>
         <label class="lb">题目数据（可选 · 逐题失分分析）</label>
         <input class="f" id="sxQs" placeholder="格式 题号:满分:均分，分号分隔，如 1:12:9.5; 2:10:6.2; 3:8:3.1">
@@ -731,6 +731,20 @@ function renderSx(){
     }).join('');
   });
 }
+$('#sxScores').addEventListener('input',function(){
+  var txt=($('#sxScores').value||'').trim();
+  var el=$('#sxPreview');
+  if(!txt){el.textContent='';return}
+  var arr=txt.split(/[\s,，;；]+/).filter(Boolean).map(Number).filter(function(v){return isFinite(v)&&v>=0&&v<=150});
+  if(!arr.length){el.textContent='⚠ 还没有有效分数（0-150）';el.style.color='#C2453F';return}
+  el.style.color='var(--ink-500)';
+  var n=arr.length;
+  var avg=arr.reduce(function(a,b){return a+b},0)/n;
+  var pass=arr.filter(function(v){return v>=60}).length/n*100;
+  var good=arr.filter(function(v){return v>=75}).length/n*100;
+  var excel=arr.filter(function(v){return v>=90}).length/n*100;
+  el.innerHTML='<span style="font-weight:600;color:var(--ink-700)">'+n+' 人</span> · 均分 <b style="color:var(--green-700)">'+avg.toFixed(1)+'</b> · 及格 <b style="color:var(--green-700)">'+pass.toFixed(0)+'%</b> · 良好 <b style="color:#B08A4A">'+good.toFixed(0)+'%</b> · 优秀 <b style="color:#4A7BA7">'+excel.toFixed(0)+'%</b>';
+});
 $('#sxMods').addEventListener('click',function(e){
   var b=e.target.closest('[data-mod]');if(!b)return;
   if(b.classList.contains('on')){b.classList.remove('on');return}
