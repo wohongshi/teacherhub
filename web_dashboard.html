@@ -12,34 +12,47 @@
 <style>
 /* ===== 设计 token（清新植物风） ===== */
 :root{
-  --green-900:#2F6B45; --green-700:#3C7D52; --green-600:#4E9A63; --green-400:#8FC79B;
-  --green-200:#C9DEC6; --green-100:#E3F0E4; --green-50:#F0F6EF;
+  --green-900:#3B7A52; --green-700:#4E9A63; --green-600:#5EAF7E; --green-400:#8FC79B;
+  --green-200:#C9DEC6; --green-100:#E3F0E4; --green-50:#EDF5EE;
+  --gold:#C9A15C; --gold-deep:#A87E42; --gold-soft:#E8D5A8; --gold-glow:rgba(201,161,92,.35);
+  --navy:#2B3A4E; --navy-deep:#1F2C3D; --navy-ink:#D8C9A8;
   --sand-100:#F7E8C8; --sand-200:#F2DFB8; --sand-700:#B08A4A; --bud:#E5A93F;
-  --ink-900:#232B25; --ink-700:#414B43; --ink-500:#77837A; --ink-300:#A6AFA8;
-  --bg:#F8F7F4; --surface:#FFFFFF; --line:rgba(35,43,37,.09); --line2:rgba(35,43,37,.06);
-  --blue-100:#E3EDF7; --blue-700:#4A7BA7;
+  --ink-900:#3D3226; --ink-700:#5C4E3E; --ink-500:#8B7B66; --ink-300:#B5A68E;
+  --bg:#F2EAD9; --surface:#FBF6EA; --line:rgba(169,134,78,.24); --line2:rgba(169,134,78,.15);
+  --blue-100:#DCE7F2; --blue-700:#4A6C93;
   --radius-l:16px; --radius-m:12px; --radius-s:8px;
-  --shadow-card:0 1px 2px rgba(35,43,37,.03),0 4px 18px rgba(35,43,37,.05);
-  --shadow-deep:0 1px 3px rgba(35,43,37,.02),0 7px 15px rgba(35,43,37,.03),0 14px 28px rgba(35,43,37,.05);
-  --focus-ring:0 0 0 3px rgba(78,154,99,.22);
+  --shadow-card:0 1px 2px rgba(120,90,40,.05),0 5px 20px rgba(120,90,40,.09);
+  --shadow-deep:0 2px 4px rgba(120,90,40,.06),0 9px 18px rgba(120,90,40,.1),0 18px 34px rgba(120,90,40,.13);
+  --focus-ring:0 0 0 3px rgba(201,161,92,.32);
   --ease:cubic-bezier(.25,.46,.45,.94);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{font-family:'Inter',-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:var(--bg);color:var(--ink-700);font-size:14px;line-height:1.6;font-feature-settings:"lnum";-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:linear-gradient(160deg,#F5EEDF 0%,#F2EAD9 40%,#EDE1C8 100%) fixed;color:var(--ink-700);font-size:14px;line-height:1.6;font-feature-settings:"lnum";-webkit-font-smoothing:antialiased}
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--green-400);box-shadow:var(--focus-ring);transition:border-color .18s,box-shadow .18s}
-::selection{background:rgba(78,154,99,.22)}
+.motto-bar{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 14px;padding:13px 22px;background:linear-gradient(120deg,rgba(201,161,92,.14),rgba(201,161,92,.05),rgba(201,161,92,.14));border:1px solid var(--gold-soft);border-radius:999px;font-size:13.5px;font-weight:600;color:#7A5A28;letter-spacing:.3px;box-shadow:0 2px 12px rgba(201,161,92,.12)}
+.motto-bar b{color:#A87E42}
+.motto-star{color:var(--gold);font-size:12px;animation:twinkle 3.2s ease-in-out infinite}
+.motto-star:last-child{animation-delay:1.6s}
+@keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+::selection{background:rgba(201,161,92,.28)}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:rgba(35,43,37,.16);border-radius:99px;border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:rgba(35,43,37,.28);background-clip:content-box}
 ::-webkit-scrollbar-track{background:transparent}
 /* 主区点阵背景 */
-.main{background:var(--bg);background-image:radial-gradient(#E4EAE2 1px,transparent 1px);background-size:22px 22px}
+.main{background:transparent;background-image:radial-gradient(rgba(169,134,78,.13) 1px,transparent 1px);background-size:22px 22px}
 a{color:var(--green-900);text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
 /* ===== 布局：侧边栏 + 主区 ===== */
 .layout{display:flex;min-height:100vh}
-.sidebar{width:224px;flex:none;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:20px 0 16px;transition:width .22s,padding .22s}
+.sidebar{width:224px;flex:none;background:linear-gradient(180deg,var(--navy) 0%,var(--navy-deep) 100%);border-right:1px solid rgba(201,161,92,.35);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:20px 0 16px;transition:width .22s,padding .22s}
+.sidebar .nav-title{color:var(--gold-soft);opacity:.65}
+.sidebar .nav-item{color:#CBBFA4}
+.sidebar .nav-item:hover{background:rgba(201,161,92,.16);color:#F2E5C5}
+.sidebar .nav-item.on{background:rgba(201,161,92,.22);color:#FFF3D6}
+.sidebar .brand{color:#F2E5C5}
+.sidebar ::selection{background:rgba(201,161,92,.4)}
 @media(min-width:769px){body.side-collapsed .sidebar{width:0;padding:0;overflow:hidden;border-right:none}}
 @media(max-width:768px){#sideToggle{display:none}}
 .brand{display:flex;align-items:center;gap:10px;padding:0 18px 12px}
@@ -77,23 +90,17 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .card,.mod-head{scroll-margin-top:80px}
 .view.on{display:block}
 /* ===== Hero ===== */
-.hero{background:linear-gradient(135deg,#EAF3E6 0%,#F6F2E4 55%,#FBF6E9 100%);border-radius:var(--radius-l);padding:30px 34px;position:relative;overflow:hidden;display:flex;align-items:center;gap:20px}
-.hero-text{flex:1 1 55%;min-width:0;position:relative;z-index:2}
-.hero h1{font-size:25px;line-height:1.4;color:var(--ink-900);font-weight:700;letter-spacing:.5px}
-.hero p{font-size:13px;color:var(--ink-700);line-height:1.85;margin-top:10px}
-.hero-tags{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
-.htag{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;color:var(--ink-700)}
 .htag b{color:var(--green-900);font-weight:700}
 .htag a{color:var(--green-700);font-weight:600}
-.hero-art{flex:0 0 auto;width:300px;height:150px;position:relative}
 .hero-art svg{width:100%;height:100%;display:block}
 /* ===== 卡片通用 ===== */
 .report-body{background:var(--green-50)}
 [data-theme="dark"] .report-body{background:#1E2B21}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-l);padding:26px 28px;box-shadow:var(--shadow-card);position:relative;transition:box-shadow .22s var(--ease),transform .22s var(--ease)}
-.card:hover{box-shadow:var(--shadow-deep);transform:translateY(-1px)}
+.card{background:linear-gradient(175deg,#FDFAF2 0%,var(--surface) 60%);border:1px solid var(--line);border-radius:var(--radius-l);padding:26px 28px;box-shadow:var(--shadow-card);position:relative;transition:box-shadow .22s var(--ease),transform .22s var(--ease),border-color .22s}
+.card:hover{box-shadow:var(--shadow-deep);transform:translateY(-2px);border-color:var(--gold-soft)}
+.card::before{content:"";position:absolute;top:0;left:22px;right:22px;height:2px;background:linear-gradient(90deg,transparent,var(--gold-soft),transparent);opacity:.6;border-radius:2px}
 .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
-.card-title{font-size:16.5px;font-weight:700;color:var(--ink-900);letter-spacing:-.2px}
+.card-title{font-size:16.5px;font-weight:700;letter-spacing:-.2px;background:linear-gradient(120deg,#8A6428,#C9A15C 55%,#8A6428);-webkit-background-clip:text;background-clip:text;color:transparent}
 .card-sub{font-size:12px;color:var(--ink-300);margin-top:3px}
 .section{margin-top:22px}
 .section-gap{height:22px}
@@ -115,7 +122,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .bar{height:10px;background:var(--green-100);border-radius:999px;overflow:hidden}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green-600),var(--green-400));border-radius:999px;transition:width .6s}
 /* ===== 统计卡 ===== */
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:22px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
 .stat{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-m);padding:20px 20px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow-card);transition:transform .18s,box-shadow .18s}
 .stat:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(31,42,34,.08)}
 .stat::after{content:"";position:absolute;right:-26px;top:-26px;width:74px;height:74px;border-radius:50%;background:var(--green-100);opacity:.6}
@@ -188,8 +196,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .wb-tag{font-size:10.5px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-100);padding:2px 8px;border-radius:999px;cursor:pointer}
 .wb-meta{margin-top:auto;padding-top:9px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-300);display:flex;gap:12px;flex-wrap:wrap}
 .wb-actions{display:flex;gap:8px;padding:0 16px 14px}
-.btn-primary{flex:1;height:36px;background:var(--green-700);color:#fff;border-radius:var(--radius-s);font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .18s var(--ease);box-shadow:0 1px 2px rgba(47,107,69,.18)}
-.btn-primary:hover{background:var(--green-900);box-shadow:0 4px 12px rgba(47,107,69,.22);transform:translateY(-1px)}
+.btn-primary{flex:1;height:36px;background:linear-gradient(135deg,#C9A15C,#A87E42);color:#FFF8E7;border-radius:var(--radius-s);font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .18s var(--ease);box-shadow:0 2px 8px rgba(168,126,66,.28)}
+.btn-primary:hover{background:linear-gradient(135deg,#D4AF6A,#B8894B);box-shadow:0 5px 16px rgba(168,126,66,.36);transform:translateY(-1px)}
 .btn-primary:active{transform:scale(.97)}
 .btn-primary:hover{background:var(--green-900)}
 .btn-line{height:36px;padding:0 13px;border:1px solid var(--line);border-radius:9px;font-size:12px;color:var(--ink-700);background:#fff;display:flex;align-items:center;gap:4px}
@@ -331,13 +339,15 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   --green-200:#2E4A38; --green-100:#22362A; --green-50:#1E2C23;
   --sand-100:#3A3423; --sand-200:#4A422C; --sand-700:#D9B872; --bud:#E5A93F;
   --ink-900:#E9F1EB; --ink-700:#C4D2C8; --ink-500:#8C9C90; --ink-300:#66756B;
-  --bg:#131A15; --surface:#1B241E; --line:#2A362D; --line2:#263028;
+  --bg:#141B29; --surface:#1C2436; --line:rgba(212,175,106,.2); --line2:rgba(212,175,106,.12);
   --blue-100:#22303C; --blue-700:#7FA8C9;
+  --gold:#D4AF6A; --gold-deep:#B8894B; --gold-soft:#6B5636; --gold-glow:rgba(212,175,106,.3);
+  --navy:#1A2233; --navy-deep:#131A28; --navy-ink:#D8C9A8;
   --shadow-card:0 1px 2px rgba(0,0,0,.22),0 4px 18px rgba(0,0,0,.3);
   --shadow-deep:0 1px 3px rgba(0,0,0,.25),0 7px 15px rgba(0,0,0,.32),0 14px 28px rgba(0,0,0,.4);
-  --focus-ring:0 0 0 3px rgba(94,175,126,.32);
+  --focus-ring:0 0 0 3px rgba(212,175,106,.35);
 }
-[data-theme="dark"] body,[data-theme="dark"] .main{background:var(--bg);background-image:radial-gradient(#243027 1px,transparent 1px)}
+[data-theme="dark"] body,[data-theme="dark"] .main{background:var(--bg);background-image:radial-gradient(rgba(212,175,106,.14) 1px,transparent 1px)}
 [data-theme="dark"] .sidebar,[data-theme="dark"] .topbar{background:var(--surface)}
 [data-theme="dark"] .card,[data-theme="dark"] .stat,[data-theme="dark"] .mini,[data-theme="dark"] .spark-wrap,
 [data-theme="dark"] .board-card,[data-theme="dark"] .wb-card,[data-theme="dark"] .elem-tile,
@@ -397,9 +407,19 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   <!-- ============ 侧边栏 ============ -->
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <div class="brand-logo">
-        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#2F6B45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4"/><path d="M11 3v5.2L5.6 17.4A2 2 0 0 0 7.3 20.5h9.4a2 2 0 0 0 1.7-3.1L13 8.2V3"/><path d="M8.2 14.5h7.6"/><path d="M15.5 4.5c2.2 0 3.5 1.2 3.5 3.2-2.1 0-3.5-1.2-3.5-3.2Z"/></svg>
-      </div>
+      <div class="brand-logo" style="width:42px;height:42px;flex:none">
+            <svg viewBox="0 0 48 48" width="42" height="42">
+              <circle cx="24" cy="24" r="21" fill="none" stroke="#C9A15C" stroke-width="1.6"/>
+              <circle cx="24" cy="24" r="16.5" fill="none" stroke="#C9A15C" stroke-width=".8" opacity=".55"/>
+              <path d="M24 9 L37 33 L11 33 Z" fill="none" stroke="#C9A15C" stroke-width="1" opacity=".65"/>
+              <path d="M24 39 L11 15 L37 15 Z" fill="none" stroke="#C9A15C" stroke-width=".7" opacity=".35"/>
+              <circle cx="24" cy="24" r="6.5" fill="#2B3A4E" stroke="#E8D5A8" stroke-width="1.2"/>
+              <text x="24" y="28.2" text-anchor="middle" font-size="9">🧪</text>
+              <circle cx="24" cy="4.5" r="1.6" fill="#E8D5A8"/>
+              <circle cx="41" cy="35" r="1.3" fill="#E8D5A8" opacity=".8"/>
+              <circle cx="7" cy="35" r="1.3" fill="#E8D5A8" opacity=".8"/>
+            </svg>
+          </div>
       <div>
         <div class="brand-name">化学学科园地</div>
         <div class="brand-sub">教研 · 备课 · 成长</div>
@@ -456,13 +476,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
           成绩分析
         </div>
       </div>
-      <div class="nav-group">
-        <div class="nav-title">关于</div>
-        <div class="nav-item" data-view="about">
-          <svg viewBox="0 0 24 24"><path d="M12 21V9"/><path d="M12 13c-4.5 0-7-2.8-7-7 4.5 0 7 2.5 7 7Z"/><path d="M12 16c3.6 0 5.8-2.2 5.8-5.6-3.6 0-5.8 2-5.8 5.6Z"/></svg>
-          建设方案
-        </div>
-      </div>
     </nav>
 
     <div class="side-foot">
@@ -507,47 +520,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
 <div class="notice-mini" id="noticeMini" style="display:none"><div class="ic">📢</div><div id="noticeMiniText"></div></div>
 
-      <div class="hero">
-        <div class="hero-text">
-          <h1 id="heroMotto">让每一节课，<br>都像一次好反应</h1>
-          <p>这学期我们把四件事做扎实：课标落到章节、真题进到单元、实验留在组里、成绩看得出问题。<br>一群人，一条心，一年下来就是一套属于我们化学组自己的东西。</p>
-          <div class="hero-tags">
-            <div class="htag">课标条目 <b>15 条</b></div>
-            <div class="htag">真题归档 <b>74 题</b></div>
-            <div class="htag">校本资源 <b id="htagAcc">0</b> 份</div>
-            <div class="htag"><a href="#" data-view="about">建设方案四件事 ↗</a></div>
-          </div>
-        </div>
-        <div class="hero-art">
-          <svg width="300" height="150" viewBox="0 0 300 150" fill="none">
-            <circle cx="238" cy="72" r="86" fill="#D3E7D2" opacity=".22"/>
-            <circle cx="238" cy="72" r="62" fill="#C9E1C6" opacity=".3"/>
-            <circle cx="238" cy="72" r="38" fill="#C9E1C6" opacity=".45"/>
-            <circle cx="238" cy="72" r="18" fill="#B7D6B4" opacity=".6"/>
-            <circle cx="66" cy="30" r="6" fill="#8FC79B"/>
-            <circle cx="66" cy="30" r="11" stroke="#C9E1C6" stroke-width="1.5" fill="none" opacity=".7"/>
-            <circle cx="272" cy="128" r="7" fill="#F0D9A8"/>
-            <text x="192" y="34" font-size="12.5" fill="#7FB58C" font-weight="700" opacity=".62" font-style="italic">Na</text>
-            <text x="278" y="36" font-size="11.5" fill="#C9A96A" opacity=".6" font-style="italic">O₂</text>
-            <text x="280" y="116" font-size="11.5" fill="#B08A4A" opacity=".6" font-style="italic">H₂O</text>
-            <text x="182" y="112" font-size="11.5" fill="#9CC6A6" opacity=".6" font-style="italic">Fe</text>
-            <circle cx="232" cy="22" r="2.2" fill="#8FC79B" opacity=".55"/>
-            <circle cx="234" cy="130" r="1.8" fill="#E5A93F" opacity=".42"/>
-            <path d="M120 132 Q126 96 150 62" stroke="#5FA06C" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-            <path d="M128 104c-13 0-20-7-20-18 12 0 20 6.5 20 18Z" fill="#A7D2AE"/>
-            <path d="M136 84c11 0 17-5.5 17-14-10.5 0-17 5.5-17 14Z" fill="#A7D2AE"/>
-            <path d="M150 62c13-6 24-2 28 6-11 5-22 3-28-6Z" fill="#A7D2AE"/>
-            <rect x="100" y="130" width="44" height="4" rx="2" fill="#C9DEC6"/>
-          </svg>
-        </div>
-      </div>
-
-      <!-- 元素方块导航：周期表第一行 = 十个模块 -->
-      <div class="section">
-        <div class="card-head" style="margin:26px 2px 12px">
-          <div><div class="card-title">元素速达</div><div class="card-sub">周期表第一行，十个模块各占一格</div></div>
-        </div>
-        <div class="elem-grid" id="elemGrid"></div>
+      <div class="motto-bar">
+        <span class="motto-star">✦</span>
+        <span id="heroMotto">让每一节课，都像一次好反应</span>
+        <span class="motto-star">✦</span>
       </div>
 
       <!-- 成长林 -->
@@ -568,8 +544,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 
       <!-- 统计卡 -->
       <div class="stats">
-        <div class="stat"><span class="elem-tag">Na</span><div class="sname">课标条目</div><div class="sval">15<small>条</small></div><div class="snote">五模块四级映射</div></div>
-        <div class="stat"><span class="elem-tag">H₂O</span><div class="sname">高考真题</div><div class="sval">74<small>题</small></div><div class="snote">2021—2026 六年归档</div></div>
+                <div class="stat"><span class="elem-tag">H₂O</span><div class="sname">高考真题</div><div class="sval">74<small>题</small></div><div class="snote">2021—2026 六年归档</div></div>
         <div class="stat"><span class="elem-tag">Fe</span><div class="sname">课标认领</div><div class="sval" id="statKb">0<small>/5</small></div><div class="snote">课标地图认领 →</div></div>
         <div class="stat"><span class="elem-tag">O₂</span><div class="sname">实验模块</div><div class="sval" id="statLab">0<small>个</small></div><div class="snote">AI 生成一个 →</div></div>
         <div class="stat"><span class="elem-tag">C</span><div class="sname">最近考试均分</div><div class="sval" id="statAvg">— 待录入</div><div class="snote" id="statAvgNote">录入成绩后自动生成</div></div>
@@ -1007,42 +982,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       </div>
     </section>
 
-    <!-- ===== 建设方案 ===== -->
-    <section class="view" id="v-about">
-      <div class="card" style="margin-bottom:18px">
-        <div class="card-head"><div><div class="card-title">个人数据备份</div><div class="card-sub">收藏 / 备注 / 评分 / 目标等本地数据一键导出导入</div></div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="chip" id="exportMyData">📤 导出我的数据</button>
-          <label class="chip" style="cursor:pointer">📥 导入备份<input type="file" id="importMyData" accept="application/json" style="display:none"/></label>
-        </div>
       </div>
-      <div class="card" id="personaCard" style="margin-bottom:18px">
-        <div class="card-head"><div><div class="card-title">我的使用画像</div><div class="card-sub">搜索热词 / 收藏分组 / 实验偏好 · 基于本地数据统计</div></div></div>
-        <div id="personaChart"></div>
-      </div>
-      <div class="mod-head"><h2>建设方案</h2><p>化学学科园地怎么建、怎么用、怎么长。</p></div>
-      <div class="card about-body">
-        <h3>一句话</h3>
-        <p>把教研组一年产生的东西留下来：课标映射、真题归档、实验资源、成绩分析，第二年接着用。</p>
-        <h3>四件事</h3>
-        <ul>
-          <li><b>课标落到章节</b> —— 课标条目与教材章节建立映射，学期复核一次。</li>
-          <li><b>真题进到单元</b> —— 六年高考真题按课标归档，备课直接取用。</li>
-          <li><b>资源留在组里</b> —— 实验工作台与校本资源库，链接发群里打开即用。</li>
-          <li><b>成绩看得出问题</b> —— 成绩导入自动生成分析报告，逐题看失分。</li>
-        </ul>
-        <h3>怎么用</h3>
-        <ul>
-          <li>浏览、下载、看统计：<b>免登录</b>，链接发群里点开即用。</li>
-          <li>上传资源、推送实验产物：找教研组长拿管理入口。</li>
-          <li>AI 生成实验模块：右下角「AI 生成」接 MCP，或装 WorkBuddy 插件。</li>
-        </ul>
-        <h3>数据在哪</h3>
-        <p>校内教研内部使用，数据不出校园网（公网入口走隧道，仅限组内分发）。自动备份每 24 小时一份，保留 7 份。</p>
-      </div>
-      <div class="motto"><b>独行快，众行远</b>　——　把一份资源留在这里，下一位上课的人就少走一段路</div>
-    </section>
-  </div>
 </div>
 
 <!-- ===== 移动底栏（元素风） ===== -->
@@ -1087,27 +1027,6 @@ function fmtTs(ts){if(!ts)return"";let d;const n=Number(ts);if(Number.isFinite(n
 function toast(msg){const t=document.createElement("div");t.textContent=msg;t.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#2F6B45;color:#fff;font-size:13px;padding:10px 22px;border-radius:999px;z-index:200;box-shadow:0 6px 20px rgba(47,107,69,.3)";document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
 
 /* ============ 元素速达（周期表第一行 + Na，按导航顺序） ============ */
-const ELEMS=[
- {no:1,sym:"H",en:"Hydrogen",cn:"总览",v:"overview"},
- {no:2,sym:"He",en:"Helium",cn:"实验工作台",v:"lab"},
- {no:3,sym:"Li",en:"Lithium",cn:"课标地图",v:"kb"},
- {no:4,sym:"Be",en:"Beryllium",cn:"真题库",v:"exam"},
- {no:5,sym:"B",en:"Boron",cn:"成长空间",v:"grow"},
- {no:6,sym:"C",en:"Carbon",cn:"实验与安全",v:"board"},
- {no:7,sym:"N",en:"Nitrogen",cn:"数据看板",v:"data"},
- {no:8,sym:"O",en:"Oxygen",cn:"计划与制度",v:"plan"},
- {no:9,sym:"F",en:"Fluorine",cn:"成绩分析",v:"score"},
- {no:10,sym:"Ne",en:"Neon",cn:"建设方案",v:"about"}
-];
-function renderElemGrid(){
-  $("#elemGrid").innerHTML=ELEMS.map(e=>
-    `<div class="elem-tile" data-view="${e.v}" title="${esc(e.cn)}">
-      <span class="no">${e.no}</span>
-      <span class="sym">${e.sym}</span>
-      <span class="en">${e.en}</span>
-      <span class="cn">${esc(e.cn)}</span>
-    </div>`).join("");
-}
 
 /* ============ 演示数据（标「演示数据」处使用） ============ */
 const CAL_TEMPLATE=[
@@ -1145,14 +1064,14 @@ function plantSVG(leafPairs,hasBud,h){
 }
 
 /* ============ 视图切换 ============ */
-const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",grow:"成长空间",board:"实验与安全",data:"数据看板",plan:"计划与制度",score:"成绩分析",about:"建设方案"};
+const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"真题库",grow:"成长空间",board:"实验与安全",data:"数据看板",plan:"计划与制度",score:"成绩分析"};
 // 手机手势滑动切换视图
 (function(){
-  const ORDER=["overview","lab","kb","exam","res","grow","board","data","plan","score","about"];
+  const ORDER=["overview","lab","kb","exam","grow","board","data","plan","score"];
   let x0=0,y0=0,t0=0,ok=false;
   document.addEventListener("touchstart",e=>{
     if(e.touches.length!==1)return;
-    if(e.target.closest("input,textarea,select,.tbl-wrap,#segTrendChart,#heatChart,#qTrendChart,#qCmpChart,#wbGrid,#elemGrid,#globalSearch"))return;
+    if(e.target.closest("input,textarea,select,.tbl-wrap,#segTrendChart,#heatChart,#qTrendChart,#qCmpChart,#wbGrid,#globalSearch"))return;
     ok=true;x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();
   },{passive:true});
   document.addEventListener("touchend",e=>{
@@ -1177,7 +1096,7 @@ const TITLES={overview:"总览",lab:"实验工作台",kb:"课标地图",exam:"�
 })();
 // 全局快捷键：1-9/0/- 切视图、/ 搜索、Esc 关弹层
 (function(){
-  const KORDER=["overview","lab","kb","exam","res","grow","board","data","plan","score","about"];
+  const KORDER=["overview","lab","kb","exam","grow","board","data","plan","score"];
   const KMAP={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9,"-":10};
   document.addEventListener("keydown",e=>{
     const t=e.target;
@@ -3484,7 +3403,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();renderAiReport();
+  renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();renderAiReport();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
