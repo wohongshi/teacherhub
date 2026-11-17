@@ -293,6 +293,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .menu-btn svg{width:20px;height:20px;stroke:var(--ink-700);fill:none;stroke-width:2}
 @media (max-width:1020px){.wb-grid,.board-grid{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:repeat(3,1fr)}}
 @media print{
+  #rateStackCard,#examTableCard{page-break-inside:avoid}
+  .card-title::before{color:#000!important;-webkit-text-fill-color:#000!important}
   #reviewCard{page-break-inside:auto}
   #reviewCard .chip{display:none!important}
   #reviewCard .up-item{page-break-inside:avoid;border-bottom:1px dashed #ccc;padding:8px 0}
@@ -935,6 +937,14 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       <div class="card section" id="examQuadCard" style="display:none">
         <div class="card-head"><div><div class="card-title">考试质量四象限</div><div class="card-sub">难度系数（均分/150）× 及格率 · 一眼看出每场卷子的位置</div></div></div>
         <div id="examQuadChart"></div>
+      </div>
+      <div class="card section" id="rateStackCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">三率堆叠对比</div><div class="card-sub">每场考试的优秀 / 良好 / 及格 / 待提占比 · 一排看清结构变化</div></div></div>
+        <div id="rateStackBody"></div>
+      </div>
+      <div class="card section" id="examTableCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">成绩数据总表</div><div class="card-sub">全部考试一览 · 点表头排序</div></div></div>
+        <div id="examTableBody"></div>
       </div>
       <div class="card section" id="reviewCard" style="display:none">
         <div class="card-head"><div><div class="card-title">试卷讲评清单</div><div class="card-sub">按全班失分排讲评优先级 · 勾选记录讲评进度，课前一目了然</div></div>
@@ -2162,6 +2172,63 @@ function renderExamKb(){
     <tbody>${body}</tbody></table></div>
     <div style="margin-top:10px;font-size:12px;color:var(--ink-500)">六年 74 题 = 选择 42 + 反应原理 12 + 工业流程 6 + 实验探究 6 + 有机推断 4 + 零头 4 · 归口为教研口径估算</div>`;
 }
+function renderRateStack(){
+  const el=document.querySelector("#rateStackCard");if(!el)return;
+  if(typeof SCORES==="undefined"||!SCORES.length){el.style.display="none";return}
+  el.style.display="block";
+  const rows=SCORES.map(e=>{
+    const excel=e.excellent_rate||0;
+    const good=Math.max(0,(e.good_rate||0)-excel);
+    const pass=Math.max(0,(e.pass_rate||0)-(e.good_rate||0));
+    const low=Math.max(0,100-(e.pass_rate||0));
+    return {name:e.name,excel,good,pass,low};
+  });
+  const seg=(w,color,label)=>w>0.4?`<div title="${label} ${w.toFixed(1)}%" style="width:${w}%;background:${color};height:100%"></div>`:"";
+  $("#rateStackBody").innerHTML=rows.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;margin:7px 0">
+      <div style="width:110px;font-size:12px;font-weight:600;color:var(--ink-700);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.name)}">${esc(String(r.name).slice(0,8))}</div>
+      <div style="flex:1;display:flex;height:20px;border-radius:99px;overflow:hidden;background:var(--green-50)">
+        ${seg(r.excel,"var(--gold)","优秀")}${seg(r.good,"#5B9BD5","良好")}${seg(r.pass,"var(--green-600)","及格")}${seg(r.low,"#C0563E","待提")}
+      </div>
+      <div style="width:74px;font-size:10.5px;color:var(--ink-500);text-align:right">优 ${Math.round(r.excel)}%</div>
+    </div>`).join("")+
+    `<div style="display:flex;gap:14px;justify-content:center;margin-top:10px;font-size:11px;color:var(--ink-500)">
+      <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--gold);vertical-align:-1px"></i> 优秀 ≥90</span>
+      <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#5B9BD5;vertical-align:-1px"></i> 良好 75-89</span>
+      <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--green-600);vertical-align:-1px"></i> 及格 60-74</span>
+      <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#C0563E;vertical-align:-1px"></i> 待提 &lt;60</span>
+    </div>`;
+}
+let __examSort={k:"at",dir:-1};
+function renderExamTable(){
+  const el=document.querySelector("#examTableCard");if(!el)return;
+  if(typeof SCORES==="undefined"||!SCORES.length){el.style.display="none";return}
+  el.style.display="block";
+  const sorted=[...SCORES].sort((a,b)=>{
+    const va=(a[__examSort.k]||0),vb=(b[__examSort.k]||0);
+    return (va-vb)*__examSort.dir;
+  });
+  const th=(k,label)=>`<th data-sortk="${k}" style="cursor:pointer;user-select:none">${label}${__examSort.k===k?(__examSort.dir>0?" ▲":" ▼"):""}</th>`;
+  $("#examTableBody").innerHTML=`<div class="tbl-wrap"><table class="tbl">
+    <thead><tr>${th("at","时间")}${th("name","考试")}${th("count","人数")}${th("avg","均分")}${th("pass_rate","及格")}${th("good_rate","良好")}${th("excellent_rate","优秀")}${th("avg","难度")}</tr></thead>
+    <tbody>${sorted.map((e,i)=>{
+      const prev=i<sorted.length-1?sorted[i+1]:null;
+      const d=prev?Math.round(((e.avg||0)-(prev.avg||0))*10)/10:0;
+      const arrow=prev?(d>0?'<span style="color:#2D7D4F">▲</span>':(d<0?'<span style="color:#C0563E">▼</span>':'<span style="color:var(--ink-300)">—</span>')):'';
+      return `<tr><td style="white-space:nowrap">${fmtTs(e.at)}</td><td style="font-weight:600">${esc(e.name)}${e.modules&&e.modules.length?` <span class="td-tag b">${esc(e.modules[0].slice(0,4))}</span>`:""}</td><td>${e.count}</td>
+      <td style="font-variant-numeric:tabular-nums"><b>${e.avg}</b> ${arrow}</td>
+      <td style="color:var(--green-700)">${e.pass_rate||0}%</td><td style="color:#B45309">${e.good_rate||0}%</td><td style="color:#4A7BA7">${e.excellent_rate||0}%</td>
+      <td>${((e.avg||0)/150).toFixed(2)}</td></tr>`;
+    }).join("")}</tbody></table></div>`;
+  $("#examTableBody").querySelectorAll("[data-sortk]").forEach(t=>{
+    t.addEventListener("click",()=>{
+      const k=t.dataset.sortk;
+      __examSort.dir=__examSort.k===k?-__examSort.dir:-1;
+      __examSort.k=k;
+      renderExamTable();
+    });
+  });
+}
 function renderReview(){
   const el=document.querySelector("#reviewCard");if(!el)return;
   const cur=window.__scoreSel?SCORES.find(e=>e.id===window.__scoreSel):SCORES[SCORES.length-1];
@@ -3219,6 +3286,8 @@ function renderScore(){
   renderQDist();
   renderQBox();
   renderVolWarn();
+  renderRateStack();
+  renderExamTable();
   renderAiReport();
   renderReview();
   renderExamQuad();
@@ -3505,7 +3574,7 @@ function renderData(){
     _SCORES_ALL=SCORES.slice();
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();renderAiReport();
+  renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();renderAiReport();renderRateStack();renderExamTable();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
