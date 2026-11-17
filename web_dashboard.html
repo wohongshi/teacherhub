@@ -2205,12 +2205,13 @@ function renderExamTable(){
   if(typeof SCORES==="undefined"||!SCORES.length){el.style.display="none";return}
   el.style.display="block";
   const sorted=[...SCORES].sort((a,b)=>{
-    const va=(a[__examSort.k]||0),vb=(b[__examSort.k]||0);
-    return (va-vb)*__examSort.dir;
+    const va=a[__examSort.k],vb=b[__examSort.k];
+    if(typeof va==="string"||typeof vb==="string")return String(va||"").localeCompare(String(vb||""))*__examSort.dir;
+    return ((va||0)-(vb||0))*__examSort.dir;
   });
   const th=(k,label)=>`<th data-sortk="${k}" style="cursor:pointer;user-select:none">${label}${__examSort.k===k?(__examSort.dir>0?" ▲":" ▼"):""}</th>`;
   $("#examTableBody").innerHTML=`<div class="tbl-wrap"><table class="tbl">
-    <thead><tr>${th("at","时间")}${th("name","考试")}${th("count","人数")}${th("avg","均分")}${th("pass_rate","及格")}${th("good_rate","良好")}${th("excellent_rate","优秀")}${th("avg","难度")}</tr></thead>
+    <thead><tr>${th("at","时间")}${th("name","考试")}${th("count","人数")}${th("avg","均分")}${th("pass_rate","及格")}${th("good_rate","良好")}${th("excellent_rate","优秀")}<th>难度</th></tr></thead>
     <tbody>${sorted.map((e,i)=>{
       const prev=i<sorted.length-1?sorted[i+1]:null;
       const d=prev?Math.round(((e.avg||0)-(prev.avg||0))*10)/10:0;
@@ -3148,6 +3149,9 @@ let _SCORES_ALL=[];
 let __modFilter="";
 function applyModFilter(){
   SCORES=__modFilter?_SCORES_ALL.filter(e=>(e.modules||[]).includes(__modFilter)):_SCORES_ALL.slice();
+  if(window.__scoreSel&&!SCORES.some(e=>e.id===window.__scoreSel)){
+    window.__scoreSel=SCORES.length?SCORES[SCORES.length-1].id:null;
+  }
   renderScore();
 }
 document.addEventListener("click",e=>{
@@ -3574,7 +3578,7 @@ function renderData(){
     _SCORES_ALL=SCORES.slice();
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();renderAiReport();renderRateStack();renderExamTable();
+  renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();renderReview();renderAiReport();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
