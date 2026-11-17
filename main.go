@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -46,6 +47,8 @@ func main() {
 		cmdPush(args)
 	case "stats":
 		cmdStats(args)
+	case "scan":
+		cmdScan(args)
 	default:
 		usage()
 	}
@@ -65,6 +68,7 @@ func usage() {
   search    检索云端有无类似工作台：search "钠与水 实验"
   push      推送产物：push 文件.html --title 标题 --tags 标签1,标签2 --desc 简介
   stats     看大家最近的贡献统计
+  scan      定时扫描 ImaHub 近期创建/上传，自动把文件名报成贡献（配 cron/插件定时跑）
 
 说明：全程零账号；key 全员统一一把（不外传给学生）；工作台产物=单文件 HTML。`)
 }
@@ -75,6 +79,9 @@ type localConfig struct {
 	Cloud string `json:"cloud"` // 云端地址，如 https://hub.example.com
 	Name  string `json:"name"`  // 教师姓名（署名用）
 	Key   string `json:"key"`   // 统一访问 key
+	Imahub    string `json:"imahub,omitempty"`    // ImaHub 地址（scan 数据源，默认 http://127.0.0.1:8090）
+	ImaToken  string `json:"ima_token,omitempty"` // ImaHub MCP token（Bearer 鉴权）
+	LastScan  int64  `json:"last_scan,omitempty"` // scan 增量水位（unix 秒）
 }
 
 func configPath() string {
@@ -177,6 +184,8 @@ func cmdConfig(args []string) {
 	cloud := fl.String("cloud", "", "云端地址")
 	name := fl.String("name", "", "教师姓名")
 	key := fl.String("key", "", "统一访问 key")
+	imahub := fl.String("imahub", "", "ImaHub 地址（scan 用）")
+	imatoken := fl.String("imatoken", "", "ImaHub MCP token（scan 用）")
 	fl.Parse(reorderArgs(args))
 	c := loadConfig()
 	changed := false
@@ -192,6 +201,14 @@ func cmdConfig(args []string) {
 		c.Key = strings.TrimSpace(*key)
 		changed = true
 	}
+	if *imahub != "" {
+		c.Imahub = strings.TrimSpace(*imahub)
+		changed = true
+	}
+	if *imatoken != "" {
+		c.ImaToken = strings.TrimSpace(*imatoken)
+		changed = true
+	}
 	if changed {
 		if err := saveConfig(c); err != nil {
 			fmt.Println("保存失败:", err)
@@ -203,7 +220,7 @@ func cmdConfig(args []string) {
 	if rr := []rune(masked); len(rr) > 8 {
 		masked = string(rr[:4]) + "…" + string(rr[len(rr)-2:])
 	}
-	fmt.Printf("云端地址: %s\n教师姓名: %s\n访问 key: %s\n", orDash(c.Cloud), orDash(c.Name), orDash(masked))
+	fmt.Printf("云端地址: %s\n教师姓名: %s\n访问 key: %s\nImaHub: %s\n", orDash(c.Cloud), orDash(c.Name), orDash(masked), orDash(c.Imahub))
 }
 
 func orDash(s string) string {
@@ -220,6 +237,96 @@ func cmdPing(args []string) {
 		os.Exit(1)
 	}
 	fmt.Printf("✓ 云端在线（v%v）\n", out["version"])
+}
+
+func cmdScan(args []string) {
+	fl := flag.NewFlagSet("scan", flag.ExitOnError)
+	days := fl.Int("days", 7, "首跑回看天数")
+	fl.Parse(reorderArgs(args))
+	c := loadConfig()
+	if c.Cloud == "" || c.Name == "" {
+		fmt.Println("还没配置云端/姓名。先跑：teacherhub ui")
+		os.Exit(1)
+	}
+	im := c.Imahub
+	if im == "" {
+		im = "http://127.0.0.1:8090"
+	}
+	req, err := http.NewRequest("GET", strings.TrimRight(im, "/")+"/api/dashboard", nil)
+	if err != nil {
+		fmt.Println("✗", err)
+		os.Exit(1)
+	}
+	if c.ImaToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.ImaToken)
+	}
+	cli := &http.Client{Timeout: 20 * time.Second}
+	resp, err := cli.Do(req)
+	if err != nil {
+		fmt.Println("✗ 连不上 ImaHub:", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	if resp.StatusCode != 200 {
+		fmt.Println("✗ ImaHub 返回:", resp.StatusCode, out["msg"])
+		os.Exit(1)
+	}
+	data, _ := out["data"].(map[string]any)
+	rec, _ := data["recent"].([]any)
+	watermark := c.LastScan
+	if watermark == 0 {
+		watermark = time.Now().AddDate(0, 0, -*days).Unix()
+	}
+	type scanItem struct {
+		kind, title, kb string
+		at              int64
+	}
+	var fresh []scanItem
+	for _, r := range rec {
+		m, _ := r.(map[string]any)
+		if m == nil {
+			continue
+		}
+		at := int64(0)
+		if v, ok := m["at"].(float64); ok {
+			at = int64(v)
+		}
+		title, _ := m["title"].(string)
+		if at <= watermark || title == "" {
+			continue
+		}
+		kind, _ := m["kind"].(string)
+		kb, _ := m["kb_name"].(string)
+		fresh = append(fresh, scanItem{kind, title, kb, at})
+	}
+	if len(fresh) == 0 {
+		fmt.Println("没有新条目")
+		return
+	}
+	sort.Slice(fresh, func(i, j int) bool { return fresh[i].at < fresh[j].at })
+	maxAt := watermark
+	n := 0
+	for _, it := range fresh {
+		text := "创建了《" + it.title + "》"
+		if it.kind == "upload" {
+			text = "上传了《" + it.title + "》"
+		}
+		if _, err := apiCall("POST", "/api/contrib", map[string]any{
+			"teacher": c.Name, "text": text, "kb": it.kb, "item": it.title,
+		}, ""); err != nil {
+			fmt.Println("✗ 上报失败:", it.title, err)
+			continue
+		}
+		n++
+		if it.at > maxAt {
+			maxAt = it.at
+		}
+	}
+	c.LastScan = maxAt
+	_ = saveConfig(c)
+	fmt.Printf("✓ 已上报 %d 条新资料动态\n", n)
 }
 
 func cmdContrib(args []string) {
