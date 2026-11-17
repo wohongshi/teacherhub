@@ -1026,7 +1026,6 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function fmtTs(ts){if(!ts)return"";let d;const n=Number(ts);if(Number.isFinite(n)&&n>1e8){d=new Date(n*1000)}else{d=new Date(String(ts).endsWith("Z")?String(ts):String(ts).replace(" ","T")+"Z")}if(isNaN(d.getTime()))return"";const p=x=>String(x).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}
 function toast(msg){const t=document.createElement("div");t.textContent=msg;t.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#2F6B45;color:#fff;font-size:13px;padding:10px 22px;border-radius:999px;z-index:200;box-shadow:0 6px 20px rgba(47,107,69,.3)";document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
 
-/* ============ 元素速达（周期表第一行 + Na，按导航顺序） ============ */
 
 /* ============ 演示数据（标「演示数据」处使用） ============ */
 const CAL_TEMPLATE=[
