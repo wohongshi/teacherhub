@@ -35,6 +35,12 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--green-40
 .motto-star{color:var(--gold);font-size:12px;animation:twinkle 3.2s ease-in-out infinite}
 .motto-star:last-child{animation-delay:1.6s}
 @keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+@keyframes chartIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+@keyframes radarIn{from{opacity:0;transform:scale(.72)}to{opacity:1;transform:scale(1)}}
+@keyframes barGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+#scoreBars svg,#scoreTrend svg,#segStackChart svg,#segTrendChart svg,#segFlowChart svg,#rateTrendChart svg,#examQuadChart svg,#kbScoreBody svg,#healthCard svg,#volWarnChart svg,#dispTrendChart svg,#qBoxChart svg,#dataSpark svg,#wbStatsChart svg{animation:chartIn .55s var(--ease) both}
+#kbScoreBody svg polygon,#examQuadChart svg polygon{transform-box:fill-box;transform-origin:center;animation:radarIn .65s var(--ease) both}
+#segStackChart svg rect,#scoreBars svg rect{transform-box:fill-box;transform-origin:bottom;animation:barGrow .5s var(--ease) both}
 ::selection{background:rgba(201,161,92,.28)}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:rgba(35,43,37,.16);border-radius:99px;border:2px solid transparent;background-clip:content-box}
@@ -409,7 +415,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .elem-tile:hover{animation:elemPulse 1.2s ease infinite}
 @keyframes barGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 #scoreBars rect{transform-origin:bottom;animation:barGrow .5s ease both}
-@media (prefers-reduced-motion:reduce){.plant svg,.view.on,.elem-tile:hover,#scoreBars rect{animation:none}}
+@media (prefers-reduced-motion:reduce){.plant svg,.view.on,#scoreBars svg,#scoreTrend svg,#segStackChart svg,#segTrendChart svg,#segFlowChart svg,#rateTrendChart svg,#examQuadChart svg,#kbScoreBody svg,#healthCard svg,#volWarnChart svg,#dispTrendChart svg,#qBoxChart svg,#dataSpark svg,#wbStatsChart svg,#kbScoreBody svg polygon,#examQuadChart svg polygon,#segStackChart svg rect,#scoreBars svg rect,.motto-star,.empty-state::before{animation:none}}
 </style>
 </head>
 <body>
@@ -1958,6 +1964,34 @@ function renderCmpEnhance(dA,dB){
   if(!dA||!dB)return;
   const box=$("#cmpResult");
   if(!box)return;
+    // 五维对比雷达（均分/及格/良好/优秀/难度适中，A 绿 B 金）
+    const dims=[
+      {k:"均分",a:(dA.avg||0)/150*100,b:(dB.avg||0)/150*100},
+      {k:"及格率",a:dA.pass_rate||0,b:dB.pass_rate||0},
+      {k:"良好率",a:dA.good_rate||0,b:dB.good_rate||0},
+      {k:"优秀率",a:dA.excellent_rate||0,b:dB.excellent_rate||0},
+      {k:"难度适中",a:Math.max(0,100-Math.abs((dA.avg||0)/150-0.65)*250),b:Math.max(0,100-Math.abs((dB.avg||0)/150-0.65)*250)}
+    ];
+    const R=88,cx=160,cy=138,n=5;
+    const rpt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/n;return [cx+r*Math.cos(a),cy+r*Math.sin(a)]};
+    let radar=`<div style="margin-top:14px"><div style="font-size:12px;font-weight:600;color:var(--ink-700);margin-bottom:6px">⬡ 五维对比雷达</div><svg viewBox="0 0 320 280" style="width:100%;max-width:340px;height:280px;display:block;margin:0 auto">`;
+    [25,50,75,100].forEach(lv=>{
+      const pts=Array.from({length:n},(_,i)=>rpt(i,R*lv/100).map(v=>v.toFixed(1)).join(",")).join(" ");
+      radar+=`<polygon points="${pts}" fill="none" stroke="var(--gold-soft)" stroke-width="${lv===100?1:.6}" opacity=".45"/>`;
+    });
+    for(let i=0;i<n;i++){const [x,y]=rpt(i,R);radar+=`<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--gold-soft)" stroke-width=".6" opacity=".35"/>`}
+    const pa=dims.map((d,i)=>rpt(i,R*Math.max(0,Math.min(100,d.a))/100).map(x=>x.toFixed(1)).join(",")).join(" ");
+    const pb=dims.map((d,i)=>rpt(i,R*Math.max(0,Math.min(100,d.b))/100).map(x=>x.toFixed(1)).join(",")).join(" ");
+    radar+=`<polygon points="${pa}" fill="rgba(78,154,99,.18)" stroke="var(--green-700)" stroke-width="1.8"/>`;
+    radar+=`<polygon points="${pb}" fill="rgba(201,161,92,.2)" stroke="var(--gold-deep)" stroke-width="1.8" stroke-dasharray="5,3"/>`;
+    dims.forEach((d,i)=>{
+      const [x,y]=rpt(i,R+24);
+      const anchor=x<cx-8?"end":(x>cx+8?"start":"middle");
+      radar+=`<text x="${x.toFixed(1)}" y="${(y-1).toFixed(1)}" text-anchor="${anchor}" font-size="10" font-weight="600" fill="var(--ink-700)">${d.k}</text>`;
+      radar+=`<text x="${x.toFixed(1)}" y="${(y+11).toFixed(1)}" text-anchor="${anchor}" font-size="8.5" fill="var(--ink-500)">${Math.round(d.a)}→${Math.round(d.b)}</text>`;
+    });
+    radar+=`<g font-size="9.5"><rect x="8" y="6" width="11" height="3" rx="1.5" fill="var(--green-700)"/><text x="24" y="11" fill="var(--ink-500)">前场</text><rect x="56" y="6" width="11" height="3" rx="1.5" fill="var(--gold-deep)"/><text x="72" y="11" fill="var(--ink-500)">本场</text></g>`;
+    radar+=`</svg></div>`;
     // 分数段对比
     const segsA=dA.segments||[],segsB=dB.segments||[];
     const labels=["不及格","及格","中等","良好","优秀"];
@@ -1985,7 +2019,7 @@ function renderCmpEnhance(dA,dB){
     let tipHtml="";
     if(best&&best.diff>0)tipHtml+=`<div style="font-size:12px;color:#4E9A63;margin-top:8px">📈 最大进步：第${esc(String(best.qn))}题（+${best.diff}%）</div>`;
     if(worst&&worst.diff<0)tipHtml+=`<div style="font-size:12px;color:#C2453F;margin-top:4px">📉 最大退步：第${esc(String(worst.qn))}题（${worst.diff}%）</div>`;
-    box.innerHTML+=segHtml+tipHtml;
+    box.innerHTML=radar+segHtml+tipHtml;
 }
 
 // 分数段堆叠柱状图（单场五档占比）
@@ -3439,9 +3473,12 @@ function renderData(){
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义
-    $("#statAvg").innerHTML=`${latest.avg}<small>分</small>`;
+    const prev=SCORES.length>1?SCORES[SCORES.length-2]:null;
+    const dAvg=prev?Math.round(((latest.avg||0)-(prev.avg||0))*10)/10:0;
+    const arrow=prev?(dAvg>0?'<span style="color:#2D7D4F;font-size:13px">▲</span>':(dAvg<0?'<span style="color:#C2453F;font-size:13px">▼</span>':'<span style="color:var(--ink-300);font-size:13px">—</span>')):'';
+    $("#statAvg").innerHTML=`${latest.avg}<small>分</small>${arrow}`;
     $("#statAvg").className="sval";
-    $("#statAvgNote").textContent=latest.name+" · "+latest.count+" 人";
+    $("#statAvgNote").textContent=latest.name+" · "+latest.count+" 人"+(prev?(dAvg>0?" · 较上场 +"+dAvg+" 分":(dAvg<0?" · 较上场 "+dAvg+" 分":" · 与上场持平")):"");
   }
   // 公告
   try{
