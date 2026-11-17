@@ -72,7 +72,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .side-foot .sprout{position:absolute;right:8px;bottom:52px;opacity:.16;pointer-events:none}
 .side-foot p{font-size:11px;color:var(--ink-300);line-height:1.9}
 /* ===== 顶栏 ===== */
-.topbar{height:64px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:30}
+.topbar{height:64px;background:linear-gradient(180deg,#FDFAF2,var(--surface));border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:30}
+.topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;background:linear-gradient(90deg,transparent 5%,var(--gold-soft) 30%,var(--gold) 50%,var(--gold-soft) 70%,transparent 95%);opacity:.7}
 .top-title{font-size:16px;font-weight:700;color:var(--ink-900)}
 .top-title .term{font-size:12px;font-weight:400;color:var(--ink-500);margin-left:12px}
 .top-right{display:flex;align-items:center;gap:12px}
@@ -101,6 +102,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .card::before{content:"";position:absolute;top:0;left:22px;right:22px;height:2px;background:linear-gradient(90deg,transparent,var(--gold-soft),transparent);opacity:.6;border-radius:2px}
 .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
 .card-title{font-size:16.5px;font-weight:700;letter-spacing:-.2px;background:linear-gradient(120deg,#8A6428,#C9A15C 55%,#8A6428);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card-title::before{content:"✦";margin-right:7px;font-size:12px;color:var(--gold);-webkit-text-fill-color:var(--gold);vertical-align:1.5px}
 .card-sub{font-size:12px;color:var(--ink-300);margin-top:3px}
 .section{margin-top:22px}
 .section-gap{height:22px}
@@ -202,7 +204,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .btn-primary:hover{background:var(--green-900)}
 .btn-line{height:36px;padding:0 13px;border:1px solid var(--line);border-radius:9px;font-size:12px;color:var(--ink-700);background:#fff;display:flex;align-items:center;gap:4px}
 .btn-line:hover{border-color:var(--green-400);color:var(--green-900)}
-.empty-state{text-align:center;padding:52px 0 40px;color:var(--ink-300)}
+.empty-state{text-align:center;padding:52px 0 40px;color:var(--ink-300);position:relative}
+.empty-state::before{content:"✦  ·  ✧  ·  ✦";display:block;font-size:12px;color:var(--gold);opacity:.55;letter-spacing:5px;margin-bottom:10px;animation:twinkle 3.6s ease-in-out infinite}
+.empty-state::after{content:"";position:absolute;left:50%;top:26px;width:120px;height:1px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,var(--gold-soft),transparent)}
 .empty-state .big{font-size:38px;margin-bottom:10px}
 /* 表格类（课标/真题/制度） */
 .tbl{width:100%;border-collapse:collapse;font-size:12.8px}
@@ -1131,7 +1135,6 @@ function go(view){
   const el=$("#v-"+view); if(!el)return;
   el.classList.add("on");
   $$(".nav-item").forEach(n=>n.classList.toggle("on",n.dataset.view===view));
-  $$(".elem-tile").forEach(n=>n.classList.toggle("on",n.dataset.view===view));
   $$(".mbar-item").forEach(n=>n.classList.toggle("on",n.dataset.view===view));
   $("#topTitle").textContent=TITLES[view]||"总览";
   $("#sidebar").classList.remove("open");

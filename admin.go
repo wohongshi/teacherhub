@@ -20,18 +20,20 @@ const adminPage = `<!doctype html>
 <title>管理后台 · 化学学科园地</title>
 <style>
 :root{
-  --green-900:#2F6B45;--green-700:#3C7D52;--green-600:#4E9A63;--green-400:#8FC79B;
-  --green-100:#E3F0E4;--green-50:#F0F6EF;--sand-100:#F7E8C8;--sand-700:#B08A4A;
-  --ink-900:#1F2A22;--ink-700:#3E4A41;--ink-500:#7C8A7F;--ink-300:#A8B2A9;
-  --bg:#F7F9F6;--surface:#fff;--line:#EBEFE9;--line2:#EDF1EC;
+  --green-900:#3B7A52;--green-700:#4E9A63;--green-600:#5EAF7E;--green-400:#8FC79B;
+  --green-100:#E3F0E4;--green-50:#EDF5EE;--sand-100:#F7E8C8;--sand-700:#B08A4A;
+  --gold:#C9A15C;--gold-deep:#A87E42;--gold-soft:#E8D5A8;
+  --navy:#2B3A4E;--navy-deep:#1F2C3D;
+  --ink-900:#3D3226;--ink-700:#5C4E3E;--ink-500:#8B7B66;--ink-300:#B5A68E;
+  --bg:#F2EAD9;--surface:#FBF6EA;--line:rgba(169,134,78,.24);--line2:rgba(169,134,78,.15);
   --danger:#C2453F;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:var(--bg);background-image:radial-gradient(#E4EAE2 1px,transparent 1px);background-size:22px 22px;color:var(--ink-700);font-size:13.5px;line-height:1.6}
+body{font-family:'Inter',-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:linear-gradient(160deg,#F5EEDF 0%,#F2EAD9 40%,#EDE1C8 100%) fixed;background-image:radial-gradient(rgba(169,134,78,.13) 1px,transparent 1px);background-size:22px 22px;color:var(--ink-700);font-size:13.5px;line-height:1.6}
 a{color:var(--green-700);text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
 input,textarea,select{font-family:inherit;font-size:13px;color:var(--ink-900)}
-#toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-14px);background:var(--green-900);color:#fff;padding:10px 22px;border-radius:999px;font-size:13px;opacity:0;transition:all .25s;z-index:999;pointer-events:none;box-shadow:0 6px 20px rgba(47,107,69,.3)}
+#toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-14px);background:linear-gradient(135deg,#C9A15C,#A87E42);color:#FFF8E7;padding:10px 22px;border-radius:999px;font-size:13px;opacity:0;transition:all .25s;z-index:999;pointer-events:none;box-shadow:0 6px 20px rgba(168,126,66,3)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (prefers-color-scheme:dark){
 :root{
