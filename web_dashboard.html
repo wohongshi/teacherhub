@@ -910,6 +910,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
         <div class="card-head"><div><div class="card-title">课标模块对照</div><div class="card-sub">教研认领进度 × 教学效果（考试均分）· 录入成绩时勾选模块即可生成</div></div></div>
         <div id="kbScoreBody"></div>
       </div>
+      <div class="card section" id="examQuadCard" style="display:none">
+        <div class="card-head"><div><div class="card-title">考试质量四象限</div><div class="card-sub">难度系数（均分/150）× 及格率 · 一眼看出每场卷子的位置</div></div></div>
+        <div id="examQuadChart"></div>
+      </div>
       <div class="card section" id="dispTrendCard" style="display:none">
         <div class="card-head"><div><div class="card-title">成绩离散度趋势</div><div class="card-sub">变异系数 CV = 标准差 / 均分 · 看班级成绩分化程度</div></div></div>
         <div id="dispTrendChart"></div>
@@ -1400,10 +1404,16 @@ function renderCal(){
 /* —— 最近上传（真实数据） —— */
 function renderRecent(){
   const rows=[];
-  (CONTRIBS||[]).slice(0,5).forEach(c=>{
-    const tag=c.subject||c.tag||(c.text&&c.text.indexOf("实验")>=0?"实验":"资源");
-    const cls=/实验|演示/.test(tag)?"exp":(/作业/.test(tag)?"hw":(/活动/.test(tag)?"act":""));
-    rows.push(`<div class="up-item"><div class="up-tag ${cls}">${esc(tag.slice(0,4))}</div><div style="flex:1;min-width:0"><div class="up-title">${esc(c.title||c.text||"教研资料")}</div><div class="up-meta">${esc(c.teacher||"教研组")} · ${fmtTs(c.at)}</div></div></div>`);
+  const now=Date.now(), dayAgo=now-864e5, weekAgo=now-7*864e5;
+  let lastGroup="";
+  (CONTRIBS||[]).slice(0,8).forEach(c=>{
+    const at=(c.at||0)*1000;
+    const group=at>=dayAgo?"今天":(at>=weekAgo?"本周":"更早");
+    if(group!==lastGroup){lastGroup=group;rows.push(`<div style="font-size:11px;font-weight:700;color:var(--ink-400);margin:6px 0 2px;letter-spacing:1px">${group}</div>`)}
+    const isScan=c.source==="scan";
+    const tag=isScan?"🤖 自动":(c.subject||c.tag||(c.text&&c.text.indexOf("实验")>=0?"实验":"资料"));
+    const cls=isScan?"":(/实验|演示/.test(tag)?"exp":(/作业/.test(tag)?"hw":(/活动/.test(tag)?"act":"")));
+    rows.push(`<div class="up-item"><div class="up-tag ${cls}">${esc(tag.slice(0,4))}</div><div style="flex:1;min-width:0"><div class="up-title">${esc(c.title||c.text||"教研资料")}</div><div class="up-meta">${esc(c.teacher||"教研组")} · ${fmtTs(c.at)}${c.kb?" · "+esc(c.kb):""}</div></div></div>`);
   });
   // 实验产物补位
   WBS.slice(0,6).forEach(w=>{
@@ -2130,6 +2140,38 @@ function renderExamKb(){
     <thead><tr><th>课标模块</th><th>独立大题</th><th>卷型归口</th><th>选择题覆盖</th><th>认领</th><th>建议</th></tr></thead>
     <tbody>${body}</tbody></table></div>
     <div style="margin-top:10px;font-size:12px;color:var(--ink-500)">六年 74 题 = 选择 42 + 反应原理 12 + 工业流程 6 + 实验探究 6 + 有机推断 4 + 零头 4 · 归口为教研口径估算</div>`;
+}
+function renderExamQuad(){
+  const el=document.querySelector("#examQuadCard");if(!el)return;
+  if(typeof SCORES==="undefined"||SCORES.length<2){el.style.display="none";return}
+  el.style.display="block";
+  const W=640,H=300,PAD=42;
+  const xOf=p=>PAD+Math.max(0,Math.min(1,(p-0.3)/0.65))*(W-PAD*2);
+  const yOf=r=>H-PAD-(Math.max(0,Math.min(100,r))/100)*(H-PAD*2);
+  const xMid=xOf(0.6), yMid=yOf(60);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px">`;
+  svg+=`<rect x="${PAD}" y="${PAD}" width="${xMid-PAD}" height="${yMid-PAD}" fill="#5B9BD5" opacity="0.06"/>`;
+  svg+=`<rect x="${xMid}" y="${PAD}" width="${W-PAD-xMid}" height="${yMid-PAD}" fill="#4E9A63" opacity="0.08"/>`;
+  svg+=`<rect x="${PAD}" y="${yMid}" width="${xMid-PAD}" height="${H-PAD-yMid}" fill="#C0563E" opacity="0.06"/>`;
+  svg+=`<rect x="${xMid}" y="${yMid}" width="${W-PAD-xMid}" height="${H-PAD-yMid}" fill="#E5A93F" opacity="0.07"/>`;
+  svg+=`<line x1="${xMid}" y1="${PAD}" x2="${xMid}" y2="${H-PAD}" stroke="var(--line)" stroke-dasharray="5 4"/>`;
+  svg+=`<line x1="${PAD}" y1="${yMid}" x2="${W-PAD}" y2="${yMid}" stroke="var(--line)" stroke-dasharray="5 4"/>`;
+  svg+=`<text x="${W-PAD-6}" y="${PAD+16}" font-size="10.5" fill="#2D7D4F" text-anchor="end">难度适中 · 达标</text>`;
+  svg+=`<text x="${PAD+6}" y="${PAD+16}" font-size="10.5" fill="#5B9BD5">中等生厚实</text>`;
+  svg+=`<text x="${W-PAD-6}" y="${H-PAD-8}" font-size="10.5" fill="#B45309" text-anchor="end">两极分化</text>`;
+  svg+=`<text x="${PAD+6}" y="${H-PAD-8}" font-size="10.5" fill="#C0563E">偏难 · 待改进</text>`;
+  svg+=`<text x="${W/2}" y="${H-8}" font-size="11" fill="var(--ink-500)" text-anchor="middle">难度系数 P = 均分 / 150</text>`;
+  svg+=`<text x="12" y="${H/2}" font-size="11" fill="var(--ink-500)" text-anchor="middle" transform="rotate(-90 12 ${H/2})">及格率 %</text>`;
+  SCORES.forEach(e=>{
+    const p=Math.max(0,Math.min(1,(e.avg||0)/150));
+    const r=e.pass_rate||0;
+    const x=xOf(p), y=yOf(r);
+    const good=p>=0.6&&r>=60;
+    svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="${good?"#4E9A63":(p<0.6&&r<60?"#C0563E":"#E5A93F")}" stroke="#fff" stroke-width="2"><title>${esc(e.name)}：P=${p.toFixed(2)}，及格率 ${r}%</title></circle>`;
+    svg+=`<text x="${x.toFixed(1)}" y="${(y-11).toFixed(1)}" font-size="10" fill="var(--ink-700)" text-anchor="middle">${esc(String(e.name).slice(0,8))}</text>`;
+  });
+  svg+=`</svg>`;
+  $("#examQuadChart").innerHTML=svg;
 }
 function renderKbScore(){
   const el=$("#kbScoreCard");if(!el)return;
@@ -3049,6 +3091,7 @@ function renderScore(){
   renderQDist();
   renderQBox();
   renderVolWarn();
+  renderExamQuad();
   renderKbScore();
   renderExamKb();
   renderQGoal();
@@ -3331,7 +3374,7 @@ function renderData(){
     SCORES=sc.exams||[];
     KB_CLAIMS=kb.claims||{};
   }catch(e){console.warn("data load:",e)}
-  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();
+  renderElemGrid();renderForest();renderCal();renderRecent();renderLabChips();renderWbs();renderGrow();renderData();renderScore();initCompare();renderSegTrend();renderDiffTrend();renderDispTrend();renderKbClaims();renderKbScore();renderExamKb();renderExamQuad();
   // 统计卡「最近考试均分」联动
   if(SCORES.length){
     const latest=SCORES[SCORES.length-1]; // 数组按录入序，同秒不歧义

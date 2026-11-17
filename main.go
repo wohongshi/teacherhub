@@ -314,7 +314,7 @@ func cmdScan(args []string) {
 			text = "上传了《" + it.title + "》"
 		}
 		if _, err := apiCall("POST", "/api/contrib", map[string]any{
-			"teacher": c.Name, "text": text, "kb": it.kb, "item": it.title,
+			"teacher": c.Name, "text": text, "kb": it.kb, "item": it.title, "source": "scan",
 		}, ""); err != nil {
 			fmt.Println("✗ 上报失败:", it.title, err)
 			continue

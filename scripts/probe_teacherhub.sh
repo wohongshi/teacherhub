@@ -110,7 +110,7 @@ PAGE=$(curl -s "$BASE/"); [[ "$PAGE" == *'class="lab-toolbar"'* && "$PAGE" == *'
 
 # ---- MCP 端点断言 ----
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result']['serverInfo']['name']=='teacherhub',d" 2>/dev/null && ok "MCP 握手（initialize）" || bad "MCP 握手"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==16 and {'record_score','get_scores','get_score_detail'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十六件（含成绩工具）" || bad "MCP 工具清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -c "import json,sys;d=json.load(sys.stdin);ns={t['name'] for t in d['result']['tools']};assert len(ns)==17 and {'record_score','get_scores','get_score_detail','get_contribs'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十七件（含成绩/资料动态）" || bad "MCP 工具清单"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"push_workbench","arguments":{"title":"x","content":"y"}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);assert d['result'].get('isError')==True,d" 2>/dev/null && ok "MCP 写工具无 key 拒" || bad "MCP 写工具鉴权"
 
 # ---- 预览图 / 留言墙 / RSS 断言 ----
@@ -244,7 +244,7 @@ d=json.load(sys.stdin)
 r=json.loads(d['result']['content'][0]['text'])
 assert r.get('ok')==True and [q['rate'] for q in r['questions']]==[38.8,62.0,79.2], r" 2>/dev/null && ok "MCP get_score_detail（失分排行）" || bad "MCP 详情"
 curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"x","scores":[50]}}}' | python3 -c "import json,sys;assert json.load(sys.stdin)['result'].get('isError')==True" 2>/dev/null && curl -s -X POST "$BASE/mcp?key=$KEY" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"record_score","arguments":{"name":"MCP录","scores":[70]}}}' | python3 -c "import json,sys;import json as j;r=j.loads(json.load(sys.stdin)['result']['content'][0]['text']);assert r.get('ok')==True" 2>/dev/null && ok "MCP record_score（无 key 拒/带 key 成）" || bad "MCP record"
-curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":10,"method":"tools/list"}' | python3 -c "import json,sys;ns={t['name'] for t in json.load(sys.stdin)['result']['tools']};assert len(ns)==16 and {'record_score','get_scores','get_score_detail'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十六件" || bad "MCP 清单"
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":10,"method":"tools/list"}' | python3 -c "import json,sys;ns={t['name'] for t in json.load(sys.stdin)['result']['tools']};assert len(ns)==17 and {'record_score','get_scores','get_score_detail','get_contribs'}<=ns,ns" 2>/dev/null && ok "MCP 工具清单十七件" || bad "MCP 清单"
 # ---- ocr 列后补强断言（5 条）----
 # 1) 成绩公开 API 不泄露原始分
 curl -s "$BASE/api/scores" | python3 -c "
@@ -284,6 +284,8 @@ curl -s "$BASE/api/scores/$MX" | python3 -c "import json,sys;d=json.load(sys.std
 curl -s -X POST "$BASE/api/scores" -H "X-Access-Key: $NK" -H 'Content-Type: application/json' --data-raw '{"name":"模块越界","scores":[70],"modules":["a","b","c","d","e","f"]}' -o /dev/null -w '%{http_code}' | grep -q 400 && ok "成绩模块越界拒（>5 个 400）" || bad "成绩模块越界"
 # 10) PWA 离线策略（sw th-v3 + 预缓存壳 + API 不缓存）
 curl -s "$BASE/sw.js" | grep -q "th-v3" && curl -s "$BASE/sw.js" | grep -q "SHELL" && curl -s "$BASE/sw.js" | grep -q "caches.match('/')" && ok "sw.js 离线策略（th-v3 + 缓存壳）" || bad "sw.js"
+# 11) MCP get_contribs（资料动态工具）
+curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' --data-raw '{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"get_contribs","arguments":{"limit":5}}}' | python3 -c "import json,sys;d=json.load(sys.stdin);r=json.loads(d['result']['content'][0]['text']);assert r.get('ok')==True and isinstance(r.get('contribs'),list),r" 2>/dev/null && ok "MCP get_contribs（资料动态）" || bad "MCP get_contribs"
 P=$(grep -c '^P$' "$CNT" 2>/dev/null); F=$(grep -c '^F$' "$CNT" 2>/dev/null)
 echo
 echo "probe_teacherhub: ${P:-0} 通过 / ${F:-0} 失败"

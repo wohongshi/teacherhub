@@ -34,6 +34,7 @@ type Contrib struct {
 	Text    string `json:"text"`
 	KB      string `json:"kb,omitempty"`
 	Item    string `json:"item,omitempty"`
+	Source  string `json:"source,omitempty"`
 	At      int64  `json:"at"`
 }
 
